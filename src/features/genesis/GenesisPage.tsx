@@ -83,6 +83,7 @@ export function GenesisPage() {
   const [selectedWorld, setSelectedWorld] = useState<Set<number>>(new Set());
 
   const abortRef = useRef<AbortController | null>(null);
+  const topRef = useRef<HTMLDivElement | null>(null);
   const pollRef = useRef<{ startedAt: number } | null>(null);
   const timingsRef = useRef<Record<string, number>>({});
   const seededRef = useRef<string | undefined>(undefined);
@@ -265,7 +266,7 @@ export function GenesisPage() {
       description={project ? project.title + " · 写一句灵感，长出人物、世界观与分卷结构" : "五阶段生成故事圣经"}
       actions={statusMeta ? <Chip color={statusMeta.color}>{statusMeta.label}</Chip> : undefined}
     >
-      <div className="mx-auto max-w-5xl space-y-5 pb-12">
+      <div ref={topRef} className="mx-auto max-w-5xl space-y-5 pb-12">
         <GenesisForm
           seed={seed}
           onSeedChange={setSeed}
@@ -387,7 +388,8 @@ export function GenesisPage() {
           onView={(target) => {
             setRun(target);
             setApplyResult(undefined);
-            window.scrollTo({ top: 0, behavior: "smooth" });
+            // 页面滚动容器在 PageScaffold 里，用 scrollIntoView 更可靠
+            topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onApply={(target) => void doApply(target, true)}
         />

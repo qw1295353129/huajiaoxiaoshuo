@@ -40,7 +40,6 @@ export function ThreadsPage() {
 
   // 首次读库完成前显示加载态（liveQuery 首帧只返回空数组，无法区分「空」与「未加载」）
   const bootedRes = useAsync(async () => {
-    /* eslint-disable @typescript-eslint/no-unused-vars */
     await listThreads(projectId);
     return true;
   }, [projectId], false);
@@ -200,7 +199,6 @@ export function ThreadsPage() {
           <Tabs.List>
             <Tabs.Tab id="list">列表</Tabs.Tab>
             <Tabs.Tab id="heatmap">伏笔热力图</Tabs.Tab>
-            <Tabs.Indicator />
           </Tabs.List>
 
           <Tabs.Panel id="list">

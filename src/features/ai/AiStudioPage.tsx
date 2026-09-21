@@ -18,7 +18,7 @@ import { ContextPanel } from "./ContextPanel";
 import { MessageList } from "./MessageList";
 import { QuickActions, type QuickAction } from "./QuickActions";
 import { SessionSidebar } from "./SessionSidebar";
-import { toCitation, type RunMeta } from "./meta";
+import { fallbackSources, toCitation, type RunMeta } from "./meta";
 
 /** 对话助手的人设补充，拼在通用 system 底座之后 */
 const CHAT_EXTRA = [
@@ -59,6 +59,7 @@ export function AiStudioPage() {
   const [withChapter, setWithChapter] = useState(true);
   const [archived, setArchived] = useState<AiSession[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const streamTextRef = useRef("");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -95,12 +96,24 @@ export function AiStudioPage() {
   const modelReady = target !== null;
   const modelLabel = target ? target.providerName + " · " + target.model : "";
 
-  // 引用面板默认展示最近一次生成的来源
-  const panelMeta = useMemo(() => {
+  // 引用面板默认展示最近一次生成的来源；
+  // 刷新页面后运行时元信息会丢失，这时用消息里落库的 citations 兜底
+  const panelMeta = useMemo<RunMeta | undefined>(() => {
     if (panelKey && runMeta[panelKey]) return runMeta[panelKey];
     const ids = activeMessages.map((m) => m.id).filter((id) => runMeta[id]);
     const last = ids[ids.length - 1];
-    return last ? runMeta[last] : undefined;
+    if (last) return runMeta[last];
+    const lastAssistant = [...activeMessages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return undefined;
+    return {
+      model: "",
+      providerId: "",
+      ms: 0,
+      ok: !lastAssistant.error,
+      error: lastAssistant.error,
+      contextTokens: lastAssistant.usage?.prompt ?? 0,
+      sources: fallbackSources(lastAssistant.citations),
+    };
   }, [panelKey, runMeta, activeMessages]);
 
   // 切换项目时重置界面态
@@ -159,6 +172,7 @@ export function AiStudioPage() {
 
     setInput("");
     setBusy(true);
+    streamTextRef.current = "";
     setStream({ sessionId, text: "", reasoning: "" });
     const controller = new AbortController();
     abortRef.current = controller;
@@ -175,6 +189,7 @@ export function AiStudioPage() {
         context: { projectId, chapterId: useChapterId, query: content },
         signal: controller.signal,
         onDelta: (delta) => {
+          if (delta.text) streamTextRef.current += delta.text;
           setStream((prev) => {
             if (!prev || prev.sessionId !== sessionId) return prev;
             return {
@@ -186,14 +201,23 @@ export function AiStudioPage() {
         },
       });
 
+      // 手动停止时保留已经流式写出来的内容，不当成失败
+      const aborted = controller.signal.aborted;
+      const partial = streamTextRef.current.trim();
+      const assistantText = result.ok
+        ? result.text
+        : aborted
+          ? (partial ? partial + "\n\n（已手动停止生成）" : "（已停止生成）")
+          : "生成失败：" + (result.error ?? "未知错误");
+
       const assistantMessage: ChatMessage = {
         id: newId("msg"),
         role: "assistant",
-        content: result.ok ? result.text : "生成失败：" + (result.error ?? "未知错误"),
+        content: assistantText,
         createdAt: new Date().toISOString(),
         usage: result.usage,
         citations: result.contextSources.map(toCitation),
-        error: result.ok ? undefined : result.error,
+        error: result.ok || aborted ? undefined : result.error,
         taskKind: "chat",
       };
       await appendMessage(sessionId, assistantMessage);
@@ -210,7 +234,7 @@ export function AiStudioPage() {
         },
       }));
       setPanelKey(assistantMessage.id);
-      if (!result.ok) notify("danger", "生成失败", result.error);
+      if (!result.ok && !aborted) notify("danger", "生成失败", result.error);
     } catch (e) {
       notify("danger", "生成异常", e instanceof Error ? e.message : String(e));
     } finally {

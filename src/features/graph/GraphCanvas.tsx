@@ -292,7 +292,7 @@ export function GraphCanvas({
               emphasisIds.size === 0 || (emphasisIds.has(edge.source) && emphasisIds.has(edge.target));
 
             return (
-              <g key={edge.id} opacity={dim ? 0.12 : emphasized ? 1 : 0.25}>
+              <g key={edge.id} data-edge-id={edge.id} opacity={dim ? 0.12 : emphasized ? 1 : 0.25}>
                 <path d={d} fill="none" stroke={edge.color} strokeWidth={edge.width} strokeOpacity={edge.opacity} strokeLinecap="round" strokeDasharray={edge.dashed ? "5 4" : undefined} />
                 {edge.directed && (
                   <path d={d} fill="none" stroke={edge.color} strokeWidth={edge.width} strokeOpacity={edge.opacity} markerEnd={"url(#" + markerId(edge.color) + ")"} />
@@ -340,6 +340,7 @@ export function GraphCanvas({
             return (
               <g
                 key={node.id}
+                data-node-id={node.id}
                 transform={"translate(" + p.x + " " + p.y + ")"}
                 opacity={dim ? 0.2 : emphasized ? 1 : 0.3}
                 className="cursor-grab active:cursor-grabbing"

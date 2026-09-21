@@ -160,8 +160,8 @@ export interface AsyncResult<T> {
 
 /**
  * 一次性异步加载（无实时订阅）。
- * 注意：**返回对象而不是元组**。TypeScript 6.0.3 对返回元组的自定义 hook 解构时
- * 会把元素推断错误（第 4 位被当成 Boolean），返回对象可彻底规避。
+ * 约定：返回**对象**而不是元组 —— 按名解构，避免"数错位置"（例如把 reload 写在 loading 槽位），
+ * 后续新增字段也不会破坏调用方。详见 docs/GOTCHAS.md。
  */
 export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], initial: T): AsyncResult<T> {
   const [value, setValue] = useState<T>(initial);

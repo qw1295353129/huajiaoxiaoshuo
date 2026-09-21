@@ -19,7 +19,8 @@ interface TrendData {
 /** 写作趋势：热力图 + 近 60 天柱状图 + 会话/番茄钟统计 */
 export function WritingTrend({ projectId, chapters }: { projectId: ID; chapters: Chapter[] }) {
   const settled = useSettle();
-  const trendRes = useAsync<TrendData | undefined>(
+  // useAsync 返回对象（TS 6 对元组解构有推断缺陷）
+  const { value: data, loading, error, reload } = useAsync<TrendData | undefined>(
     async () => {
       const [heat, daily, sessions, pomodoros] = await Promise.all([
         heatmap(projectId, 180),
@@ -32,10 +33,6 @@ export function WritingTrend({ projectId, chapters }: { projectId: ID; chapters:
     [projectId],
     undefined,
   );
-  const data = trendRes.value;
-  const loading = trendRes.loading;
-  const error = trendRes.error;
-  const reload = trendRes.reload;
 
   const chapterTitle = useMemo(() => {
     const map = new Map(chapters.map((c) => [c.id, c.title]));

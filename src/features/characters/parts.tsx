@@ -10,13 +10,15 @@ import { avatarClass, avatarInitial, splitTags } from "./meta";
  */
 
 const FIELD_BASE =
-  "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm leading-relaxed outline-none transition " +
+  "rounded-lg border border-black/10 bg-white px-3 py-2 text-sm leading-relaxed outline-none transition " +
   "placeholder:text-black/30 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/15 " +
   "disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-neutral-900 dark:placeholder:text-white/25";
 
-export const inputClass = FIELD_BASE;
-export const selectClass = FIELD_BASE + " cursor-pointer";
-export const textareaClass = FIELD_BASE + " resize-y";
+export const inputClass = FIELD_BASE + " w-full";
+export const selectClass = FIELD_BASE + " w-full cursor-pointer";
+/** 工具栏里的紧凑下拉：不要 w-full，否则会各占一行 */
+export const selectInlineClass = FIELD_BASE + " w-auto cursor-pointer";
+export const textareaClass = FIELD_BASE + " w-full resize-y";
 
 /** 圆形头像：优先 emoji，其次名字首字 + 稳定配色 */
 export function CharacterAvatar({

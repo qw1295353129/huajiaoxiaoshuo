@@ -1,26 +1,35 @@
 # 已知陷阱与规避方式
 
-## TypeScript 6.0.3 元组解构推断缺陷（已实测确认，非臆测）
-最小复现（`tsc --noEmit` 必报 TS2349 "This expression is not callable"）：
+## 元组解构：错的不是编译器，是解构的元素个数
+
+> 这一条曾经被误诊为「TypeScript 6.0.3 编译器的缺陷」并写进了文档与提交信息。
+> 后经复核，**结论是错的**，TS 的行为完全正确。原始记录保留在 git 历史里，此处更正。
+
+**真实原因**：`AsyncResult<T>` 曾经是 4 元组 `[value, loading: boolean, error, reload]`，
+用**两元素**解构时，第二个变量落在索引 1，也就是 `loading: boolean` 的槽位：
+
 ```ts
-const [providers, reload] = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
-reload();   // ← 这里报错，reload 被推断成 Boolean
+// ✗ 错在解构个数：reload 实际拿到的是 loading（boolean）
+const [providers, reload] = useAsync(fn, deps, initial);
+reload();   // TS2349: This expression is not callable. Type 'Boolean' has no call signatures.
 ```
-以下三种写法**全部复现**：顶层直接调用、在闭包内调用、先使用后声明。
-但把返回类型注解换成对象后一切正常 —— 说明问题出在**返回元组的自定义 hook + 解构**这一组合。
 
-**项目约定：自定义 hook 一律返回对象，不返回元组。**
+编译器是对的。两条反证：
+- `const flag: boolean = res[3]` → TS2322，说明第 4 位确实是 `() => void`，不是 Boolean。
+- 正确的四元素解构 `const [value, loading, error, reload] = useAsync(...)` 编译零错误。
+
+**当前约定（属于风格选择，不是缺陷规避）**：本项目自定义 hook 一律返回**对象**而非元组。
+好处是按名解构，不可能再出现"数错位置"这类错误，新增字段也不会破坏调用方。
+
 ```ts
-// hooks.ts 里的正确写法（已迁移完成）
 export interface AsyncResult<T> { value: T; loading: boolean; error: Error | undefined; reload: () => void }
-export function useAsync<T>(...): AsyncResult<T> { ... return { value, loading, error, reload } }
 
-// 使用侧
 const res = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
 const providers = res.value;
 res.reload();
 ```
-注意：给元组加带标签的元素类型注解（`[value: T, loading: boolean, ...]`）**不能**规避该缺陷。
+
+教训：这类"编译器有 bug"的结论必须用**最小反证**验证——先确认自己的调用写法是否真的符合类型。
 
 ## Dexie 4 的类型约束
 - `table.modify((row) => { Object.assign(row, patch); })`：回调**不能有返回值**；

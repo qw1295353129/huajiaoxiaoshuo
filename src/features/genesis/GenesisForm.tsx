@@ -221,7 +221,7 @@ export function GenesisForm({
           fullWidth
         >
           <Label>参考气质（只借鉴风格，不抄情节）</Label>
-          <TextArea rows={2} placeholder={"一行一个，例如：\n《雪国》的留白\n硬派刑侦的冷感"} />
+          <TextArea rows={2} placeholder="一行一个，例如：冷冽的留白 / 硬派刑侦的冷感" />
         </TextField>
 
         <TextField
@@ -233,7 +233,7 @@ export function GenesisForm({
           fullWidth
         >
           <Label>必须避开</Label>
-          <TextArea rows={2} placeholder={"一行一个，例如：\n失忆梗\n无意义的打斗\n说教式结尾"} />
+          <TextArea rows={2} placeholder="一行一个，例如：失忆梗 / 无意义的打斗 / 说教式结尾" />
         </TextField>
       </div>
 

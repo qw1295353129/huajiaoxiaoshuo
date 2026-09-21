@@ -184,7 +184,6 @@ export function TimelinePage() {
           <Tabs.List>
             <Tabs.Tab id="inworld">剧情内时间轴</Tabs.Tab>
             <Tabs.Tab id="chapter">章节轴</Tabs.Tab>
-            <Tabs.Indicator />
           </Tabs.List>
 
           <Tabs.Panel id="inworld">

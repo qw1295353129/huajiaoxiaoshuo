@@ -12,7 +12,7 @@ import { ROUTES } from "@/app/routes";
 import { useAppStore } from "@/app/store";
 import { formatRelative } from "@/utils/format";
 import { CharacterDetail } from "./CharacterDetail";
-import { CharacterAvatar, ConfirmDialog, Labeled, inputClass, selectClass } from "./parts";
+import { CharacterAvatar, ConfirmDialog, Labeled, inputClass, selectClass, selectInlineClass } from "./parts";
 import { ROLE_COLOR, ROLE_LABEL, ROLE_ORDER, STATUS_LABEL, roleLabel, roleWeight, searchableText } from "./meta";
 
 /** 每页展示的卡片数：角色可能有几百个，先渲染一批，剩下的"显示更多" */
@@ -160,7 +160,7 @@ function CharacterList({ projectId }: { projectId: string }) {
               />
             </div>
             <select
-              className={selectClass + " w-auto min-w-32"}
+              className={selectInlineClass + " min-w-32"}
               value={role}
               aria-label="按角色类型筛选"
               onChange={(e) => setRole(e.target.value as "all" | CharacterRole)}
@@ -173,7 +173,7 @@ function CharacterList({ projectId }: { projectId: string }) {
               ))}
             </select>
             <select
-              className={selectClass + " w-auto min-w-28"}
+              className={selectInlineClass + " min-w-32"}
               value={sort}
               aria-label="排序方式"
               onChange={(e) => setSort(e.target.value as SortKey)}

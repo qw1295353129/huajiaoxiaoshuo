@@ -8,7 +8,7 @@ import { deleteRelationship, upsertRelationship } from "@/db/repo/cast";
 import { ROUTES } from "@/app/routes";
 import { useAppStore } from "@/app/store";
 import { CharacterAvatar, ConfirmDialog, Labeled, MiniEmpty, selectClass } from "./parts";
-import { RELATION_LABEL, RELATION_ORDER, affinityColor, affinityLabel, otherSide, relationLabel } from "./meta";
+import { RELATION_LABEL, RELATION_ORDER, affinityColor, affinityLabel, otherSide } from "./meta";
 
 /**
  * 关系列表：该角色作为 from 或 to 的所有有向边。
@@ -221,10 +221,10 @@ export function RelationshipPanel({ projectId, characterId }: { projectId: ID; c
                     <div className="flex items-center justify-between gap-2 text-[11px]">
                       <span className="tabular opacity-70">
                         {value > 0 ? "+" : ""}
-                        {value} · {affinityLabel(value)}
+                        {value}
                       </span>
                       <Chip size="sm" color={affinityColor(value)}>
-                        {relationLabel(r.kind)}
+                        {affinityLabel(value)}
                       </Chip>
                     </div>
                     <input
