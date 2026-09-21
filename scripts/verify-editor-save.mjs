@@ -146,6 +146,21 @@ check("切回来显示正确", s3.shown?.includes("戊己") === true, String(s3.
 check("切回来后库内也一致", s3.saved === s3.shown, JSON.stringify({ shown: s3.shown, saved: s3.saved }));
 
 await page.reload({ waitUntil: "domcontentloaded" });
+/*
+  刷新后要等编辑器**真正挂载并填入内容**，不能只等一个固定时长。
+  这条测试在完整批量里偶发失败（单独跑 8 次全过），最可能就是刷新后
+  编辑器还没渲染完，取到空字符串。
+  这里等到 .ProseMirror 存在且文本非空为止 —— 把"机器慢"和"真的丢内容"区分开。
+*/
+await page
+  .waitForFunction(
+    () => {
+      const pm = document.querySelector(".ProseMirror");
+      return Boolean(pm && (pm.innerText ?? "").trim().length > 0);
+    },
+    { timeout: 20000 },
+  )
+  .catch(() => {});
 await waitSaved();
 const s4 = await page.evaluate(async () => {
   const o = await import("/src/db/repo/outline.ts");
