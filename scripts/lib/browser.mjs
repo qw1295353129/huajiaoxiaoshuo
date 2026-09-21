@@ -42,3 +42,48 @@ export async function launchIsolated(scriptUrl, opts = {}) {
   }
   return context;
 }
+
+/**
+ * 打开页面并**等 React 真正挂载完**。
+ *
+ * 为什么不能只用 waitUntil:'networkidle'：它在 Vite 的 HTML 返回后就可能触发，
+ * 此时 #root 还是空的。批量跑回归时机器负载高，React 挂载慢几百毫秒，
+ * 后面所有断言就都落空了 —— 表现为"单跑全过、批量失败"的偶发失败。
+ *
+ * 这里显式等 #root 里出现元素，再加一个短暂静默期等首屏数据（Dexie 异步查询）落定。
+ */
+export async function gotoApp(page, url, opts = {}) {
+  const { timeout = 30000, settle = 1200 } = opts;
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  try {
+    await page.waitForFunction(() => (document.getElementById('root')?.children.length ?? 0) > 0, { timeout });
+  } catch {
+    // 挂载失败时不要静默继续：把真实状态打出来，方便定位
+    const state = await page
+      .evaluate(() => ({
+        url: location.pathname + location.search,
+        rootChildren: document.getElementById('root')?.children.length ?? -1,
+        bodyLen: document.body.innerText.length,
+      }))
+      .catch(() => ({}));
+    throw new Error('页面没有挂载：' + JSON.stringify(state));
+  }
+  if (settle) await page.waitForTimeout(settle);
+  return page;
+}
+
+/**
+ * 轮询直到条件成立。用于替代固定 sleep ——
+ * 固定等待在负载高时必然偶发失败，轮询只是多等一会儿，不会误判。
+ */
+export async function waitFor(page, fn, opts = {}) {
+  const { timeout = 15000, interval = 300 } = opts;
+  const deadline = Date.now() + timeout;
+  let last;
+  while (Date.now() < deadline) {
+    last = await page.evaluate(fn).catch(() => undefined);
+    if (last) return last;
+    await page.waitForTimeout(interval);
+  }
+  return last;
+}

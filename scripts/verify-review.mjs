@@ -1,5 +1,5 @@
 /** 审稿功能端到端：批注锚定、正文标记渲染、修订建议接受/拒绝、锚点漂移重定位。 */
-import { launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 const BASE = "http://127.0.0.1:5178";
 const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
 const page = context.pages()[0] ?? (await context.newPage());
@@ -10,8 +10,7 @@ let pass = 0, fail = 0;
 const check = (n, c, x) => { if (c) { pass++; console.log("  \u2713 " + n); } else { fail++; console.log("  \u2717 " + n + (x ? "  \u2192 " + x : "")); } };
 
 // 建项目 + 一章正文
-await page.goto(BASE + "/new", { waitUntil: "networkidle" });
-await page.waitForTimeout(700);
+await gotoApp(page, BASE + "/new");
 await page.fill('input[placeholder*="长夜将至"]', "审稿验证");
 await page.click("text=先创建空白项目");
 await page.waitForTimeout(2500);
@@ -40,8 +39,7 @@ const seeded = await page.evaluate(async ({ pid, chId }) => {
 console.log("造数据: " + JSON.stringify({ textLen: seeded.textLen, i1: seeded.i1, i2: seeded.i2 }));
 
 // 打开写作台
-await page.goto(BASE + "/p/" + pid + "/write/" + chId, { waitUntil: "networkidle" });
-await page.waitForTimeout(2500);
+await gotoApp(page, BASE + "/p/" + pid + "/write/" + chId, { settle: 2500 });
 
 console.log("【正文标记渲染】");
 // 审稿标记依赖正文加载完成后再下发，等它稳定（最多 8 秒）
@@ -151,8 +149,7 @@ check("定位到的仍然是原来那句话", drift.found === drift.expected, JS
 check("定位方式为搜索而非原始偏移", drift.via !== "exact-offset", String(drift.via));
 
 console.log("【审稿台页面】");
-await page.goto(BASE + "/p/" + pid + "/review", { waitUntil: "networkidle" });
-await page.waitForTimeout(2000);
+await gotoApp(page, BASE + "/p/" + pid + "/review", { settle: 2000 });
 const reviewText = await page.evaluate(() => document.body.innerText);
 check("审稿台可打开", reviewText.includes("审稿台"));
 check("审稿台显示跨章节统计", reviewText.includes("待处理批注") && reviewText.includes("待确认修订"));
@@ -160,8 +157,7 @@ check("审稿台列出批注", reviewText.includes("他张嘴是要说什么"));
 check("审稿台显示已接受状态", reviewText.includes("已接受") || reviewText.includes("已处理修订"));
 
 console.log("【更新日志】");
-await page.goto(BASE + "/settings?tab=about", { waitUntil: "networkidle" });
-await page.waitForTimeout(1800);
+await gotoApp(page, BASE + "/settings?tab=about", { settle: 1800 });
 const aboutText = await page.evaluate(() => document.body.innerText);
 check("关于页有更新日志", aboutText.includes("更新日志"));
 check("显示当前版本号", /v\d+\.\d+\.\d+/.test(aboutText), "");

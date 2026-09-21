@@ -267,7 +267,7 @@ export async function previewMemoryConflicts(draft: MemoryDraftInput, projectId?
 export async function previewNearDuplicates(
   draft: MemoryDraftInput,
   projectId?: ID,
-  threshold = 0.82,
+  threshold = 0.75,
 ): Promise<{ fact: MemoryFact; similarity: number }[]> {
   const text = draft.text.trim();
   if (!text) return [];

@@ -1,5 +1,5 @@
 /** 验证本地代理：检测、经代理发起真实请求、错误路径。 */
-import { launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 
 // 真实请求那一段需要 Key；没有就明确跳过，而不是把"空回复"当成失败（曾因此误判 2 项）
 const KEY = process.env.DEEPSEEK_KEY;
@@ -12,7 +12,7 @@ const context = await launchIsolated(import.meta.url);
 const page = context.pages()[0] ?? (await context.newPage());
 const errs = [];
 page.on("pageerror", (e) => errs.push(String(e.message).slice(0, 140)));
-await page.goto("http://127.0.0.1:5178/", { waitUntil: "networkidle" });
+await gotoApp(page, "http://127.0.0.1:5178/");
 let pass = 0, fail = 0;
 const check = (n, c, x) => { if (c) { pass++; console.log("  \u2713 " + n); } else { fail++; console.log("  \u2717 " + n + (x ? "  \u2192 " + x : "")); } };
 
@@ -82,8 +82,7 @@ const local = await page.evaluate(async () => {
 check("Ollama 即使标记 corsBlocked 也直连", local === false, String(local));
 
 console.log("【设置页的代理卡片】");
-await page.goto("http://127.0.0.1:5178/settings?tab=models", { waitUntil: "networkidle" });
-await page.waitForTimeout(2200);
+await gotoApp(page, "http://127.0.0.1:5178/settings?tab=models", { settle: 2200 });
 const settingsText = await page.evaluate(() => document.body.innerText);
 check("设置页有本地代理卡片", settingsText.includes("本地代理"));
 check("显示启动命令", settingsText.includes("npm run proxy"));

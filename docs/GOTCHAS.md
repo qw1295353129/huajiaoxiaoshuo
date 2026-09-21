@@ -126,3 +126,39 @@ DeepSeek V4 系列（`deepseek-flash` / `deepseek-v4-pro`）是**推理模型**�
   `node scripts/shot.mjs <url> <png>`（Playwright + 系统 Edge 通道）。
 - 不要用 `bash` 里的 `cat > file <<'EOF'` 写含反引号的 TS 文件：多层级转义容易静默损坏源码。
   需要写长文件时用 write 工具，或先写 `.mjs` 生成脚本再执行。
+
+## HeroUI v3 的 TextArea 默认不是全宽的
+
+**现象**：侧栏里的输入框只有 161px 宽，文字挤成三行还被裁掉。项目里 19 处 TextArea 全是这样。
+
+**真因**：HeroUI 的基础类 .textarea 是 display: inline-block 且**没有 width**，
+宽度由浏览器按 textarea 默认的 cols≈20 算出固有宽度。全宽是**单独的修饰类**
+.textarea--full-width { @apply w-full }，基础类不含它。
+
+**修法**：在 globals.css 里用 :where(.textarea) 统一补 display:block; width:100%。
+用 :where() 把特异性压到 0，保证修饰类仍能覆盖。**不要逐个加 className="w-full"** ——
+19 处将来还会新增，改基础类才是一次修好。
+
+**教训**：这类问题不报错、类型也对、构建也过，只能靠**量尺寸**发现。
+所以专门加了 verify-textarea.mjs：遍历各页面的 textarea，比较它与父容器内容宽度，
+填充率不足 90% 就失败。断言里**不要写"display 必须是 block"** —— 项目里有自写的原生
+textarea（带 w-full），它们本来就是 inline-block 且宽度 100%，那是正常的。
+
+## 测试用例的四个假失败来源
+
+**① waitUntil: "networkidle" 早于 React 挂载**。Vite 返回 HTML 后它就可能触发，
+此时 #root 还是空的。批量跑回归时机器负载高、挂载慢几百毫秒，后续断言就全部落空 ——
+表现为"**单跑全过、批量失败**"的偶发失败，非常难查。
+修法：scripts/lib/browser.mjs 提供 gotoApp(page, url)，它等 #root 里出现元素
+并再静默一小段等 Dexie 异步查询落定。**所有浏览器测试都该用它，不要用裸 page.goto。**
+
+**② 两个脚本共用同一个 profile 目录**。verify-review 和 verify-memory 早期都指向
+/tmp/nf-memory-profile，批量跑时后一个会看到前一个留下的项目数据。
+修法：launchIsolated(import.meta.url) 按脚本名隔离并在启动前清空。
+
+**③ page.evaluate 无法序列化 DOM 元素**。返回元素会得到一个**空对象**，
+于是量出来的宽高全是 0（我看到假的 0 vs 0 白查了一轮）。
+evaluate 里必须返回纯数据（数字/字符串/普通对象）。
+
+**④ 验证滚动不要直接改 scrollTop**。那样绕过了事件和 CSS，即使布局坏了也能"通过"。
+要用 page.mouse.wheel() 发真实滚轮事件。

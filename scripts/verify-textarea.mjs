@@ -8,7 +8,7 @@
  * 判定标准：textarea 宽度应当接近其父容器内容宽度（减 padding），
  * 而不是明显小于它。
  */
-import { launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 
 const BASE = "http://127.0.0.1:5178";
 const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
@@ -44,7 +44,7 @@ const measure = () => {
   return out;
 };
 
-await page.goto(BASE + "/", { waitUntil: "networkidle" });
+await gotoApp(page, BASE + "/");
 const pid = await page.evaluate(async () => {
   const p = await import("/src/db/repo/projects.ts");
   const proj = await p.createProject({ title: "输入框回归" });
@@ -74,8 +74,7 @@ const pages = [
 const all = [];
 for (const [label, url] of pages) {
   if (!url) continue;
-  await page.goto(url, { waitUntil: "networkidle" });
-  await page.waitForTimeout(2200);
+  await gotoApp(page, url, { settle: 2200 });
   const list = await page.evaluate(measure);
   for (const item of list) all.push({ page: label, ...item });
   if (list.length) {
@@ -108,8 +107,7 @@ console.log("  其中原生 textarea " + natives.length + " 个（项目自写�
 console.log("  共测 " + all.length + " 个输入框，填充率范围 " + Math.min(...all.map((x) => x.ratio)) + "% ~ " + Math.max(...all.map((x) => x.ratio)) + "%");
 
 console.log("【写作台里的 AI 面板输入框（截图里的那个）】");
-await page.goto(BASE + "/p/" + pid + "/write", { waitUntil: "networkidle" });
-await page.waitForTimeout(3000);
+await gotoApp(page, BASE + "/p/" + pid + "/write", { settle: 3000 });
 const editorTas = await page.evaluate(measure);
 check("写作台有输入框", editorTas.length > 0, JSON.stringify(editorTas));
 const worstEditor = editorTas.reduce((a, b) => (a.ratio < b.ratio ? a : b), editorTas[0]);

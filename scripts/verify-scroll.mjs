@@ -7,7 +7,7 @@
  *
  * 这里用真实滚轮事件验证，而不是只看 class 名。
  */
-import { launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 
 const BASE = "http://127.0.0.1:5178";
 const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
@@ -39,7 +39,7 @@ const SCROLLER = () => {
   };
 };
 
-await page.goto(BASE + "/", { waitUntil: "networkidle" });
+await gotoApp(page, BASE + "/");
 const pid = await page.evaluate(async () => {
   const p = await import("/src/db/repo/projects.ts");
   const proj = await p.createProject({ title: "滚动回归" });
@@ -49,8 +49,7 @@ const pid = await page.evaluate(async () => {
 });
 
 console.log("【项目总览】");
-await page.goto(BASE + "/p/" + pid + "/overview", { waitUntil: "networkidle" });
-await page.waitForTimeout(3000);
+await gotoApp(page, BASE + "/p/" + pid + "/overview", { settle: 3000 });
 const before = await page.evaluate(SCROLLER);
 check("存在可滚动容器", before !== null, JSON.stringify(before));
 check("内容确实超出视口", (before?.scrollHeight ?? 0) > (before?.clientHeight ?? 0) + 100,
@@ -99,8 +98,7 @@ check("能滚到最底部", (bottom?.scrollTop ?? 0) >= (bottom?.maxScroll ?? 1)
 check("最后一行内容没有被裁掉", bottom?.reachable === true, JSON.stringify(bottom));
 
 console.log("【书库首页】");
-await page.goto(BASE + "/", { waitUntil: "networkidle" });
-await page.waitForTimeout(2000);
+await gotoApp(page, BASE + "/", { settle: 2000 });
 const lib = await page.evaluate(() => {
   const all = [...document.querySelectorAll("*")].filter((el) => /auto|scroll/.test(getComputedStyle(el).overflowY));
   return { count: all.length };
@@ -110,8 +108,7 @@ check("书库首页有滚动容器", lib.count > 0, JSON.stringify(lib));
 console.log("【其他页面抽样（写作台除外）】");
 for (const [label, path] of [["大纲", "/outline"], ["人物", "/characters"], ["世界观", "/world"], ["审稿台", "/review"], ["设置", "/settings"]]) {
   const url = path === "/settings" ? BASE + path : BASE + "/p/" + pid + path;
-  await page.goto(url, { waitUntil: "networkidle" });
-  await page.waitForTimeout(1800);
+  await gotoApp(page, url, { settle: 1800 });
   const has = await page.evaluate(() => {
     const all = [...document.querySelectorAll("*")].filter((el) => /auto|scroll/.test(getComputedStyle(el).overflowY));
     return all.length > 0 || document.body.scrollHeight > window.innerHeight + 8;

@@ -171,8 +171,15 @@ export function textSimilarity(a: string, b: string): number {
   return Math.max(jaccard(ngrams(x, 2), ngrams(y, 2)), levenshteinRatio(x, y));
 }
 
-/** 两条是不是"同一句话的两种说法"（立场一致）。用于提示合并，不作为冲突 */
-export function isNearDuplicate(a: string, b: string, threshold = 0.82): boolean {
+/**
+ * 两条是不是"同一句话的两种说法"（立场一致）。用于提示合并，不作为冲突。
+ *
+ * 阈值 0.75 是实测出来的：中文短句里改一两个字（「解释性台词」→「说明性台词」）
+ * 相似度只有 0.8，用 0.82 会把这种一眼就该合并的重复漏掉；
+ * 而误报的代价很低（只是提示"可能重复"，作者点一下就能继续添加）。
+ * 真正的护栏是立场必须一致 —— 立场不同的相似文本是冲突，不是重复。
+ */
+export function isNearDuplicate(a: string, b: string, threshold = 0.75): boolean {
   return textSimilarity(a, b) >= threshold;
 }
 
@@ -444,7 +451,7 @@ export function findMemoryConflicts(facts: MemoryFact[]): MemoryConflict[] {
 }
 
 /** 重复检测（不是冲突）：同一句话的两种说法，提示合并即可，不要吓唬作者 */
-export function findNearDuplicates(facts: MemoryFact[], threshold = 0.82): { aId: ID; bId: ID; similarity: number }[] {
+export function findNearDuplicates(facts: MemoryFact[], threshold = 0.75): { aId: ID; bId: ID; similarity: number }[] {
   const active = facts.filter((f) => !f.paused);
   const out: { aId: ID; bId: ID; similarity: number }[] = [];
   for (let i = 0; i < active.length; i++) {

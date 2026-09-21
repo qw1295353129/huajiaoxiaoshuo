@@ -1,4 +1,4 @@
-import { launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 /** 回归验证：所有「设置」入口都必须真的能进设置页。 */
 import { chromium } from 'playwright';
 const BASE = 'http://127.0.0.1:5178';
@@ -13,8 +13,7 @@ const check = (name, cond, extra) => {
   else { fail++; console.log('  \u2717 ' + name + (extra ? '  \u2192 ' + extra : '')); }
 };
 
-await page.goto(BASE + '/new', { waitUntil: 'networkidle' });
-await page.waitForTimeout(700);
+await gotoApp(page, BASE + '/new');
 await page.fill('input[placeholder*="长夜将至"]', '设置入口验证');
 await page.click('text=先创建空白项目');
 await page.waitForTimeout(2500);
@@ -26,8 +25,7 @@ const chId = await page.evaluate(async (id) => {
 }, pid);
 
 console.log('【1】书库首页的设置按钮');
-await page.goto(BASE + '/', { waitUntil: 'networkidle' });
-await page.waitForTimeout(1200);
+await gotoApp(page, BASE + '/');
 const homeBtn = await page.evaluate(() => {
   const b = Array.from(document.querySelectorAll('button')).find((x) => (x.getAttribute('aria-label') ?? '').includes('设置') || (x.title ?? '').includes('设置') || (x.textContent ?? '').trim() === '设置');
   if (b) { b.click(); return true; }
@@ -38,8 +36,7 @@ check('首页设置按钮存在且可点', homeBtn);
 check('首页点设置后进入 /settings', page.url().includes('/settings'), page.url());
 
 console.log('【2】侧边栏的设置按钮');
-await page.goto(BASE + '/p/' + pid + '/outline', { waitUntil: 'networkidle' });
-await page.waitForTimeout(1500);
+await gotoApp(page, BASE + '/p/' + pid + '/outline', { settle: 1500 });
 const sideBtn = await page.evaluate(() => {
   const b = Array.from(document.querySelectorAll('button')).find((x) => (x.textContent ?? '').trim() === '设置');
   if (b) { b.click(); return true; }
@@ -50,8 +47,7 @@ check('侧栏设置按钮可点', sideBtn);
 check('侧栏点设置后进入 /settings', page.url().includes('/settings'), page.url());
 
 console.log('【3】写作台 AI 面板的模型按钮 → 深链到模型分区');
-await page.goto(BASE + '/p/' + pid + '/write/' + chId, { waitUntil: 'networkidle' });
-await page.waitForTimeout(2200);
+await gotoApp(page, BASE + '/p/' + pid + '/write/' + chId, { settle: 2200 });
 const panelBtn = await page.evaluate(() => {
   const b = Array.from(document.querySelectorAll('button')).find((x) => (x.title ?? '') === '切换模型');
   if (b) { b.click(); return true; }
@@ -67,15 +63,13 @@ const activeTab = await page.evaluate(() => {
 check('设置页默认停在「模型与 AI」分区', activeTab);
 
 console.log('【4】⌘, 快捷键');
-await page.goto(BASE + '/p/' + pid + '/outline', { waitUntil: 'networkidle' });
-await page.waitForTimeout(1200);
+await gotoApp(page, BASE + '/p/' + pid + '/outline');
 await page.keyboard.press('Meta+Comma');
 await page.waitForTimeout(1200);
 check('⌘, 进入设置', page.url().includes('/settings'), page.url());
 
 console.log('【5】命令面板里的设置入口');
-await page.goto(BASE + '/p/' + pid + '/outline', { waitUntil: 'networkidle' });
-await page.waitForTimeout(1200);
+await gotoApp(page, BASE + '/p/' + pid + '/outline');
 await page.evaluate(() => {
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
 });
@@ -94,8 +88,7 @@ if (paletteOpen) {
 }
 
 console.log('【6】AI 未配置时的引导按钮');
-await page.goto(BASE + '/p/' + pid + '/genesis', { waitUntil: 'networkidle' });
-await page.waitForTimeout(1800);
+await gotoApp(page, BASE + '/p/' + pid + '/genesis', { settle: 1800 });
 const guideBtn = await page.evaluate(() => {
   const b = Array.from(document.querySelectorAll('button')).find((x) => /去设置|打开设置/.test(x.textContent ?? ''));
   if (b) { b.click(); return b.textContent.trim(); }

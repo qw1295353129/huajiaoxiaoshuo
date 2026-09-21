@@ -1,5 +1,5 @@
 /** 写作记忆端到端：提取、去重、置信度、注入 system prompt、暂停与置顶。 */
-import { launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 const BASE = "http://127.0.0.1:5178";
 const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
 const page = context.pages()[0] ?? (await context.newPage());
@@ -9,7 +9,7 @@ page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("favi
 let pass = 0, fail = 0;
 const check = (n, c, x) => { if (c) { pass++; console.log("  ✓ " + n); } else { fail++; console.log("  ✗ " + n + (x ? "  → " + x : "")); } };
 
-await page.goto(BASE + "/", { waitUntil: "networkidle" });
+await gotoApp(page, BASE + "/");
 
 console.log("【规则型提取】");
 const seeded = await page.evaluate(async () => {
@@ -167,8 +167,7 @@ check("置顶后可信度拉满", toggled.pinnedConf === 1, String(toggled.pinne
 check("置顶的排在最前", toggled.firstInPromptOrder === "甲：不要写套话" || toggled.firstInPromptOrder === "乙：不要写解释性对话", String(toggled.firstInPromptOrder));
 
 console.log("【界面】");
-await page.goto(BASE + "/settings?tab=memory", { waitUntil: "networkidle" });
-await page.waitForTimeout(2000);
+await gotoApp(page, BASE + "/settings?tab=memory", { settle: 2000 });
 const ui = await page.evaluate(() => document.body.innerText);
 check("设置里有写作记忆页", ui.includes("写作记忆"));
 check("说明了两类记忆的区别", ui.includes("system prompt") && ui.includes("上下文"), "");

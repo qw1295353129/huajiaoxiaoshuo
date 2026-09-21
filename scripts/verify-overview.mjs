@@ -1,4 +1,4 @@
-import { launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 import { chromium } from 'playwright';
 const BASE = 'http://127.0.0.1:5178';
 const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
@@ -7,8 +7,7 @@ const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.message).slice(0, 140)));
 page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('favicon')) errs.push(m.text().slice(0, 140)); });
 
-await page.goto(BASE + '/new', { waitUntil: 'networkidle' });
-await page.waitForTimeout(700);
+await gotoApp(page, BASE + '/new');
 await page.fill('input[placeholder*="长夜将至"]', '总览验证');
 await page.click('text=先创建空白项目');
 await page.waitForTimeout(2500);
@@ -40,8 +39,7 @@ await page.evaluate(async (id) => {
   return ids;
 }, pid);
 
-await page.goto(BASE + '/p/' + pid + '/overview', { waitUntil: 'networkidle' });
-await page.waitForTimeout(2500);
+await gotoApp(page, BASE + '/p/' + pid + '/overview', { settle: 2500 });
 const text = await page.evaluate(() => document.body.innerText);
 let pass = 0, fail = 0;
 const check = (n, c, x) => { if (c) { pass++; console.log('  \u2713 ' + n); } else { fail++; console.log('  \u2717 ' + n + (x ? '  \u2192 ' + x : '')); } };
