@@ -22,6 +22,7 @@ import { EditorCanvas, type EditorCanvasHandle } from "./EditorCanvas";
 import { ChapterList } from "./ChapterList";
 import { AiPanel } from "./AiPanel";
 import { CommentPanel } from "./CommentPanel";
+import { ProjectNav } from "@/components/layout/ProjectNav";
 import type { ReviewMarkInput } from "./EditorCanvas";
 import {
   addReviewSuggestion,
@@ -560,6 +561,14 @@ export function EditorPage() {
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-neutral-50 dark:bg-neutral-950">
+      {/*
+        项目导航。写作页是三栏（目录 / 正文 / AI 面板），套不进 PageScaffold，
+        所以直接放这个组件 —— 没有它的时候，人一进写作页就没法切到别的页面了，
+        只能靠浏览器后退（用户反馈："打开总览和写作，侧边栏消失了"）。
+        心流模式下隐藏，那正是"什么都别打扰我"的场景。
+      */}
+      {!flow && <ProjectNav className="hidden lg:flex" />}
+
       {!flow && !sidebarCollapsed && (
         <ChapterList
           projectId={projectId}

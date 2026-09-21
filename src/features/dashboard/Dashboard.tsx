@@ -8,6 +8,7 @@ import { deleteProject } from "@/db/repo/projects";
 import { useAppStore } from "@/app/store";
 import { formatRelative, formatWords, pct } from "@/utils/format";
 import { ProjectOverview } from "./ProjectOverview";
+import { PageScaffold } from "@/components/common/PageScaffold";
 
 const STATUS_LABEL: Record<string, string> = {
   planning: "筹备中",
@@ -149,10 +150,15 @@ function ProjectOverviewRoute({ projectId }: { projectId: string }) {
       </div>
     );
   }
-  // 同上：总览内容比视口高，必须自带滚动
+  // 用统一脚手架：它有左侧项目导航与滚动内容区。
+  // 之前这里只有一层滚动容器，所以总览页没有侧边栏（只能靠浏览器后退离开）。
   return (
-    <div className="h-full overflow-y-auto overscroll-contain">
+    <PageScaffold
+      title={project.title}
+      description="全书进度、近期节奏与接下来该做什么"
+      withNav
+    >
       <ProjectOverview project={project} />
-    </div>
+    </PageScaffold>
   );
 }
