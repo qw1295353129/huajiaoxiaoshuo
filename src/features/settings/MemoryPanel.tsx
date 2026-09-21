@@ -16,6 +16,7 @@ import {
 } from "@/db/repo/memory";
 import { listProviders } from "@/db/repo/settings";
 import { lastEmbeddingError, probeEmbedding } from "@/ai/embedding";
+import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { extractRuleBasedMemory, suggestPreferences, type PreferenceCandidate } from "@/ai/memory-extract";
 import { EmptyHint, Loading, SectionTitle } from "@/components/common/ui";
 import { formatRelative } from "@/utils/format";
@@ -265,7 +266,10 @@ export function MemoryPanel() {
                     <Chip size="sm" color="default">
                       {MEMORY_KIND_LABEL[pair.a.kind]}
                     </Chip>
-                    <span className="text-[10px] opacity-50">相似度 {Math.round(pair.conflict.similarity * 100)}%</span>
+                    {/* 相似度只对"否定对立"有意义：取向相反那类本来就不靠字面相似，写个百分比反而让人费解 */}
+                    {pair.conflict.type === "negation" && (
+                      <span className="text-[10px] opacity-50">文本相似度 {Math.round(pair.conflict.similarity * 100)}%</span>
+                    )}
                   </div>
                   <p className="mt-1.5 text-[11px] leading-relaxed opacity-70">{pair.conflict.reason}</p>
 
@@ -711,20 +715,12 @@ function SemanticRecallSection({
           </select>
 
           {recall.source === "ollama" ? (
-            <>
-              <input
-                value={recall.endpoint}
-                onChange={(e) => patch({ endpoint: e.target.value })}
-                placeholder="http://127.0.0.1:11434/api/embeddings"
-                className="min-w-64 flex-1 rounded-lg border border-black/10 bg-transparent px-2 py-1 text-xs dark:border-white/15"
-              />
-              <input
-                value={recall.model}
-                onChange={(e) => patch({ model: e.target.value })}
-                placeholder="nomic-embed-text"
-                className="w-44 rounded-lg border border-black/10 bg-transparent px-2 py-1 text-xs dark:border-white/15"
-              />
-            </>
+            <input
+              value={recall.endpoint}
+              onChange={(e) => patch({ endpoint: e.target.value })}
+              placeholder="http://127.0.0.1:11434/api/embeddings"
+              className="min-w-64 flex-1 rounded-lg border border-black/10 bg-transparent px-2 py-1 text-xs dark:border-white/15"
+            />
           ) : (
             <>
               <select
@@ -753,7 +749,19 @@ function SemanticRecallSection({
               )}
             </>
           )}
+        </div>
 
+        {/* 向量模型的清单、已装状态、一键下载 —— 只在使用本地 Ollama 时出现 */}
+        {recall.source === "ollama" && (
+          <EmbeddingModelPicker
+            endpoint={recall.endpoint}
+            model={recall.model}
+            disabled={!recall.enabled}
+            onPick={(name) => patch({ model: name })}
+          />
+        )}
+
+        <div className={"flex flex-wrap items-center gap-2 " + (recall.enabled ? "" : "opacity-50")}>
           <label className="flex items-center gap-1 text-[11px] opacity-70">
             召回条数
             <input
@@ -777,6 +785,15 @@ function SemanticRecallSection({
             : "关着的时候完全走原来的规则排序，不会发任何额外请求，也不会读章节正文。"}
           {lastEmbeddingError() ? " 上次调用失败：" + lastEmbeddingError() : ""}
         </p>
+        {recall.enabled && recall.source === "ollama" && (
+          // 这是最容易让人以为"功能坏了"的一步：Ollama 默认只接受同源请求，
+          // 浏览器从本项目（另一个端口）直连会被跨域拦掉，表现是"一直静默降级"。
+          <p className="text-[10px] leading-relaxed text-amber-600/90 dark:text-amber-400/90">
+            本地 Ollama 需要允许跨域才能被浏览器直接调用：用 <code>OLLAMA_ORIGINS=* ollama serve</code> 启动
+            （macOS 桌面版在「设置 → 允许来自其他来源的请求」里打开）。没开的话这里会一直静默降级回规则排序，
+            启动日志里能看到 CORS 相关的报错。
+          </p>
+        )}
       </div>
     </section>
   );

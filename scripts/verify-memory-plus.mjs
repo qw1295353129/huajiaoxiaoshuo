@@ -11,7 +11,7 @@
  * 假向量用"字符二元组哈希"算，保证语义相近的文本余弦相似度真的更高 ——
  * 如果用随机向量，召回排序测了等于没测。
  */
-import { gotoApp, launchIsolated } from "./lib/browser.mjs";
+import { gotoApp, launchIsolated, waitFor } from "./lib/browser.mjs";
 const BASE = "http://127.0.0.1:5178";
 const NL = String.fromCharCode(10);
 const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
@@ -128,7 +128,20 @@ const pure = await page.evaluate(async () => {
   const afterResolve = mc.findMemoryConflicts([resolvedA, B]);
   const dup = mc.isNearDuplicate("对话不要用解释性台词", "对话不要用说明性台词");
   const dupFar = mc.isNearDuplicate("对话不要用解释性台词", "第三章要多写雨景");
-  return { results, sim, batch: batch.map((x) => x.type), afterResolve: afterResolve.length, dup, dupFar };
+  // 规模与耗时：成对比较是 O(n²)，要知道"记忆涨到几百条时会不会卡住面板"
+  const big = [];
+  for (let i = 0; i < 120; i++) {
+    big.push(mk("preference", i % 2 === 0 ? "第 " + i + " 条：对话不要用解释性台词" : "第 " + i + " 条：注意段落节奏与标点规范"));
+  }
+  big.push(mk("preference", "文风要冷硬"));
+  big.push(mk("preference", "文风要温暖细腻"));
+  const t0 = performance.now();
+  const bigFound = mc.findMemoryConflicts(big);
+  const scaleMs = Number((performance.now() - t0).toFixed(1));
+  return {
+    results, sim, batch: batch.map((x) => x.type), afterResolve: afterResolve.length, dup, dupFar,
+    scaleMs, scaleCount: big.length, scaleFound: bigFound.length,
+  };
 });
 for (const r of pure.results) {
   const ok = r.group === "pos" ? r.got === r.want : r.got === null;
@@ -142,6 +155,8 @@ check("批量扫描扫出 2 处冲突（否定对立 + 反义维度）", pure.ba
 check("已处置的组合不再出现在扫描结果里", pure.afterResolve === 0, String(pure.afterResolve));
 check("重复检测：同义改写判定为重复", pure.dup === true, String(pure.dup));
 check("重复检测：无关文本不判定为重复", pure.dupFar === false, String(pure.dupFar));
+check("规模：" + pure.scaleCount + " 条记忆两两比较耗时可接受（" + pure.scaleMs + " ms）", pure.scaleMs < 500, pure.scaleMs + " ms");
+check("规模：120 条里只扫出该有的冲突（不误报）", pure.scaleFound === 1, "扫出 " + pure.scaleFound + " 处");
 const oneReason = pure.results.find((r) => r.reason);
 console.log("  冲突理由示例：" + oneReason.reason);
 
@@ -349,7 +364,7 @@ const sem = await page.evaluate(async (providerId) => {
  * 降级测试"通过了"，其实根本没走到失败路径）。刷新页面才是真正的重置。
  * 详见 docs/GOTCHAS.md。
  */
-await page.reload({ waitUntil: "networkidle" });
+await gotoApp(page, BASE + "/");
 const degraded = await page.evaluate(async (pid) => {
   const mem = await import("/src/db/repo/memory.ts");
   const rc = await import("/src/ai/recall.ts");
@@ -367,7 +382,7 @@ const degraded = await page.evaluate(async (pid) => {
   return { semantic: r1.semantic, note: r1.note || "", attempts, r2Semantic: r2.semantic, breakAttempts, sysHasRain: sys.indexOf("下雨的场景") >= 0, sysAttempts, sysLen: sys.length };
 }, sem.projectId);
 
-await page.reload({ waitUntil: "networkidle" });
+await gotoApp(page, BASE + "/");
 const viaProvider = await page.evaluate(async (args) => {
   const s = await import("/src/db/repo/settings.ts");
   const mem = await import("/src/db/repo/memory.ts");
@@ -492,6 +507,8 @@ console.log("  统计明细：" + JSON.stringify(track.final));
  * ================================================================== */
 section("五、界面");
 await gotoApp(page, BASE + "/settings?tab=memory", { settle: 2500 });
+// 等冲突条真正渲染出来，而不是靠固定等待（负载高时会偶发失败）
+await waitFor(page, () => document.body.innerText.indexOf("处记忆冲突") >= 0);
 const uiText = await page.evaluate(() => document.body.innerText);
 const conflictCount = (uiText.match(/发现 (\d+) 处记忆冲突/) || [])[1];
 check("界面显示冲突提示条", conflictCount === "1", "匹配到 " + conflictCount);
@@ -507,7 +524,7 @@ await page.screenshot({ path: "/tmp/nf-memory-plus.png" });
 const keepA = page.locator('button:has-text("保留 A")').first();
 const clicked = await keepA.count() > 0;
 if (clicked) await keepA.click();
-await page.waitForTimeout(1200);
+await waitFor(page, () => document.body.innerText.indexOf("处记忆冲突") < 0);
 const afterText = await page.evaluate(() => document.body.innerText);
 check("点「保留 A」后冲突条消失（真实点击，不是只看状态）", clicked && afterText.indexOf("处记忆冲突") < 0, clicked ? "" : "没找到按钮");
 const persisted = await page.evaluate(async () => {
@@ -517,9 +534,74 @@ const persisted = await page.evaluate(async () => {
 });
 check("裁决结果落库（有记忆被暂停）", persisted > 0, "暂停 " + persisted + " 条");
 
+/* ================================================================== *
+ * 六、数据库升级 v3 → v4（放在最后：这一步会把库删掉重建）
+ * ================================================================== */
+section("六、数据库升级（v3 → v4，老库不能坏）");
+const upgrade = await page.evaluate(async () => {
+  const schema = await import("/src/db/schema.ts");
+  const stores = await import("/src/db/v1-stores.ts");
+  const dbm = await import("/src/db/database.ts");
+  const mem = await import("/src/db/repo/memory.ts");
+  const db = dbm.db;
+
+  // 用 Dexie 基类造一个"只声明到 v3"的老库：这正是老用户浏览器里那份数据
+  const Dexie = Object.getPrototypeOf(Object.getPrototypeOf(db)).constructor;
+  await db.delete();
+  const old = new Dexie(schema.DB_NAME);
+  old.version(1).stores(stores.V1_STORES);
+  old.version(2).stores(stores.V2_STORES);
+  old.version(3).stores(stores.V3_STORES);
+  await old.open();
+  const verBefore = old.verno;
+  const hasUsageBefore = old.tables.some((t) => t.name === "memoryUsage");
+  const now = new Date().toISOString();
+  await old.table("projects").put({
+    id: "prj_upgrade", title: "升级前就存在的作品", author: undefined, genres: [], tags: [], themes: [],
+    pov: "third-limited", tense: "past", targetWords: 250000, targetChapterWords: 3000, lengthClass: "novel",
+    status: "planning", forbidden: [], language: "zh-CN",
+    stats: { words: 0, chapters: 0, scenes: 0, writingDays: 0 }, createdAt: now, updatedAt: now,
+  });
+  await old.table("memory").put({
+    id: "mem_upgrade", scope: "global", kind: "preference", text: "升级前就存在的记忆：对话不要用解释性台词",
+    source: "user", evidence: [], confidence: 1, pinned: false, paused: false, usedCount: 7,
+    dedupeKey: "preference::升级前就存在的记忆", createdAt: now, updatedAt: now,
+  });
+  old.close();
+
+  // 再用应用自己的 db（v4）打开：Dexie 会在这里按 v3 → v4 的差异升级。
+  // 必须先 open()：db.delete() 之后 Dexie 会把实例标记成已关闭，
+  // 不会自动重开（项目里的 wipeDatabase() 也是 delete() 后补 open()）。
+  await db.open();
+  const projects = await db.projects.toArray();
+  const memories = await db.memory.toArray();
+  const usageOk = await db.memoryUsage.count().then(() => true).catch(() => false);
+  const list = await mem.listMemory({ includePaused: true });
+  const effect = (await mem.memoryEffectStats(undefined)).get("mem_upgrade");
+  return {
+    verBefore,
+    hasUsageBefore,
+    verno: db.verno,
+    storeNames: db.tables.map((t) => t.name),
+    projectTitles: projects.map((p) => p.title),
+    memoryTexts: memories.map((m) => m.text),
+    usedCount: memories[0] ? memories[0].usedCount : null,
+    usageOk,
+    listCount: list.length,
+    legacyInjections: effect ? effect.injections : null,
+  };
+});
+check("造的确实是 v3 老库（没有 memoryUsage 表）", upgrade.verBefore === 3 && upgrade.hasUsageBefore === false, JSON.stringify({ ver: upgrade.verBefore, hasUsage: upgrade.hasUsageBefore }));
+check("打开后自动升到 v4", upgrade.verno === 4, "verno=" + upgrade.verno);
+check("v4 多了 memoryUsage 表且可查询", upgrade.usageOk === true && upgrade.storeNames.indexOf("memoryUsage") >= 0, JSON.stringify(upgrade.storeNames));
+check("升级不丢数据：作品还在", upgrade.projectTitles.indexOf("升级前就存在的作品") >= 0, JSON.stringify(upgrade.projectTitles));
+check("升级不丢数据：记忆与它的计数器都还在", upgrade.memoryTexts.length === 1 && upgrade.usedCount === 7, JSON.stringify({ texts: upgrade.memoryTexts, usedCount: upgrade.usedCount }));
+check("老记忆没有 usage 行时用 usedCount 兜底（不会显示成 0 次）", upgrade.legacyInjections === 7, String(upgrade.legacyInjections));
+
 console.log("");
 console.log("通过 " + pass + " 项，失败 " + fail + " 项");
 console.log("控制台错误: " + (errs.length ? JSON.stringify(errs.slice(0, 5)) : "NONE"));
-console.log("假服务调用次数: " + JSON.stringify(await page.evaluate(() => ({ chat: window.__fake.chat, embed: window.__fake.embed }))));
+// 注意：这里统计的是"最后一次刷新页面之后"的次数，前面几节的计数在刷新时已归零
+console.log("假服务调用次数（最后一次刷新后）: " + JSON.stringify(await page.evaluate(() => ({ chat: window.__fake.chat, embed: window.__fake.embed }))));
 await context.close();
 process.exit(fail === 0 ? 0 : 1);
