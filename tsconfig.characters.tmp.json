@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.characters.tsbuildinfo",
+    "noEmit": true
+  },
+  "include": [
+    "src/features/characters",
+    "src/vite-env.d.ts"
+  ]
+}

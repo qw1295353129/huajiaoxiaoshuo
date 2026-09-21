@@ -12,6 +12,18 @@ import { Dashboard } from "@/features/dashboard/Dashboard";
 import { EditorPage } from "@/features/editor/EditorPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { NotFound } from "@/features/common/NotFound";
+import { OutlinePage } from "@/features/outline/OutlinePage";
+import { CharactersPage } from "@/features/characters/CharactersPage";
+import { WorldPage } from "@/features/world/WorldPage";
+import { ThreadsPage } from "@/features/threads/ThreadsPage";
+import { TimelinePage } from "@/features/timeline/TimelinePage";
+import { GraphPage } from "@/features/graph/GraphPage";
+import { InsightsPage } from "@/features/insights/InsightsPage";
+import { ConsistencyPage } from "@/features/consistency/ConsistencyPage";
+import { AiStudioPage } from "@/features/ai/AiStudioPage";
+import { GenesisPage } from "@/features/genesis/GenesisPage";
+import { UsagePage } from "@/features/usage/UsagePage";
+import { DataPage } from "@/features/data/DataPage";
 
 function ProjectGuard({ children }: { children: React.ReactNode }) {
   const { projectId } = useParams<{ projectId: string }>();
@@ -87,6 +99,19 @@ export default function App() {
           <Route path="overview" element={<Dashboard />} />
           <Route path="write" element={<EditorPage />} />
           <Route path="write/:chapterId" element={<EditorPage />} />
+          <Route path="outline" element={<OutlinePage />} />
+          <Route path="characters" element={<CharactersPage />} />
+          <Route path="characters/:characterId" element={<CharactersPage />} />
+          <Route path="world" element={<WorldPage />} />
+          <Route path="threads" element={<ThreadsPage />} />
+          <Route path="timeline" element={<TimelinePage />} />
+          <Route path="graph" element={<GraphPage />} />
+          <Route path="insights" element={<InsightsPage />} />
+          <Route path="consistency" element={<ConsistencyPage />} />
+          <Route path="ai" element={<AiStudioPage />} />
+          <Route path="genesis" element={<GenesisPage />} />
+          <Route path="usage" element={<UsagePage />} />
+          <Route path="data" element={<DataPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
         <Route path="*" element={<NotFound />} />
