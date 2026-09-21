@@ -1,5 +1,5 @@
 /** 规则冲突自检：分批、进度、中断保留、超时归类。 */
-import { chromium } from "playwright";
+import { launchIsolated } from "./lib/browser.mjs";
 
 const KEY_GUARD = process.env.DEEPSEEK_KEY;
 if (!KEY_GUARD) {
@@ -8,7 +8,7 @@ if (!KEY_GUARD) {
   process.exit(0);
 }
 const KEY = process.env.DEEPSEEK_KEY;
-const context = await chromium.launchPersistentContext("/tmp/nf-conflict-profile", { channel: "msedge", headless: true, viewport: { width: 1512, height: 945 } });
+const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
 const page = context.pages()[0] ?? (await context.newPage());
 const errs = [];
 page.on("pageerror", (e) => errs.push(String(e.message).slice(0, 140)));

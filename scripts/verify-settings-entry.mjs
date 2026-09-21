@@ -1,7 +1,8 @@
+import { launchIsolated } from "./lib/browser.mjs";
 /** 回归验证：所有「设置」入口都必须真的能进设置页。 */
 import { chromium } from 'playwright';
 const BASE = 'http://127.0.0.1:5178';
-const context = await chromium.launchPersistentContext('/tmp/nf-set-profile', { channel: 'msedge', headless: true, viewport: { width: 1400, height: 900 } });
+const context = await launchIsolated(import.meta.url, { viewport: { width: 1400, height: 900 } });
 const page = context.pages()[0] ?? (await context.newPage());
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message).slice(0, 160)));

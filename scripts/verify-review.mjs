@@ -1,7 +1,7 @@
 /** 审稿功能端到端：批注锚定、正文标记渲染、修订建议接受/拒绝、锚点漂移重定位。 */
-import { chromium } from "playwright";
+import { launchIsolated } from "./lib/browser.mjs";
 const BASE = "http://127.0.0.1:5178";
-const context = await chromium.launchPersistentContext("/tmp/nf-review-profile", { channel: "msedge", headless: true, viewport: { width: 1512, height: 945 } });
+const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
 const page = context.pages()[0] ?? (await context.newPage());
 const errs = [];
 page.on("pageerror", (e) => errs.push(String(e.message).slice(0, 160)));
@@ -90,25 +90,36 @@ const accepted = await page.evaluate(async () => {
   if (b) { b.click(); return (b.textContent ?? "").trim(); }
   return false;
 });
-await page.waitForTimeout(3000);
+// 等落库完成：轮询而不是固定 sleep（批量跑时机器负载高，固定等待会偶发失败）
+let afterAccept = null;
+for (let i = 0; i < 20; i++) {
+  await page.waitForTimeout(500);
+  afterAccept = await page.evaluate(async (cid) => {
+    const o = await import("/src/db/repo/outline.ts");
+    const r = await import("/src/db/repo/review.ts");
+    const content = await o.getChapterContent(cid);
+    const sugs = await r.listReviewSuggestions(cid);
+    return {
+      text: content.text,
+      hasNew: content.text.includes("那三个字从他自己喉咙里滚出来"),
+      hasOld: content.text.includes("他听见了自己的名字"),
+      status: sugs[0]?.status,
+      snapshots: (await o.listSnapshots(cid)).map((s) => s.label),
+    };
+  }, chId);
+  if (afterAccept.status === "accepted") break;
+}
 check("面板里有接受按钮并点击", accepted);
-const afterAccept = await page.evaluate(async (cid) => {
-  const o = await import("/src/db/repo/outline.ts");
-  const r = await import("/src/db/repo/review.ts");
-  const content = await o.getChapterContent(cid);
-  const sugs = await r.listReviewSuggestions(cid);
-  return {
-    text: content.text,
-    hasNew: content.text.includes("那三个字从他自己喉咙里滚出来"),
-    hasOld: content.text.includes("他听见了自己的名字"),
-    status: sugs[0]?.status,
-    snapshots: (await o.listSnapshots(cid)).map((s) => s.label),
-  };
-}, chId);
-check("正文已替换为新文本", afterAccept.hasNew, afterAccept.text.slice(-40));
-check("旧文本已被移除", !afterAccept.hasOld);
-check("建议状态变为已接受", afterAccept.status === "accepted", String(afterAccept.status));
-check("接受前自动存了快照", afterAccept.snapshots.some((s) => s.includes("应用修订建议前")), JSON.stringify(afterAccept.snapshots));
+const afterAcceptFinal = afterAccept;
+void (async () => {});
+check("正文已替换为新文本", afterAcceptFinal?.hasNew === true, afterAcceptFinal?.text?.slice(-40));
+check("旧文本已被移除", afterAcceptFinal?.hasOld === false);
+check("建议状态变为已接受", afterAcceptFinal?.status === "accepted", String(afterAcceptFinal?.status));
+check(
+  "接受前自动存了快照",
+  (afterAcceptFinal?.snapshots ?? []).some((s) => s.includes("应用修订建议前")),
+  JSON.stringify(afterAcceptFinal?.snapshots),
+);
 
 console.log("【锚点漂移后仍能定位】");
 const drift = await page.evaluate(async ({ chId }) => {

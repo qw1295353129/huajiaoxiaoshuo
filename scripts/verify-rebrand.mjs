@@ -1,6 +1,7 @@
+import { launchIsolated } from "./lib/browser.mjs";
 import { chromium } from 'playwright';
 const BASE = 'http://127.0.0.1:5178';
-const context = await chromium.launchPersistentContext('/tmp/nf-final2-profile', { channel: 'msedge', headless: true, viewport: { width: 1512, height: 945 } });
+const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
 const page = context.pages()[0] ?? (await context.newPage());
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.message).slice(0, 140)));

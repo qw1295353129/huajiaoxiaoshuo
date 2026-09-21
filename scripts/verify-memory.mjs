@@ -1,7 +1,7 @@
 /** 写作记忆端到端：提取、去重、置信度、注入 system prompt、暂停与置顶。 */
-import { chromium } from "playwright";
+import { launchIsolated } from "./lib/browser.mjs";
 const BASE = "http://127.0.0.1:5178";
-const context = await chromium.launchPersistentContext("/tmp/nf-memory-profile", { channel: "msedge", headless: true, viewport: { width: 1512, height: 945 } });
+const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 945 } });
 const page = context.pages()[0] ?? (await context.newPage());
 const errs = [];
 page.on("pageerror", (e) => errs.push(String(e.message).slice(0, 140)));
@@ -118,6 +118,8 @@ console.log("  " + JSON.stringify(conf));
 
 console.log("【暂停与置顶】");
 // 用一个干净的项目单独验证，避免和上面的状态纠缠（第一版就是复用项目导致断言写错）
+// 注意：这个测试会建自己的项目，所以断言必须按项目过滤。
+// 第一版复用了界面的"全部记忆"视图，复跑时会把上一个项目的数据也算进来（12 项假失败）。
 const toggled = await page.evaluate(async () => {
   const p = await import("/src/db/repo/projects.ts");
   const ai = await import("/src/db/repo/ai.ts");
