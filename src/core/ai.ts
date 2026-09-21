@@ -77,6 +77,11 @@ export interface ChatMessage {
   error?: string;
   /** 该消息由哪个任务产生 */
   taskKind?: AiTaskKind;
+  /**
+   * 生成本条消息时实际送入模型的上下文来源清单。
+   * 落库保存，刷新页面后仍能看到"AI 到底看到了什么"以及各自的 token 占用。
+   */
+  contextSources?: ContextSource[];
 }
 
 export interface ToolCall {

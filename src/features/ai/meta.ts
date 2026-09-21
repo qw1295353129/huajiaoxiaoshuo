@@ -34,8 +34,13 @@ export function toCitation(source: ContextSource): Citation {
   return citation;
 }
 
-/** 消息里没有运行时元信息时，用落库的 citations 兜底展示 */
-export function fallbackSources(citations?: Citation[]): ContextSource[] {
+/**
+ * 消息里没有运行时元信息时，按优先级兜底展示上下文来源：
+ * 1. 消息落库的 contextSources（含 token 与裁剪标记，最完整）
+ * 2. citations（只有标签，token 显示为 0）
+ */
+export function fallbackSources(citations?: Citation[], persisted?: ContextSource[]): ContextSource[] {
+  if (persisted && persisted.length) return persisted;
   return (citations ?? []).map((c) => ({
     kind: c.chapterId ? "chapter" : c.worldEntryId ? "world" : c.threadId ? "thread" : "retrieval",
     refId: c.chapterId ?? c.worldEntryId ?? c.threadId ?? c.entityId,

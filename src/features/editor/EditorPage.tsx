@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, Chip, Tooltip } from "@heroui/react";
 import {
   ArrowLeft, Clock, Eye, History, Keyboard, Maximize2, Minimize2, PanelLeftClose,
@@ -27,7 +27,18 @@ import { PomodoroTimer } from "./PomodoroTimer";
 
 export function EditorPage() {
   const { projectId = "", chapterId: routeChapterId } = useParams<{ projectId: string; chapterId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  /** 来自一致性报告的改写工单：?fix=改写指令&quote=证据原文&from=&to= */
+  const workOrder = useMemo(
+    () => ({
+      fix: searchParams.get("fix") ?? undefined,
+      quote: searchParams.get("quote") ?? undefined,
+      from: searchParams.get("from") ? Number(searchParams.get("from")) : undefined,
+      to: searchParams.get("to") ? Number(searchParams.get("to")) : undefined,
+    }),
+    [searchParams],
+  );
   const project = useAppStore((s) => s.project);
   const openChapter = useAppStore((s) => s.openChapter);
   const settings = useAppStore((s) => s.settings);
@@ -207,6 +218,22 @@ export function EditorPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeChapterId]);
+
+  // 处理改写工单：内容加载完成后，在正文里定位证据原文并选中
+  useEffect(() => {
+    if (!handle || !workOrder.quote || loadedFor !== routeChapterId) return;
+    handle.focus();
+    useEditorStore.getState().setSelection(workOrder.quote, { from: 0, to: 0 });
+    notify("info", "已定位到问题段落", "点右侧「改写」按建议重写这一段");
+    // 清掉一次性参数，避免刷新后重复提示
+    const next = new URLSearchParams(searchParams);
+    next.delete("fix");
+    next.delete("quote");
+    next.delete("from");
+    next.delete("to");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle, workOrder.quote, loadedFor, routeChapterId]);
 
   const insertFromAi = useCallback(
     (text: string, mode: "cursor" | "end" | "replace-selection") => {
@@ -428,7 +455,13 @@ export function EditorPage() {
       </div>
 
       {!flow && rightPanel === "ai" && (
-        <AiPanel projectId={projectId} chapterId={routeChapterId} onInsert={insertFromAi} />
+        <AiPanel
+          projectId={projectId}
+          chapterId={routeChapterId}
+          onInsert={insertFromAi}
+          injectedInstruction={workOrder.fix}
+          injectedQuote={workOrder.quote}
+        />
       )}
       {!flow && rightPanel === "snapshots" && chapter && (
         <SnapshotPanel

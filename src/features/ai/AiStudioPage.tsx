@@ -97,7 +97,7 @@ export function AiStudioPage() {
   const modelLabel = target ? target.providerName + " · " + target.model : "";
 
   // 引用面板默认展示最近一次生成的来源；
-  // 刷新页面后运行时元信息会丢失，这时用消息里落库的 citations 兜底
+  // 刷新页面后运行时元信息会丢失，这时用消息里落库的 contextSources / citations 兜底
   const panelMeta = useMemo<RunMeta | undefined>(() => {
     if (panelKey && runMeta[panelKey]) return runMeta[panelKey];
     const ids = activeMessages.map((m) => m.id).filter((id) => runMeta[id]);
@@ -112,7 +112,7 @@ export function AiStudioPage() {
       ok: !lastAssistant.error,
       error: lastAssistant.error,
       contextTokens: lastAssistant.usage?.prompt ?? 0,
-      sources: fallbackSources(lastAssistant.citations),
+      sources: fallbackSources(lastAssistant.citations, lastAssistant.contextSources),
     };
   }, [panelKey, runMeta, activeMessages]);
 
@@ -217,6 +217,7 @@ export function AiStudioPage() {
         createdAt: new Date().toISOString(),
         usage: result.usage,
         citations: result.contextSources.map(toCitation),
+        contextSources: result.contextSources,
         error: result.ok || aborted ? undefined : result.error,
         taskKind: "chat",
       };

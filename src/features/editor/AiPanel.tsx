@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Chip, TextArea } from "@heroui/react";
 import {
   Check, ClipboardCopy, Expand, Feather, Languages, MessageSquareQuote, RefreshCw,
@@ -17,6 +17,10 @@ interface Props {
   projectId: ID;
   chapterId?: ID;
   onInsert: (text: string, mode: "cursor" | "end" | "replace-selection") => void;
+  /** 外部注入的改写指令（来自一致性报告的 fixPrompt） */
+  injectedInstruction?: string;
+  /** 外部注入的证据原文（来自一致性报告的 quote） */
+  injectedQuote?: string;
 }
 
 type ActionKey = "continue" | "rewrite" | "expand" | "polish" | "describe" | "dialogue" | "brainstorm";
@@ -32,7 +36,7 @@ const ACTIONS: { key: ActionKey; label: string; icon: typeof Wand2; needsSelecti
 ];
 
 /** 写作台右侧 AI 面板：动作 → 生成 → 候选 → 插入。 */
-export function AiPanel({ projectId, chapterId, onInsert }: Props) {
+export function AiPanel({ projectId, chapterId, onInsert, injectedInstruction, injectedQuote }: Props) {
   const results = useEditorStore((s) => s.results);
   const running = useEditorStore((s) => s.running);
   const selection = useEditorStore((s) => s.selection);
@@ -47,6 +51,17 @@ export function AiPanel({ projectId, chapterId, onInsert }: Props) {
   const [participants, setParticipants] = useState("");
   const [candidates, setCandidates] = useState(settings.candidateCount || 3);
   const [directions, setDirections] = useState<Record<string, { title: string; premise: string; why: string; risk: string; examples: string[] }[]>>({});
+
+  // 从一致性报告跳转过来时，把 fixPrompt 与证据原文填进面板，省去手动粘贴
+  useEffect(() => {
+    if (injectedInstruction) setInstruction(injectedInstruction);
+  }, [injectedInstruction]);
+  useEffect(() => {
+    if (injectedQuote) {
+      useEditorStore.getState().setSelection(injectedQuote);
+      setSubject(injectedQuote.slice(0, 40));
+    }
+  }, [injectedQuote]);
 
   void activeResultId;
   const modelLabel = settings.activeModel ?? "未配置模型";
@@ -158,6 +173,13 @@ export function AiPanel({ projectId, chapterId, onInsert }: Props) {
           <div className="mt-2 flex items-start gap-2 rounded-lg bg-amber-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>还没有选择模型，AI 功能不可用。点右上角进入设置。</span>
+          </div>
+        )}
+        {injectedQuote && (
+          <div className="mt-2 rounded-lg bg-rose-500/[0.07] px-2.5 py-2 text-[11px] leading-relaxed">
+            <p className="mb-1 font-medium text-rose-600 dark:text-rose-300">来自一致性报告的问题段</p>
+            <p className="line-clamp-3 opacity-75">{injectedQuote}</p>
+            <p className="mt-1 opacity-50">指令已填入下方，点「改写」即可重写这段。</p>
           </div>
         )}
       </div>

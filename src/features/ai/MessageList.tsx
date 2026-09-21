@@ -37,7 +37,7 @@ function AssistantFooter({
   onInspect?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const sources: ContextSource[] = meta?.sources ?? fallbackSources(message.citations);
+  const sources: ContextSource[] = meta?.sources ?? fallbackSources(message.citations, message.contextSources);
   const usage = message.usage;
   return (
     <div className="mt-1.5">
