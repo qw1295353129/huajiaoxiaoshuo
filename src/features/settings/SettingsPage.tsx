@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
 import { ArrowLeft, Check, Eye, EyeOff, Gauge, KeyRound, Keyboard, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
@@ -8,17 +8,19 @@ import { ROUTES } from "@/app/routes";
 import { useAsync } from "@/app/hooks";
 import { TASK_LABELS } from "@/db/defaults";
 import {
-  deleteProvider, listProviders, listRouting, markProviderCheck, seedProviders, setProviderKey,
+  deleteProvider, getProvider, listProviders, listRouting, markProviderCheck, seedProviders, setProviderKey,
   updateRouting, upsertProvider,
 } from "@/db/repo/settings";
-import { probeProvider } from "@/ai/providers";
+import { isLocalProvider, probeProvider } from "@/ai/providers";
 import { db } from "@/db/database";
 import { databaseStats, isPersisted, requestPersistence, wipeDatabase } from "@/db/database";
 import { estimateTokens } from "@/utils/tokens";
 import { formatBytes } from "@/utils/format-bytes";
 import { EditorPreferences } from "./EditorPreferences";
 import { AuthorProfileSettings } from "./AuthorProfileSettings";
+import { ChangelogPanel } from "./ChangelogPanel";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
+import { APP_VERSION } from "@/core";
 
 type Tab = SettingsSection;
 
@@ -99,6 +101,17 @@ export function SettingsPage() {
 
 // ==================== 模型与 AI ====================
 
+/** 输入 API Key 后等待多久再自动拉取模型（毫秒），避免每敲一个字符就发请求 */
+const AUTO_PROBE_DEBOUNCE_MS = 800;
+/** 自动拉取要求的最小 Key 长度（本地供应商不需要鉴权，不受此限制） */
+const AUTO_PROBE_MIN_KEY_LENGTH = 8;
+
+/** 合并模型列表：去重、保留用户手填的、最多留 60 个；added 为本次新增的数量 */
+function mergeModels(existing: string[], incoming: string[]): { models: string[]; added: number } {
+  const models = Array.from(new Set([...existing, ...incoming])).slice(0, 60);
+  return { models, added: models.filter((m) => !existing.includes(m)).length };
+}
+
 function ModelsTab() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
@@ -109,14 +122,32 @@ function ModelsTab() {
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [checking, setChecking] = useState<string | null>(null);
+  /** 正在自动拉取模型的供应商（卡片上显示「正在获取模型…」） */
+  const [autoProbing, setAutoProbing] = useState<Record<string, boolean>>({});
+  /** Key 输入框的本地草稿：写库是异步的，先本地回显，避免连续输入/粘贴时丢字符 */
+  const [keyDraft, setKeyDraft] = useState<Record<string, string>>({});
 
+  // ---------- 输入 API Key 后自动拉取模型列表 ----------
+  /** 每个供应商的防抖定时器：停止输入 800ms 后才真正发请求 */
+  const probeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  /** 每个供应商「上次成功拉取时用的 Key」，同一个 Key 不重复请求 */
+  const probedKeys = useRef<Record<string, string>>({});
+  /** 正在请求中的供应商，避免并发重复请求 */
+  const probingNow = useRef<Set<string>>(new Set());
+  /** 进入页面时已对本地供应商自动探测过的标记 */
+  const entryProbed = useRef<Set<string>>(new Set());
+  /** 组件是否还在页面上：卸载后不再回写状态、不再弹提示 */
+  const aliveRef = useRef(true);
+
+  /** 手动「测试连接」：保留原有行为，只把模型合并抽成公共函数 */
   const check = async (p: ProviderConfig) => {
     setChecking(p.id);
     try {
       const res = await probeProvider(p);
       await markProviderCheck(p.id, res.ok, res.message);
+      if (res.ok) probedKeys.current[p.id] = (p.apiKey ?? "").trim();
       if (res.ok && res.models?.length) {
-        await upsertProvider({ ...p, models: Array.from(new Set([...p.models, ...res.models])).slice(0, 60) });
+        await upsertProvider({ ...p, models: mergeModels(p.models, res.models).models });
       }
       notify(res.ok ? "success" : "danger", p.name + (res.ok ? " 连接正常" : " 连接失败"), res.message);
       reload();
@@ -124,6 +155,109 @@ function ModelsTab() {
       setChecking(null);
     }
   };
+
+  /**
+   * 自动拉取某个供应商的模型列表。
+   * 触发条件：Key 长度 ≥ 8 且与上次成功拉取时用的 Key 不同。
+   * 只有「本地供应商进页面自动探测」那一次允许没有 Key（它们不需要鉴权）。
+   * 失败不弹提示打断输入，只把卡片状态标成失败，原因由卡片上的小字展示。
+   */
+  const runAutoProbe = async (providerId: string, opts: { allowShortKey?: boolean } = {}) => {
+    if (probingNow.current.has(providerId)) return;
+    let fresh: ProviderConfig | undefined;
+    try {
+      fresh = await getProvider(providerId);
+    } catch {
+      return;
+    }
+    if (!fresh || !fresh.baseUrl) return;
+
+    const key = (fresh.apiKey ?? "").trim();
+    const local = isLocalProvider(fresh);
+    if (key.length < AUTO_PROBE_MIN_KEY_LENGTH && !(opts.allowShortKey && local)) return;
+    if (probedKeys.current[providerId] === key) return;
+
+    probingNow.current.add(providerId);
+    setAutoProbing((s) => ({ ...s, [providerId]: true }));
+    try {
+      const res = await probeProvider(fresh);
+      if (!aliveRef.current) return;
+      if (res.ok) {
+        const count = res.models?.length ?? 0;
+        const { models, added } = mergeModels(fresh.models, res.models ?? []);
+        if (count) await upsertProvider({ ...fresh, models });
+        await markProviderCheck(providerId, true, `自动拉取到 ${count} 个模型`);
+        probedKeys.current[providerId] = key;
+        notify(
+          "success",
+          fresh.name + " 模型列表已更新",
+          `自动拉取到 ${count} 个模型` + (added > 0 ? `，新增 ${added} 个` : "，列表已是最新"),
+        );
+      } else {
+        // 失败：不打扰输入，只在卡片上标记失败并显示原因
+        await markProviderCheck(providerId, false, res.message);
+      }
+    } catch {
+      /* 自动拉取失败静默处理，用户仍可手动「测试连接」 */
+    } finally {
+      probingNow.current.delete(providerId);
+      if (aliveRef.current) {
+        setAutoProbing((s) => {
+          const next = { ...s };
+          delete next[providerId];
+          return next;
+        });
+        reload();
+      }
+    }
+  };
+
+  /** 防抖调度：输入过程中只保留最后一个定时器 */
+  const scheduleAutoProbe = (providerId: string) => {
+    const timer = probeTimers.current[providerId];
+    if (timer) clearTimeout(timer);
+    probeTimers.current[providerId] = setTimeout(() => {
+      delete probeTimers.current[providerId];
+      void runAutoProbe(providerId);
+    }, AUTO_PROBE_DEBOUNCE_MS);
+  };
+
+  // 本地供应商（Ollama / LM Studio / localhost）不需要 Key：进入页面时模型列表为空就自动探测一次
+  useEffect(() => {
+    for (const p of providers) {
+      if (!isLocalProvider(p) || !p.baseUrl || p.models.length > 0) continue;
+      if (entryProbed.current.has(p.id)) continue;
+      entryProbed.current.add(p.id);
+      void runAutoProbe(p.id, { allowShortKey: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providers]);
+
+  // 草稿已经落库（与数据库一致）时清掉它，保证编辑弹窗等外部修改也能反映到输入框
+  useEffect(() => {
+    setKeyDraft((draft) => {
+      let changed = false;
+      const next = { ...draft };
+      for (const p of providers) {
+        if (next[p.id] !== undefined && next[p.id] === (p.apiKey ?? "")) {
+          delete next[p.id];
+          changed = true;
+        }
+      }
+      return changed ? next : draft;
+    });
+  }, [providers]);
+
+  // 卸载：清掉还没触发的防抖定时器，并停止后续回写
+  useEffect(() => {
+    aliveRef.current = true;
+    const timers = probeTimers.current;
+    return () => {
+      aliveRef.current = false;
+      for (const t of Object.values(timers)) clearTimeout(t);
+      probeTimers.current = {};
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -227,9 +361,13 @@ function ModelsTab() {
                   <KeyRound className="size-3.5 opacity-40" />
                   <input
                     type={showKey[p.id] ? "text" : "password"}
-                    value={p.apiKey ?? ""}
+                    value={keyDraft[p.id] ?? p.apiKey ?? ""}
                     onChange={(e) => {
-                      void setProviderKey(p.id, e.target.value).then(reload);
+                      const value = e.target.value;
+                      setKeyDraft((s) => ({ ...s, [p.id]: value })); // 立即回显，避免异步落库期间丢字符
+                      void setProviderKey(p.id, value).then(reload);
+                      // 停止输入 800ms 后自动去拉该供应商的模型列表
+                      scheduleAutoProbe(p.id);
                     }}
                     placeholder={p.kind === "ollama" || p.kind === "lmstudio" ? "本地模型通常不需要 Key" : "粘贴 API Key"}
                     className="w-full bg-transparent text-xs outline-none placeholder:opacity-40"
@@ -241,6 +379,7 @@ function ModelsTab() {
                 <Button size="sm" variant="outline" isPending={checking === p.id} onPress={() => void check(p)}>
                   测试连接
                 </Button>
+                {autoProbing[p.id] && <span className="animate-pulse-soft text-[10px] opacity-60">正在获取模型…</span>}
                 <Switch
                   isSelected={p.enabled}
                   onChange={(v) => {
@@ -270,6 +409,15 @@ function ModelsTab() {
                   <Trash2 className="size-3.5" />
                 </Button>
               </div>
+
+              {p.lastCheckOk === false && p.lastCheckMessage && (
+                <p
+                  className="mt-1.5 line-clamp-2 text-[10px] leading-relaxed text-rose-600/80 dark:text-rose-400/80"
+                  title={p.lastCheckMessage}
+                >
+                  {p.lastCheckMessage}
+                </p>
+              )}
 
               {p.models.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -745,7 +893,7 @@ function AboutTab() {
   return (
     <div className="space-y-4 text-sm">
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
-        <h2 className="font-semibold">花椒写作平台</h2>
+        <h2 className="font-semibold">花椒写作平台 <span className="ml-1 text-xs font-normal opacity-50">v{APP_VERSION}</span></h2>
         <p className="mt-1.5 text-xs leading-relaxed opacity-70">
           为长篇小说写作而设计的本地优先工作台。结构化的设定库 + 精准的上下文组装 + 多模型可插拔，
           目标只有一个：让 AI 写出来的东西不用大改。
@@ -756,6 +904,8 @@ function AboutTab() {
         <p className="mt-1.5">数据存储：浏览器本地 IndexedDB，支持导出为 JSON 备份；桌面版（Tauri）将改为文件系统存储。</p>
         <p className="mt-1.5">键盘：⌘K 命令面板 · ⌘S 保存 · ⌘J AI 续写 · ⌘⇧F 心流模式 · ⌘, 设置</p>
       </section>
+      <ChangelogPanel />
+
       <section className="rounded-xl border border-black/8 p-4 text-xs leading-relaxed opacity-70 dark:border-white/10">
         <p className="font-medium">数据安全提示</p>
         <p className="mt-1.5">

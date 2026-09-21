@@ -26,6 +26,7 @@ import { AiStudioPage } from "@/features/ai/AiStudioPage";
 import { GenesisPage } from "@/features/genesis/GenesisPage";
 import { UsagePage } from "@/features/usage/UsagePage";
 import { DataPage } from "@/features/data/DataPage";
+import { ReviewPage } from "@/features/review/ReviewPage";
 
 function ProjectGuard({ children }: { children: React.ReactNode }) {
   const { projectId } = useParams<{ projectId: string }>();
@@ -112,6 +113,7 @@ export default function App() {
           <Route path="graph" element={<GraphPage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="consistency" element={<ConsistencyPage />} />
+          <Route path="review" element={<ReviewPage />} />
           <Route path="ai" element={<AiStudioPage />} />
           <Route path="genesis" element={<GenesisPage />} />
           <Route path="usage" element={<UsagePage />} />

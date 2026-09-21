@@ -14,6 +14,7 @@ export const ROUTES = {
   graph: (id: string) => `/p/${id}/graph`,
   insights: (id: string) => `/p/${id}/insights`,
   consistency: (id: string) => `/p/${id}/consistency`,
+  review: (id: string) => `/p/${id}/review`,
   ai: (id: string) => `/p/${id}/ai`,
   genesis: (id: string) => `/p/${id}/genesis`,
   usage: (id: string) => `/p/${id}/usage`,

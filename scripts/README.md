@@ -13,6 +13,7 @@
 | `verify-settings-entry.mjs` | 回归：全部「设置」入口（首页按钮 / 侧栏 / AI 面板模型名 / ⌘, / 命令面板 / 引导按钮）都能真正进入设置 | `node scripts/verify-settings-entry.mjs` |
 | `verify-rebrand.mjs` | 回归：图标无「墨」字且为黑底、死设置项已清、默认心流真的生效、库名与存储键已统一为 huajiao | `node scripts/verify-rebrand.mjs` |
 | `verify-overview.mjs` | 回归：项目总览页（进度/今日/近 7 天/指标卡/行动项/节奏图/结构分布），且不再出现「建设中」 | `node scripts/verify-overview.mjs` |
+| `verify-review.mjs` | 回归：审稿协作 —— 批注锚定与正文标记渲染、修订建议接受/拒绝与快照、**改稿后锚点自动重定位**、审稿台、更新日志 | `node scripts/verify-review.mjs` |
 
 ## 真模型验证
 

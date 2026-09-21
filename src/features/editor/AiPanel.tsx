@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Button, Chip, TextArea } from "@heroui/react";
+import { Button, Chip, TextArea, Tooltip } from "@heroui/react";
 import {
   Check, ClipboardCopy, Expand, Feather, Languages, MessageSquareQuote, RefreshCw,
-  Sparkles, SquareStack, Trash2, Wand2, X, AlertTriangle, Coins,
+  Sparkles, SquareStack, Trash2, Wand2, X, AlertTriangle, Coins, ScanEye,
 } from "lucide-react";
 import type { ID } from "@/core";
 import {
@@ -18,6 +18,8 @@ interface Props {
   projectId: ID;
   chapterId?: ID;
   onInsert: (text: string, mode: "cursor" | "end" | "replace-selection") => void;
+  /** 把生成结果转为"修订建议"而不是直接插入正文（审稿流程用） */
+  onSuggest?: (text: string) => void | Promise<void>;
   /** 外部注入的改写指令（来自一致性报告的 fixPrompt） */
   injectedInstruction?: string;
   /** 外部注入的证据原文（来自一致性报告的 quote） */
@@ -37,7 +39,7 @@ const ACTIONS: { key: ActionKey; label: string; icon: typeof Wand2; needsSelecti
 ];
 
 /** 写作台右侧 AI 面板：动作 → 生成 → 候选 → 插入。 */
-export function AiPanel({ projectId, chapterId, onInsert, injectedInstruction, injectedQuote }: Props) {
+export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedInstruction, injectedQuote }: Props) {
   const results = useEditorStore((s) => s.results);
   const running = useEditorStore((s) => s.running);
   const selection = useEditorStore((s) => s.selection);
@@ -281,7 +283,7 @@ export function AiPanel({ projectId, chapterId, onInsert, injectedInstruction, i
         )}
         <div className="space-y-3">
           {results.map((r) => (
-            <ResultCard key={r.id} result={r} onInsert={onInsert} directions={directions[r.id]} />
+            <ResultCard key={r.id} result={r} onInsert={onInsert} onSuggest={onSuggest} directions={directions[r.id]} />
           ))}
         </div>
       </div>
@@ -296,10 +298,12 @@ export function AiPanel({ projectId, chapterId, onInsert, injectedInstruction, i
 function ResultCard({
   result,
   onInsert,
+  onSuggest,
   directions,
 }: {
   result: AiResultView;
   onInsert: (text: string, mode: "cursor" | "end" | "replace-selection") => void;
+  onSuggest?: (text: string) => void | Promise<void>;
   directions?: { title: string; premise: string; why: string; risk: string; examples: string[] }[];
 }) {
   const notify = useAppStore((s) => s.notify);
@@ -421,6 +425,16 @@ function ResultCard({
             <Button size="sm" variant="ghost" onPress={() => onInsert(candidate.content, "end")}>
               追加章末
             </Button>
+            {onSuggest && (
+              <Tooltip>
+                <Tooltip.Trigger>
+                  <Button size="sm" variant="ghost" isIconOnly onPress={() => void onSuggest(candidate.content)}>
+                    <ScanEye className="size-3.5" />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>加入修订建议，稍后逐条确认</Tooltip.Content>
+              </Tooltip>
+            )}
             <Button size="sm" variant="ghost" isIconOnly onPress={() => void copy(candidate.content)}>
               <ClipboardCopy className="size-3.5" />
             </Button>

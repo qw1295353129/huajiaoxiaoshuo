@@ -42,6 +42,47 @@ body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 .ProseMirror .ai-diff-add { background: rgb(23 201 100 / .22); text-decoration: none; border-radius: 2px; }
 .ProseMirror .ai-diff-del { background: rgb(244 63 94 / .18); text-decoration: line-through; opacity: .75; border-radius: 2px; }
 
+/* ---------- 审稿标记 ---------- */
+/* 批注：黄色波浪下划线，不打断阅读节奏 */
+.hj-review--comment {
+  border-bottom: 2px solid rgb(245 165 36 / .75);
+  background: rgb(245 165 36 / .08);
+  cursor: pointer;
+}
+/* 修订建议：替换 / 插入 = 绿色，删除 = 红色删除线 */
+.hj-review--replace,
+.hj-review--insert {
+  background: rgb(23 201 100 / .16);
+  border-bottom: 2px solid rgb(23 201 100 / .55);
+  cursor: pointer;
+}
+.hj-review--delete {
+  background: rgb(244 63 94 / .12);
+  text-decoration: line-through;
+  text-decoration-color: rgb(244 63 94 / .8);
+  cursor: pointer;
+}
+/* 已处理：淡出，但仍可见，便于回看 */
+.hj-review--muted {
+  background: transparent;
+  border-bottom-color: transparent;
+  text-decoration: none;
+  opacity: .55;
+}
+/* 建议以"预览"形式渲染时的气泡标记 */
+.hj-review-insert-chip {
+  color: rgb(5 150 105);
+  background: rgb(23 201 100 / .12);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.hj-review-delete-chip {
+  color: rgb(225 29 72);
+  text-decoration: line-through;
+  opacity: .7;
+  padding: 0 2px;
+}
+
 /* ---------- 通用 ---------- */
 * { scrollbar-width: thin; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }

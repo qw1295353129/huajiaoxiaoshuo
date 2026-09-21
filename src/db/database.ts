@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 import type { AppState } from '@/core';
 import { DB_NAME, DB_STORES, DB_VERSION, type HuaJiaoDB } from './schema';
+import { V1_STORES } from './v1-stores';
 
 /**
  * 用声明合并把 HuaJiaoDB 的表定义挂到 Dexie 实例上：
@@ -9,6 +10,8 @@ import { DB_NAME, DB_STORES, DB_VERSION, type HuaJiaoDB } from './schema';
 class Database extends Dexie {
   constructor() {
     super(DB_NAME);
+    // v1：初始结构；v2：新增 comments / reviewSuggestions 两张表（审稿协作）
+    this.version(1).stores(V1_STORES as unknown as Record<string, string>);
     this.version(DB_VERSION).stores(DB_STORES as unknown as Record<string, string>);
   }
 }

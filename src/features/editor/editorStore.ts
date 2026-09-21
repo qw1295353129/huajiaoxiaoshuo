@@ -24,6 +24,8 @@ interface EditorState {
   /** 编辑器内的当前选中文本 */
   selection: string;
   selectionRange?: { from: number; to: number };
+  /** 选区的纯文本偏移（审稿锚点用它） */
+  selectionOffsets?: { from: number; to: number; text: string };
   dirty: boolean;
   saving: boolean;
   lastSavedAt?: number;
@@ -33,7 +35,7 @@ interface EditorState {
   session?: WritingSession;
   flowMode: boolean;
   typewriter: boolean;
-  rightPanel: "ai" | "outline" | "snapshots" | "none";
+  rightPanel: "ai" | "review" | "outline" | "snapshots" | "none";
   results: AiResultView[];
   activeResultId?: string;
   running: boolean;
@@ -41,7 +43,11 @@ interface EditorState {
   snapshots: Snapshot[];
 
   setChapter: (chapterId?: ID, projectId?: ID) => void;
-  setSelection: (text: string, range?: { from: number; to: number }) => void;
+  setSelection: (
+    text: string,
+    range?: { from: number; to: number },
+    offsets?: { from: number; to: number; text: string },
+  ) => void;
   setDirty: (dirty: boolean) => void;
   setSaving: (saving: boolean) => void;
   markSaved: (words: number) => void;
@@ -89,8 +95,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       results: prev === chapterId ? get().results : [],
     });
   },
-  setSelection(text, range) {
-    set({ selection: text, selectionRange: range });
+  setSelection(text, range, offsets) {
+    set({ selection: text, selectionRange: range, selectionOffsets: offsets });
   },
   setDirty(dirty) {
     set({ dirty });

@@ -4,7 +4,7 @@ import type {
   ChapterMetric, Character, CharacterAppearance, ContinuityRule, Entity, EntityMention, Faction,
   GlossaryTerm, Issue, PlotThread, PomodoroRecord, Project, PromptTemplate, ProviderConfig,
   Relationship, Snapshot, StyleFingerprint, TaskRouting, TimelineEvent, WritingGoal, WritingSession,
-  WorldEntry, OutlineNode, GenesisRun, ModelPricing,
+  WorldEntry, OutlineNode, GenesisRun, ModelPricing, ChapterComment, ReviewSuggestion,
 } from '@/core';
 
 /** 每个 projectId 开头的表都带上项目隔离，便于级联删除 */
@@ -15,6 +15,8 @@ export interface HuaJiaoDB {
   chapterContents: EntityTable<ChapterContent, 'chapterId'>;
   outlineNodes: EntityTable<OutlineNode, 'id'>;
   snapshots: EntityTable<Snapshot, 'id'>;
+  comments: EntityTable<ChapterComment, 'id'>;
+  reviewSuggestions: EntityTable<ReviewSuggestion, 'id'>;
   characters: EntityTable<Character, 'id'>;
   relationships: EntityTable<Relationship, 'id'>;
   characterAppearances: EntityTable<CharacterAppearance, 'id'>;
@@ -48,7 +50,7 @@ export interface HuaJiaoDB {
 /** Dexie 版本定义。加表/加索引时 append 新版本，不要改旧版本。 */
 export const DB_NAME = 'huajiao-writer';
 
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export const DB_STORES = {
   projects: 'id, title, status, updatedAt, createdAt',
@@ -57,6 +59,8 @@ export const DB_STORES = {
   chapterContents: 'chapterId, projectId',
   outlineNodes: 'id, projectId, parentId, [projectId+order]',
   snapshots: 'id, chapterId, [projectId+chapterId], createdAt',
+  comments: 'id, projectId, chapterId, [chapterId+resolved], resolved, createdAt',
+  reviewSuggestions: 'id, projectId, chapterId, [chapterId+status], status, createdAt',
   characters: 'id, projectId, role, status, name',
   relationships: 'id, projectId, fromId, toId',
   characterAppearances: 'id, characterId, chapterId, [characterId+chapterId]',

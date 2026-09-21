@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, Chip, Tooltip } from "@heroui/react";
 import {
   ArrowLeft, Clock, Eye, History, Keyboard, Maximize2, Minimize2, PanelLeftClose,
-  PanelLeftOpen, PanelRightClose, PanelRightOpen, Save, Settings2, Type, Zap,
+  PanelLeftOpen, PanelRightClose, PanelRightOpen, Save, ScanEye, Settings2, Type, Zap,
 } from "lucide-react";
 import type { Chapter, ID } from "@/core";
 import { useAppStore } from "@/app/store";
@@ -21,6 +21,18 @@ import { useEditorStore } from "./editorStore";
 import { EditorCanvas, type EditorCanvasHandle } from "./EditorCanvas";
 import { ChapterList } from "./ChapterList";
 import { AiPanel } from "./AiPanel";
+import { CommentPanel } from "./CommentPanel";
+import type { ReviewMarkInput } from "./EditorCanvas";
+import {
+  addReviewSuggestion,
+  listComments,
+  listReviewSuggestions,
+  markReviewSuggestion,
+} from "@/db/repo/review";
+import { useLiveQuery } from "dexie-react-hooks";
+import type { ChapterComment, ReviewSuggestion } from "@/core";
+import { locateAnchor, makeAnchor } from "@/utils/anchor";
+import { docToText as docToPlainText } from "@/utils/rich-text";
 import { SnapshotPanel } from "./SnapshotPanel";
 import { ChapterSettings } from "./ChapterSettings";
 import { PomodoroTimer } from "./PomodoroTimer";
@@ -253,6 +265,134 @@ export function EditorPage() {
     [handle, draftHtml, notify],
   );
 
+  // ---------- 审稿：评论与修订建议 ----------
+  const comments = useLiveQuery(
+    () => (routeChapterId ? listComments(routeChapterId) : Promise.resolve([])),
+    [routeChapterId],
+    [] as ChapterComment[],
+  );
+  const suggestions = useLiveQuery(
+    () => (routeChapterId ? listReviewSuggestions(routeChapterId) : Promise.resolve([])),
+    [routeChapterId],
+    [] as ReviewSuggestion[],
+  );
+
+  /** 正文纯文本（审稿锚点、AI 上下文都用它） */
+  const plainText = useMemo(() => docToPlainText(draftHtml), [draftHtml]);
+
+  /** 待处理 + 已处理的审稿标记，叠加到正文上 */
+  const reviewMarks = useMemo<ReviewMarkInput[]>(() => {
+    const marks: ReviewMarkInput[] = [];
+    for (const c of comments) {
+      if (!c.anchor) continue;
+      const hit = locateAnchor(plainText, c.anchor);
+      if (!hit) continue;
+      marks.push({ from: hit.from, to: hit.to, data: { kind: "comment", id: c.id, muted: c.resolved, label: c.body.slice(0, 40) } });
+    }
+    for (const s of suggestions) {
+      const hit = locateAnchor(plainText, s.anchor);
+      if (!hit) continue;
+      marks.push({
+        from: hit.from,
+        to: hit.to,
+        data: { kind: s.kind, id: s.id, muted: s.status !== "pending", label: s.reason ?? s.proposed.slice(0, 40) },
+      });
+    }
+    return marks;
+  }, [comments, suggestions, plainText]);
+
+  /** 接受一条建议：把正文里那段替换掉，并标记为已接受 */
+  const acceptSuggestion = useCallback(
+    async (id: ID) => {
+      const s = suggestions.find((x) => x.id === id);
+      if (!s) return;
+      const hit = locateAnchor(plainText, s.anchor);
+      if (!hit) {
+        notify("warning", "这条建议的原文已经找不到了", "正文改动较大，已标记为已接受");
+        await markReviewSuggestion(id, "accepted");
+        return;
+      }
+      const next =
+        s.kind === "delete"
+          ? plainText.slice(0, hit.from) + plainText.slice(hit.to)
+          : plainText.slice(0, hit.from) + s.proposed + plainText.slice(hit.to);
+      // 改动前存一个快照，方便回退
+      if (chapter) await createSnapshot(chapter.id, "应用修订建议前", "pre-ai");
+      const html = textToDoc(next);
+      setDraftHtml(html);
+      setDraftWords(countWords(next));
+      useEditorStore.getState().setDirty(true);
+      const res = await saveChapterContent(chapter!.id, html);
+      useEditorStore.getState().markSaved(res.words);
+      await markReviewSuggestion(id, "accepted");
+      setLoadedFor("");
+      notify("success", s.kind === "delete" ? "已删除该段" : "已应用修订");
+    },
+    [suggestions, plainText, chapter, notify],
+  );
+
+  const rejectSuggestion = useCallback(
+    async (id: ID) => {
+      await markReviewSuggestion(id, "rejected");
+      notify("info", "已拒绝该建议");
+    },
+    [notify],
+  );
+
+  /** 全部接受：从后往前应用，避免偏移互相影响 */
+  const acceptAllSuggestions = useCallback(async () => {
+    const pending = suggestions.filter((s) => s.status === "pending");
+    const located: { s: ReviewSuggestion; hit: { from: number; to: number } }[] = [];
+    for (const s of pending) {
+      const hit = locateAnchor(plainText, s.anchor);
+      if (hit) located.push({ s, hit: { from: hit.from, to: hit.to } });
+    }
+    located.sort((a, b) => b.hit.from - a.hit.from);
+    if (!located.length) {
+      notify("warning", "没有可应用的修订", "建议锚定的原文都找不到了");
+      return;
+    }
+    if (chapter) await createSnapshot(chapter.id, "批量应用修订前", "pre-ai");
+    let next = plainText;
+    for (const { s, hit } of located) {
+      next = s.kind === "delete" ? next.slice(0, hit.from) + next.slice(hit.to) : next.slice(0, hit.from) + s.proposed + next.slice(hit.to);
+    }
+    const html = textToDoc(next);
+    setDraftHtml(html);
+    setDraftWords(countWords(next));
+    const res = await saveChapterContent(chapter!.id, html);
+    useEditorStore.getState().markSaved(res.words);
+    for (const { s } of located) await markReviewSuggestion(s.id, "accepted");
+    setLoadedFor("");
+    notify("success", "已应用 " + located.length + " 条修订");
+  }, [suggestions, plainText, chapter, notify]);
+
+  /** 把 AI 生成的一段内容变成"修订建议"而不是直接插入正文 */
+  const suggestFromAi = useCallback(
+    async (text: string) => {
+      if (!chapter) return;
+      const offsets = useEditorStore.getState().selectionOffsets;
+      const anchor = offsets
+        ? makeAnchor(plainText, offsets.from, offsets.to)
+        : { from: Math.max(0, plainText.length - 1), to: plainText.length, quote: "" };
+      await addReviewSuggestion({
+        projectId,
+        chapterId: chapter.id,
+        kind: anchor.quote ? "replace" : "insert",
+        anchor,
+        proposed: text,
+        reason: "由 AI 生成，待你确认",
+        source: "ai",
+      });
+      useEditorStore.getState().setRightPanel("review");
+      notify("success", "已加入修订建议", "到审稿面板逐条接受或拒绝");
+    },
+    [chapter, plainText, projectId, notify],
+  );
+
+  const pendingReviewCount =
+    comments.filter((c) => !c.resolved).length + suggestions.filter((s) => s.status === "pending").length;
+
   const currentIndex = chapters.findIndex((c) => c.id === routeChapterId);
   const sessionWords = editorStore.sessionWords;
 
@@ -304,7 +444,7 @@ export function EditorPage() {
       <div className="flex min-w-0 items-center gap-1.5">
         <Tooltip>
           <Tooltip.Trigger>
-            <Button isIconOnly size="sm" variant="ghost" onPress={() => navigate(ROUTES.overview(projectId))}>
+            <Button isIconOnly size="sm" variant="ghost" aria-label="返回总览" onPress={() => navigate(ROUTES.overview(projectId))}>
               <ArrowLeft className="size-4" />
             </Button>
           </Tooltip.Trigger>
@@ -348,7 +488,31 @@ export function EditorPage() {
             <Button
               isIconOnly
               size="sm"
+              variant={rightPanel === "review" ? "secondary" : "ghost"}
+              aria-label="审稿"
+              onPress={() => {
+                editorStore.setRightPanel(rightPanel === "review" ? "ai" : "review");
+              }}
+            >
+              <span className="relative">
+                <ScanEye className="size-4" />
+                {pendingReviewCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 grid size-3.5 place-items-center rounded-full bg-amber-500 text-[8px] font-medium text-white">
+                    {pendingReviewCount > 9 ? "9+" : pendingReviewCount}
+                  </span>
+                )}
+              </span>
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content>审稿（批注与修订建议）</Tooltip.Content>
+        </Tooltip>
+        <Tooltip>
+          <Tooltip.Trigger>
+            <Button
+              isIconOnly
+              size="sm"
               variant="ghost"
+              aria-label="版本快照"
               onPress={() => {
                 editorStore.setRightPanel(rightPanel === "snapshots" ? "ai" : "snapshots");
               }}
@@ -448,12 +612,17 @@ export function EditorPage() {
             <EditorCanvas
               chapterKey={chapter.id}
               initialHtml={loadedFor === chapter.id ? draftHtml : content?.html ?? "<p></p>"}
+              reviewMarks={reviewMarks}
               fontSize={settings.editorFontSize}
               maxWidth={flow ? Math.max(settings.editorMaxWidth, 720) : settings.editorMaxWidth}
               typewriter={settings.typewriterScroll}
               onReady={setHandle}
               onChange={onEditorChange}
-              onSelectionChange={(text, range) => useEditorStore.getState().setSelection(text, range)}
+              onSelectionChange={(text, range) => {
+                // 同时记录"纯文本偏移"，审稿锚点用它（ProseMirror 位置会随编辑漂移）
+                const offsets = handle?.getSelectionOffsets() ?? undefined;
+                useEditorStore.getState().setSelection(text, range, offsets);
+              }}
               onStats={() => undefined}
             />
           )}
@@ -467,8 +636,22 @@ export function EditorPage() {
           projectId={projectId}
           chapterId={routeChapterId}
           onInsert={insertFromAi}
+          onSuggest={suggestFromAi}
           injectedInstruction={workOrder.fix}
           injectedQuote={workOrder.quote}
+        />
+      )}
+      {!flow && rightPanel === "review" && chapter && (
+        <CommentPanel
+          projectId={projectId}
+          chapterId={chapter.id}
+          text={plainText}
+          selection={editorStore.selectionOffsets ?? null}
+          onClose={() => editorStore.setRightPanel("ai")}
+          onJumpTo={(from, to) => handle?.selectRange(from, to)}
+          onAcceptSuggestion={(id) => void acceptSuggestion(id)}
+          onRejectSuggestion={(id) => void rejectSuggestion(id)}
+          onAcceptAll={() => void acceptAllSuggestions()}
         />
       )}
       {!flow && rightPanel === "snapshots" && chapter && (
