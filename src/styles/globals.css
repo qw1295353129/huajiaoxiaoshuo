@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-serif: "Songti SC", "Source Han Serif SC", "SimSun", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+
+/* ---------- 手稿排版 ---------- */
+.manuscript {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 2.05;
+  letter-spacing: 0.012em;
+}
+.manuscript p { margin: 0 0 1.1em; text-indent: 2em; }
+.manuscript p:first-child { text-indent: 2em; }
+.manuscript h1, .manuscript h2, .manuscript h3 { font-family: var(--font-sans); text-indent: 0; margin: 1.4em 0 0.7em; }
+
+.ProseMirror { outline: none; min-height: 55vh; }
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left; height: 0; pointer-events: none; opacity: .38;
+}
+.ProseMirror mark { border-radius: 3px; padding: 0 2px; background: rgb(245 165 36 / .35); }
+.ProseMirror .ai-diff-add { background: rgb(23 201 100 / .22); text-decoration: none; border-radius: 2px; }
+.ProseMirror .ai-diff-del { background: rgb(244 63 94 / .18); text-decoration: line-through; opacity: .75; border-radius: 2px; }
+
+/* ---------- 通用 ---------- */
+* { scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, currentColor 16%, transparent);
+  border-radius: 999px; border: 3px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, currentColor 28%, transparent); background-clip: content-box; }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+@keyframes nf-pulse-soft { 0%, 100% { opacity: .45 } 50% { opacity: .95 } }
+.animate-pulse-soft { animation: nf-pulse-soft 1.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
