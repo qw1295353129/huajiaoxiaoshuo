@@ -575,7 +575,7 @@ function PrivacyTab() {
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
         <h2 className="text-sm font-semibold">数据流向</h2>
         <p className="mt-1.5 text-xs leading-relaxed opacity-70">
-          墨枢本身不上传任何数据。所有作品、人物、设定都存在这台设备的浏览器数据库（IndexedDB）里。
+          花椒本身不上传任何数据。所有作品、人物、设定都存在这台设备的浏览器数据库（IndexedDB）里。
           只有当你主动点击 AI 功能时，系统才会把「必要的上下文」（当前章节、相关人物卡、世界观条目等）发送给你自己配置的模型服务。
         </p>
       </section>
@@ -723,7 +723,7 @@ function AboutTab() {
   return (
     <div className="space-y-4 text-sm">
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
-        <h2 className="font-semibold">墨枢 NovelForge</h2>
+        <h2 className="font-semibold">花椒写作平台</h2>
         <p className="mt-1.5 text-xs leading-relaxed opacity-70">
           为长篇小说写作而设计的本地优先工作台。结构化的设定库 + 精准的上下文组装 + 多模型可插拔，
           目标只有一个：让 AI 写出来的东西不用大改。

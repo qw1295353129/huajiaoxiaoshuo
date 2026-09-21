@@ -8,7 +8,7 @@ import type {
 } from '@/core';
 
 /** 每个 projectId 开头的表都带上项目隔离，便于级联删除 */
-export interface NovelForgeDB {
+export interface HuaJiaoDB {
   projects: EntityTable<Project, 'id'>;
   arcs: EntityTable<Arc, 'id'>;
   chapters: EntityTable<Chapter, 'id'>;

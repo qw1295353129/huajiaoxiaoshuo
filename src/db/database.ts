@@ -1,9 +1,9 @@
 import Dexie from 'dexie';
 import type { AppState } from '@/core';
-import { DB_NAME, DB_STORES, DB_VERSION, type NovelForgeDB } from './schema';
+import { DB_NAME, DB_STORES, DB_VERSION, type HuaJiaoDB } from './schema';
 
 /**
- * 用声明合并把 NovelForgeDB 的表定义挂到 Dexie 实例上：
+ * 用声明合并把 HuaJiaoDB 的表定义挂到 Dexie 实例上：
  * 这样 db.chapters.where(...) 有完整类型，同时保留 Dexie 的运行时能力。
  */
 class Database extends Dexie {
@@ -13,11 +13,11 @@ class Database extends Dexie {
   }
 }
 
-interface Database extends NovelForgeDB {}
+interface Database extends HuaJiaoDB {}
 
-export const db: Database & NovelForgeDB = new Database() as Database & NovelForgeDB;
+export const db: Database & HuaJiaoDB = new Database() as Database & HuaJiaoDB;
 
-export function tables(): NovelForgeDB {
+export function tables(): HuaJiaoDB {
   return db;
 }
 

@@ -42,7 +42,7 @@ export function resolveEndpoint(
 
   if (provider.kind === 'openrouter') {
     headers['HTTP-Referer'] = location.origin;
-    headers['X-Title'] = 'NovelForge';
+    headers['X-Title'] = '花椒写作平台';
   }
 
   if (opts.useProxy) {

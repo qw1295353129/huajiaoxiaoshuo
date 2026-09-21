@@ -366,7 +366,7 @@ function BackupTab({ projectId }: { projectId: string }) {
               try {
                 const raw = await readTextFile(f);
                 const parsed = JSON.parse(raw) as BackupFile;
-                if (parsed.format !== "novelforge-backup") throw new Error("这不是墨枢的备份文件");
+                if (parsed.format !== "novelforge-backup") throw new Error("这不是花椒的备份文件");
                 setInspect(parsed);
               } catch (err) {
                 notify("danger", "无法读取备份", err instanceof Error ? err.message : String(err));

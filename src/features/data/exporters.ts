@@ -242,7 +242,7 @@ export interface RestoreResult {
 }
 
 export async function restoreBackup(backup: BackupFile, opts: RestoreOptions): Promise<RestoreResult> {
-  if (backup.format !== "novelforge-backup") throw new Error("这不是墨枢的备份文件");
+  if (backup.format !== "novelforge-backup") throw new Error("这不是花椒的备份文件");
   const restored: Record<string, number> = {};
   const skipped: string[] = [];
 

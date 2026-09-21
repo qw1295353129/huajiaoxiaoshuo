@@ -1,4 +1,4 @@
-# 墨枢 NovelForge · 开发路线与状态
+# 花椒写作平台 · 开发路线与状态
 
 > 本地优先的 AI 长篇小说创作工作台。
 > 前端 React 19 · TypeScript · HeroUI **v3.2.6** · Tailwind CSS **v4** · Vite 8 · Dexie(IndexedDB)。

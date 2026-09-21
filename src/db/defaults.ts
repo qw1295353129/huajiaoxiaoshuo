@@ -55,7 +55,7 @@ export const PROVIDER_PRESETS: Omit<ProviderConfig, 'createdAt' | 'updatedAt'>[]
     name: 'DeepSeek 深度求索',
     kind: 'deepseek',
     baseUrl: 'https://api.deepseek.com/v1',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
+    models: ['deepseek-flash', 'deepseek-v4-pro'],
     corsBlocked: true,
     enabled: false,
   },

@@ -18,7 +18,7 @@ export function Welcome() {
             <ShieldCheck className="size-3.5" />
             全部数据存放在你自己的浏览器里
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight">墨枢 NovelForge</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">花椒写作平台</h1>
           <p className="mt-3 max-w-xl text-[15px] leading-relaxed opacity-70">
             为长篇小说而做的 AI 创作工作台。人物、世界观、伏笔、时间线都是可被 AI 读取的结构化资产，
             每次生成都会带上正确的上下文，因此它不会写崩你的设定。

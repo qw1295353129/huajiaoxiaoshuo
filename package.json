@@ -44,5 +44,5 @@
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   },
-  "description": "墨枢 NovelForge — 本地优先的 AI 长篇小说创作工作台"
+  "description": "花椒写作平台 — 本地优先的 AI 长篇小说创作工作台"
 }

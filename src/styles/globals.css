@@ -9,17 +9,7 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* 品牌色：把 HeroUI 的 accent 从默认蓝替换为墨枢紫（同时覆盖深色模式） */
-:root {
-  --accent: oklch(0.62 0.19 292);
-  --accent-foreground: oklch(0.99 0 0);
-}
-.dark {
-  --accent: oklch(0.72 0.17 292);
-  --accent-foreground: oklch(0.13 0.02 292);
-}
-
-/* 品牌色：把 HeroUI 的 accent 从默认蓝替换为墨枢紫 */
+/* 品牌色：把 HeroUI 的 accent 从默认蓝替换为花椒紫（浅色 + 深色） */
 :root {
   --accent: oklch(0.62 0.19 292);
   --accent-foreground: oklch(0.99 0 0);
