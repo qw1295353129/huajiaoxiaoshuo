@@ -11,6 +11,7 @@ import {
 } from "@/ai/writing";
 import { useEditorStore, resultFromOutput, type AiResultView } from "./editorStore";
 import { useAppStore } from "@/app/store";
+import { FeedbackButtons } from "./FeedbackButtons";
 import { useOpenSettings } from "@/app/useOpenSettings";
 import { formatTokens } from "@/utils/tokens";
 
@@ -283,7 +284,14 @@ export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedIns
         )}
         <div className="space-y-3">
           {results.map((r) => (
-            <ResultCard key={r.id} result={r} onInsert={onInsert} onSuggest={onSuggest} directions={directions[r.id]} />
+            <ResultCard
+              key={r.id}
+              result={r}
+              projectId={projectId}
+              onInsert={onInsert}
+              onSuggest={onSuggest}
+              directions={directions[r.id]}
+            />
           ))}
         </div>
       </div>
@@ -297,11 +305,13 @@ export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedIns
 
 function ResultCard({
   result,
+  projectId,
   onInsert,
   onSuggest,
   directions,
 }: {
   result: AiResultView;
+  projectId: ID;
   onInsert: (text: string, mode: "cursor" | "end" | "replace-selection") => void;
   onSuggest?: (text: string) => void | Promise<void>;
   directions?: { title: string; premise: string; why: string; risk: string; examples: string[] }[];
@@ -438,6 +448,12 @@ function ResultCard({
             <Button size="sm" variant="ghost" isIconOnly onPress={() => void copy(candidate.content)}>
               <ClipboardCopy className="size-3.5" />
             </Button>
+            <FeedbackButtons
+              projectId={projectId}
+              taskKind={result.taskKind}
+              content={candidate.content}
+              generationId={result.id}
+            />
           </div>
         </>
       )}

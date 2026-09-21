@@ -3,6 +3,7 @@ import type {
 } from '@/core';
 import { db } from '@/db/database';
 import { loadSettings } from '@/db/repo/settings';
+import { memoryForProject } from '@/db/repo/memory';
 import { estimateTokens, fillBudget, type BudgetPiece } from '@/utils/tokens';
 import { headContext, tailContext, truncate } from '@/utils/text';
 import { POV_LABEL } from './prompts';
@@ -26,7 +27,7 @@ export interface BuildContextOptions {
 
 export type ContextSection =
   | 'profile' | 'outline' | 'characters' | 'world' | 'threads'
-  | 'timeline' | 'rules' | 'history' | 'style' | 'retrieval' | 'negative';
+  | 'timeline' | 'rules' | 'history' | 'style' | 'retrieval' | 'negative' | 'memory';
 
 export interface BuiltContext {
   /** 最终拼好的上下文文本 */
@@ -51,11 +52,12 @@ const SECTION_LABEL: Record<ContextSection, string> = {
   style: '文风样本',
   retrieval: '相关历史片段',
   negative: '作者反馈（避免重犯）',
+  memory: '写作记忆（长期积累的设定与约定）',
 };
 
 /** 默认板块：创作类任务要人物和世界观；分析类也要 */
 const DEFAULT_SECTIONS: ContextSection[] = [
-  'profile', 'outline', 'characters', 'world', 'threads', 'rules', 'history', 'style', 'negative',
+  'profile', 'outline', 'characters', 'world', 'threads', 'rules', 'memory', 'history', 'style', 'negative',
 ];
 
 export async function buildContext(opts: BuildContextOptions): Promise<BuiltContext> {
@@ -151,6 +153,28 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
     }
   }
 
+  // ---------- 7.5 写作记忆（事实与约定） ----------
+  // 偏好与教训在 system prompt 里（那里才是硬约束）；这里放"需要知道的事实"：
+  // 设定事实、名词约定，以及作者手动置顶但还没进 prompt 上限的条目。
+  if (sections.includes('memory')) {
+    const memories = await memoryForProject(opts.projectId);
+    const facts = memories.filter((m) => m.kind === 'fact' || m.kind === 'convention');
+    const pinnedExtra = memories.filter(
+      (m) => m.pinned && (m.kind === 'preference' || m.kind === 'lesson'),
+    );
+    const lines: string[] = [];
+    if (facts.length) {
+      for (const m of facts.slice(0, 24)) {
+        lines.push(`- [${m.kind === 'fact' ? '设定' : '约定'}] ${m.text}${m.confidence >= 0.8 ? '' : '（待确认）'}`);
+      }
+    }
+    if (pinnedExtra.length) {
+      lines.push('', '作者特别强调：');
+      for (const m of pinnedExtra.slice(0, 8)) lines.push(`- ${m.text}`);
+    }
+    if (lines.length) push('memory', SECTION_LABEL.memory, lines.join('\n'), 4);
+  }
+
   // ---------- 8. 前文脉络 ----------
   if (sections.includes('history')) {
     const history = historyBlock(allChapters, currentIndex, metrics);
@@ -210,6 +234,7 @@ function kindOf(key: string): ContextSource['kind'] {
   if (key.startsWith('timeline')) return 'timeline';
   if (key.startsWith('rules')) return 'rule';
   if (key.startsWith('retrieval')) return 'retrieval';
+  if (key.startsWith('memory')) return 'user-note';
   if (key.startsWith('history') || key.startsWith('style')) return 'summary';
   if (key.startsWith('chapter')) return 'chapter';
   return 'user-note';

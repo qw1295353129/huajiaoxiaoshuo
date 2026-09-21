@@ -7,7 +7,8 @@ import { chat, chatStream, type CallOptions } from "./llm";
 import { buildContext, type BuildContextOptions } from "./context";
 import { parseJson, type ParseResult } from "./json";
 import { ProviderError, type ChatRequest, type TaskRunOptions, type TaskRunResult } from "./types";
-import { baseSystem } from "./prompts";
+import { baseSystem, setMemoryBlock } from "./prompts";
+import { markMemoryUsed, memoryForProject } from "@/db/repo/memory";
 
 export interface RunTextOptions extends TaskRunOptions {
   system: string;
@@ -340,9 +341,37 @@ export function interpolate(text: string, vars: Record<string, string>): string 
   return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key: string) => vars[key] ?? "");
 }
 
-/** system prompt = 通用底座 + 项目信息 + 额外要求 */
+/**
+ * system prompt = 通用底座 + 项目信息 + 创作者档案 + 写作记忆 + 额外要求
+ *
+ * 写作记忆在这里统一注入：所有任务的 system prompt 都经过这个函数，
+ * 所以偏好与教训会自动作用于每一次生成，不需要各调用点自己处理。
+ */
 export async function systemWithProject(projectId?: string, extra?: string): Promise<string> {
   const project = projectId ? await db.projects.get(projectId) : undefined;
+
+  // 注入记忆：只取偏好与教训（事实/约定走上下文，避免与设定库重复），按可信度排序
+  if (projectId) {
+    try {
+      const facts = await memoryForProject(projectId);
+      const constraints = facts
+        .filter((m) => m.kind === "preference" || m.kind === "lesson")
+        .slice(0, 12)
+        .map((m) => ({ text: m.text, kind: m.kind }));
+      setMemoryBlock({ constraints });
+      // 记录使用，供排序加权与新界面判断"这条记忆到底有没有用"
+      if (constraints.length) {
+        await markMemoryUsed(
+          facts.filter((m) => m.kind === "preference" || m.kind === "lesson").slice(0, 12).map((m) => m.id),
+        );
+      }
+    } catch {
+      setMemoryBlock({ constraints: [] });
+    }
+  } else {
+    setMemoryBlock({ constraints: [] });
+  }
+
   const base = baseSystem(project);
   return extra ? base + "\n\n" + extra : base;
 }

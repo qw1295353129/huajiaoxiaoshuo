@@ -34,6 +34,34 @@ function authorBlock(): string {
   return lines.length ? "【创作者档案】\n" + lines.join("\n") : "";
 }
 
+/**
+ * 写作记忆（从记忆库注入的那部分）。
+ * 与 AuthorProfile 的区别：档案是作者手填的长期设定；记忆是系统从使用痕迹里
+ * 积累出来的、带证据的偏好与教训。前者稳定，后者会随写作演化。
+ */
+export interface MemoryBlockInput {
+  /** 会作为硬约束遵守的偏好与教训（已按可信度排序） */
+  constraints: { text: string; kind: string }[];
+}
+
+let memoryBlock: MemoryBlockInput = { constraints: [] };
+
+/** 由 runner 在每次生成前注入（按项目过滤后的结果） */
+export function setMemoryBlock(input: MemoryBlockInput): void {
+  memoryBlock = input ?? { constraints: [] };
+}
+
+export function getMemoryBlock(): MemoryBlockInput {
+  return memoryBlock;
+}
+
+function memoryLines(): string {
+  if (!memoryBlock.constraints.length) return "";
+  const lines = ["【写作记忆（从你以往的选择中积累，请遵守）】"];
+  for (const c of memoryBlock.constraints) lines.push("- " + c.text);
+  return lines.join("\n");
+}
+
 /** 全任务共享的"作者人设 + 铁律"，是所有生成质量的底座 */
 export function baseSystem(project?: Project): string {
   const lines: string[] = [
@@ -60,6 +88,8 @@ export function baseSystem(project?: Project): string {
   }
   const author = authorBlock();
   if (author) lines.push("", author);
+  const memory = memoryLines();
+  if (memory) lines.push("", memory);
   return lines.join("\n");
 }
 

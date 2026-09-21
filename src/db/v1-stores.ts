@@ -40,3 +40,13 @@ export const V1_STORES = {
   appState: 'id',
   genesis: 'id, projectId, status, createdAt',
 } as const;
+
+/**
+ * Dexie v2 的表结构快照（新增审稿两张表）。
+ * 同样不要修改 —— 它是从 v2 升级到 v3 时的 diff 基准。
+ */
+export const V2_STORES = {
+  ...V1_STORES,
+  comments: 'id, projectId, chapterId, [chapterId+resolved], resolved, createdAt',
+  reviewSuggestions: 'id, projectId, chapterId, [chapterId+status], status, createdAt',
+} as const;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
-import { ArrowLeft, Check, Eye, EyeOff, Gauge, KeyRound, Keyboard, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
+import { ArrowLeft, Brain, Check, Eye, EyeOff, Gauge, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
 import type { AiTaskKind, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
 import { useAppStore } from "@/app/store";
 import { ROUTES } from "@/app/routes";
@@ -19,14 +19,16 @@ import { formatBytes } from "@/utils/format-bytes";
 import { EditorPreferences } from "./EditorPreferences";
 import { AuthorProfileSettings } from "./AuthorProfileSettings";
 import { ChangelogPanel } from "./ChangelogPanel";
+import { MemoryPanel } from "./MemoryPanel";
 import { ProxyCard } from "./ProxyCard";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
 import { APP_VERSION } from "@/core";
 
-type Tab = SettingsSection;
+type Tab = SettingsSection | "memory";
 
 const TABS: { key: Tab; label: string; icon: typeof Zap }[] = [
   { key: "profile", label: "创作者档案", icon: UserRound },
+  { key: "memory", label: "写作记忆", icon: Brain },
   { key: "models", label: "模型与 AI", icon: Zap },
   { key: "routing", label: "任务路由", icon: Gauge },
   { key: "editor", label: "写作偏好", icon: Palette },
@@ -40,13 +42,15 @@ export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initial = searchParams.get("tab");
   const [tab, setTab] = useState<Tab>(
-    initial && SETTINGS_SECTIONS.includes(initial as SettingsSection) ? (initial as SettingsSection) : "profile",
+    initial === "memory" || (initial && SETTINGS_SECTIONS.includes(initial as SettingsSection))
+      ? (initial as Tab)
+      : "profile",
   );
 
   // 支持从别处深链（例如 AI 面板点模型名 → /settings?tab=models）
   useEffect(() => {
     const t = searchParams.get("tab");
-    if (t && SETTINGS_SECTIONS.includes(t as SettingsSection) && t !== tab) setTab(t as SettingsSection);
+    if ((t === "memory" || (t && SETTINGS_SECTIONS.includes(t as SettingsSection))) && t !== tab) setTab(t as Tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -87,6 +91,7 @@ export function SettingsPage() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-5 py-6">
             {tab === "profile" && <AuthorProfileSettings />}
+            {tab === "memory" && <MemoryPanel />}
             {tab === "models" && <ModelsTab />}
             {tab === "routing" && <RoutingTab />}
             {tab === "editor" && <EditorPreferences />}
