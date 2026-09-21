@@ -516,8 +516,8 @@ export function MemoryPanel() {
                     </li>
                   ))}
                   {draftCheck.duplicates.map((d) => (
-                    <li key={d.f.id} className="text-[11px] leading-relaxed opacity-75">
-                      <span className="font-medium">重复</span>：与「{d.f.text}」几乎相同（{Math.round(d.similarity * 100)}%），
+                    <li key={d.fact.id} className="text-[11px] leading-relaxed opacity-75">
+                      <span className="font-medium">重复</span>：与「{d.fact.text}」几乎相同（{Math.round(d.similarity * 100)}%），
                       其实可以不用再加一条。
                     </li>
                   ))}

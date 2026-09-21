@@ -261,6 +261,8 @@ export interface MemoryProfile {
   scope: MemoryFact['scope'];
   projectId?: ID;
   taskKinds?: MemoryFact['taskKinds'];
+  /** 暂停的记忆不注入，冲突也就无从谈起 */
+  paused: boolean;
   /** 归一化全文 */
   normalized: string;
   /** 剥掉取向词之后"在说什么" */
@@ -271,6 +273,20 @@ export interface MemoryProfile {
   axes: { axis: string; axisLabel: string; pole: 0 | 1; word: string }[];
 }
 
+/**
+ * 轴词的有效极性：被否定词修饰的轴词要翻到对面。
+ *
+ * 为什么必须做这一步：「文风要冷硬，不要抒情」里的"抒情"属于温度轴的另一极，
+ * 不做否定判断就会得出"这条记忆自相矛盾"的荒谬结论 —— 而它其实和「文风要冷硬」完全一致。
+ * 这类误报一旦出现，冲突条就废了。
+ */
+function effectivePole(normalized: string, index: number, pole: 0 | 1): 0 | 1 {
+  const before = normalized.slice(Math.max(0, index - 3), index);
+  const negated = /不|别|避免|勿|禁|少|无|非|莫|去/.test(before);
+  if (!negated) return pole;
+  return pole === 0 ? 1 : 0;
+}
+
 /** 预画像：成对比较是 O(n²)，正则只能跑一次 */
 export function profileMemory(fact: MemoryFact): MemoryProfile {
   const normalized = stripFalseFriends(normalizeMemoryText(fact.text));
@@ -278,11 +294,16 @@ export function profileMemory(fact: MemoryFact): MemoryProfile {
   const axes: MemoryProfile['axes'] = [];
   for (const axis of STYLE_AXES) {
     for (const pole of [0, 1] as const) {
-      const hit = axis.poles[pole].find((w) => normalized.includes(w));
-      if (hit) axes.push({ axis: axis.id, axisLabel: axis.label, pole, word: hit });
+      const word = axis.poles[pole].find((w) => normalized.includes(w));
+      if (!word) continue;
+      const effective = effectivePole(normalized, normalized.indexOf(word), pole);
+      // 同一条记忆在同一轴上只保留一个有效极：它自己的两句话互相覆盖，不构成对外冲突
+      if (axes.some((a) => a.axis === axis.id)) continue;
+      axes.push({ axis: axis.id, axisLabel: axis.label, pole: effective, word });
     }
   }
   return {
+    paused: fact.paused,
     id: fact.id,
     kind: fact.kind,
     scope: fact.scope,
@@ -336,6 +357,7 @@ function canCoexistInPrompt(a: MemoryProfile, b: MemoryProfile): boolean {
  */
 export function detectConflictBetween(a: MemoryProfile, b: MemoryProfile): MemoryConflict | null {
   if (a.id === b.id) return null;
+  if (a.paused || b.paused) return null;
   if (!a.normalized || !b.normalized) return null;
   if (KIND_FAMILY[a.kind] === 'meta' || KIND_FAMILY[b.kind] === 'meta') return null;
   if (KIND_FAMILY[a.kind] !== KIND_FAMILY[b.kind]) return null;
