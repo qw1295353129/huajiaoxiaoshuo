@@ -14,6 +14,17 @@ export async function getWorldEntry(id: ID): Promise<WorldEntry | undefined> {
   return db.worldEntries.get(id);
 }
 
+export async function upsertWorldEntry(projectId: ID, patch: Partial<WorldEntry> & { title: string; category: WorldCategory }): Promise<WorldEntry> {
+  const existing = (await db.worldEntries.where("projectId").equals(projectId).toArray()).find(
+    (e) => e.title === patch.title.trim(),
+  );
+  if (existing) {
+    await updateWorldEntry(existing.id, patch);
+    return { ...existing, ...patch };
+  }
+  return createWorldEntry(projectId, patch);
+}
+
 export async function createWorldEntry(
   projectId: ID,
   patch: Partial<WorldEntry> & { title: string; category: WorldCategory },
