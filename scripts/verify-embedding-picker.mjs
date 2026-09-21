@@ -17,6 +17,11 @@ page.on("pageerror", (e) => errs.push(String(e.message).slice(0, 160)));
 let pass = 0, fail = 0;
 const check = (n, c, x) => { if (c) { pass++; console.log("  ✓ " + n); } else { fail++; console.log("  ✗ " + n + (x ? "  → " + x : "")); } };
 
+// 先把假 Ollama 重置回初始状态：它有内存状态，"已下载"会跨测试运行累积，
+// 不清就会让后续运行的断言基线漂移（下载按钮越来越少）。
+const reset = await page.request.get(MOCK + "/__reset").catch(() => null);
+if (!reset?.ok()) console.log("  提示：假 Ollama 未运行或重置失败，下载相关断言可能不稳定");
+
 await gotoApp(page, BASE + "/");
 // 造一个项目，让设置页的记忆面板有上下文
 // MOCK 是 Node 侧的常量，必须作为参数传进页面（浏览器里没有这个变量）

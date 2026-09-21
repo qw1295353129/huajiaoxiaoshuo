@@ -50,6 +50,16 @@ createServer(async (req, res) => {
     return;
   }
 
+  // 测试专用：把"已安装"重置回初始状态。
+  // 否则同一个假服务进程跨多次测试运行会累积已下载的模型，
+  // 导致后续运行的断言基线不同（我因此踩到一次假失败）。
+  if (url.pathname === "/__reset") {
+    installed.length = 0;
+    installed.push("nomic-embed-text:latest");
+    json(res, 200, { ok: true, installed: [...installed] });
+    return;
+  }
+
   if (url.pathname === "/api/tags") {
     json(res, 200, { models: installed.map((name) => ({ name, model: name, size: 274_000_000 })) });
     return;
