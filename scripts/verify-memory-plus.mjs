@@ -582,6 +582,7 @@ const upgrade = await page.evaluate(async () => {
     verBefore,
     hasUsageBefore,
     verno: db.verno,
+    dbVersion: (await import("/src/db/schema.ts")).DB_VERSION,
     storeNames: db.tables.map((t) => t.name),
     projectTitles: projects.map((p) => p.title),
     memoryTexts: memories.map((m) => m.text),
@@ -592,8 +593,14 @@ const upgrade = await page.evaluate(async () => {
   };
 });
 check("造的确实是 v3 老库（没有 memoryUsage 表）", upgrade.verBefore === 3 && upgrade.hasUsageBefore === false, JSON.stringify({ ver: upgrade.verBefore, hasUsage: upgrade.hasUsageBefore }));
-check("打开后自动升到 v4", upgrade.verno === 4, "verno=" + upgrade.verno);
-check("v4 多了 memoryUsage 表且可查询", upgrade.usageOk === true && upgrade.storeNames.indexOf("memoryUsage") >= 0, JSON.stringify(upgrade.storeNames));
+// 不要写死版本号：项目还在加表（v4 之后又加了 blueprints => v5）。
+// 断言"升到了当前版本"，否则每次加表这条都会假失败（已经因此误报过一次）。
+check(
+  "打开后自动升到当前版本",
+  upgrade.verno === upgrade.dbVersion,
+  "verno=" + upgrade.verno + "，当前声明=" + upgrade.dbVersion,
+);
+check("memoryUsage 表被建出来了", upgrade.usageOk === true && upgrade.storeNames.indexOf("memoryUsage") >= 0, JSON.stringify(upgrade.storeNames));
 check("升级不丢数据：作品还在", upgrade.projectTitles.indexOf("升级前就存在的作品") >= 0, JSON.stringify(upgrade.projectTitles));
 check("升级不丢数据：记忆与它的计数器都还在", upgrade.memoryTexts.length === 1 && upgrade.usedCount === 7, JSON.stringify({ texts: upgrade.memoryTexts, usedCount: upgrade.usedCount }));
 check("老记忆没有 usage 行时用 usedCount 兜底（不会显示成 0 次）", upgrade.legacyInjections === 7, String(upgrade.legacyInjections));
