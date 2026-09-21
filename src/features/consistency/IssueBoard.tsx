@@ -121,7 +121,7 @@ export function IssueBoard({
       notify(
         ok ? "success" : "warning",
         ok ? "改写指令已复制" : "复制失败，请手动复制",
-        ok ? "已带上 fix 参数跳转写作页；当前写作页仍是占位页，可先手动粘贴指令。" : undefined,
+        ok ? "已跳转写作页并自动定位到问题段落，指令已填进 AI 面板，点「改写」即可。" : undefined,
       );
     });
     if (issue.chapterId) {

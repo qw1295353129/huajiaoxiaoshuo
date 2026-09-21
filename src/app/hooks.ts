@@ -98,22 +98,6 @@ export function useDebounced<T>(value: T, delay = 250): T {
   return debounced;
 }
 
-/** 上一次的值 */
-export function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T | undefined>(undefined);
-  useEffect(() => {
-    ref.current = value;
-  }, [value]);
-  return ref.current;
-}
-
-/** 是否已挂载（避免 SSR/首帧闪烁） */
-export function useMounted(): boolean {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted;
-}
-
 /** 定时器：用于番茄钟、写作计时 */
 export function useInterval(callback: () => void, delay: number | null) {
   const saved = useRef(callback);

@@ -1,12 +1,13 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, Card, Chip, Tooltip } from "@heroui/react";
-import { BookOpen, MoreHorizontal, Plus, Settings, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Settings, Trash2 } from "lucide-react";
 import { useOpenSettings } from "@/app/useOpenSettings";
 import { ROUTES } from "@/app/routes";
 import { useProjects } from "@/app/hooks";
 import { deleteProject } from "@/db/repo/projects";
 import { useAppStore } from "@/app/store";
 import { formatRelative, formatWords, pct } from "@/utils/format";
+import { ProjectOverview } from "./ProjectOverview";
 
 const STATUS_LABEL: Record<string, string> = {
   planning: "筹备中",
@@ -24,7 +25,7 @@ export function Dashboard() {
   const setProject = useAppStore((s) => s.setProject);
   const openSettings = useOpenSettings();
 
-  if (projectId) return <ProjectOverview projectId={projectId} />;
+  if (projectId) return <ProjectOverviewRoute projectId={projectId} />;
 
   const list = projects ?? [];
   return (
@@ -130,28 +131,22 @@ export function Dashboard() {
   );
 }
 
-function ProjectOverview({ projectId }: { projectId: string }) {
+function ProjectOverviewRoute({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const list = useProjects() ?? [];
   const project = list.find((p) => p.id === projectId);
-  if (!project) return <div className="grid min-h-dvh place-items-center text-sm opacity-60">加载中…</div>;
 
-  return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-xl font-semibold">{project.title}</h1>
-      <p className="mt-1 text-sm opacity-60">总览页正在建设中，先把下面的入口用起来。</p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Button variant="primary" onPress={() => navigate(ROUTES.write(project.id))}>
-          进入写作
-        </Button>
-        <Button variant="outline" onPress={() => navigate(ROUTES.genesis(project.id))}>
-          AI 建档
-        </Button>
-        <Button variant="ghost" onPress={() => navigate(ROUTES.home)}>
-          <MoreHorizontal className="size-4" />
-          书库
-        </Button>
+  if (!project) {
+    return (
+      <div className="grid min-h-dvh place-items-center">
+        <div className="text-center">
+          <p className="text-sm opacity-60">找不到这本书</p>
+          <Button className="mt-3" variant="outline" size="sm" onPress={() => navigate(ROUTES.home)}>
+            回到书库
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+  return <ProjectOverview project={project} />;
 }
