@@ -43,6 +43,52 @@ function pickReply(body) {
         ],
       });
     }
+    // 注意：text 是 JSON.stringify 之后的，引号都成了 \" —— 所以判断只能用
+    // 不含引号的特征词（我第一版写了 /"characters"/ 永远匹配不上，白查一轮）。
+    // 人物页的「AI 生成人物」（cast-gen 任务）
+    if (/verbalTics/.test(text) && /characters/.test(text) && !/entities/.test(text)) {
+      return JSON.stringify({
+        characters: [
+          {
+            name: '温晚', role: 'deuteragonist', tagline: '永安堂的女药师，手里有半张旧方子',
+            age: '二十七', gender: '女', appearance: '右手虎口有一道旧烫伤',
+            personality: '表面圆滑周全，遇到药材的事绝不让步',
+            want: '保住永安堂', need: '承认兄长死于自己的方子',
+            fear: '再开错一次药', flaw: '凡事都自己扛，不肯求助',
+            arc: '从独力支撑到学会把后背交给别人', secrets: '旧方子是她兄长留下的',
+            aliases: ['温药师'],
+            voice: { tone: '客气但疏离', verbalTics: ['这个方子'], favoriteWords: ['药性', '剂量'], neverSays: ['我认输'], register: '市井行话夹书面语', sampleLines: ['这个方子，我不改。'] },
+          },
+          {
+            name: '陆断', role: 'antagonist', tagline: '海禁令执行官，相信沉默才是慈悲',
+            age: '四十一', gender: '男', appearance: '总穿官服，袖口磨得发白',
+            personality: '严苛到不近人情，对自己同样苛刻',
+            want: '彻底封住遗言', need: '面对自己也曾听过不该听的遗言',
+            fear: '海禁在自己手上破口', flaw: '把规则看得比人重',
+            arc: '从铁面执法到亲手破例', secrets: '他的妻子死于一场被遗言揭穿的冤案',
+            aliases: ['陆大人'],
+            voice: { tone: '一句话说一半', verbalTics: ['按律'], favoriteWords: ['律例', '规矩'], neverSays: ['求'], register: '公文腔', sampleLines: ['按律，该封。'] },
+          },
+        ],
+      });
+    }
+    // 世界观页的「AI 生成条目」（world-gen 任务）
+    if (/entries/.test(text) && /importance/.test(text) && !/arcs/.test(text) && !/verbalTics/.test(text)) {
+      return JSON.stringify({
+        entries: [
+          {
+            title: '触骨', category: 'magic', importance: 5,
+            body: '验尸官以指骨接触死者遗骨，可听见其最后一句话。触骨时不得佩戴任何金属，否则听到的是金属的震颤而非人声；每次触骨会让验尸官失去同日的一段记忆，失去哪一段无法选择。',
+            tags: ['力量体系'],
+          },
+          {
+            title: '海禁', category: 'politics', importance: 4,
+            body: '雾港自十二年前起施行海禁：所有出港船只须登记，且不得载运"会说话的东西"。海禁令由执行官陆断执行，违者船只焚毁、船主充军。海禁的表面理由是防谍，实际是为了让某批遗言永远留在海上。',
+            tags: ['制度'],
+          },
+        ],
+      });
+    }
     if (/characters/.test(text) && /entities/.test(text)) {
       return JSON.stringify({
         characters: [{ name: '周砚清', aliases: ['周法医'], role: 'minor', tagline: '退休的老验尸官', appearance: '左手缺了两根指头', personality: '话少，爱喝酒', evidence: '周法医把酒杯推过来' }],

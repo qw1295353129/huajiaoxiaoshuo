@@ -27,6 +27,10 @@ export type AiTaskKind =
   // 生成类
   | 'genesis' | 'outline' | 'chapter-outline' | 'continue' | 'expand'
   | 'rewrite' | 'polish' | 'describe' | 'dialogue' | 'brainstorm'
+  /** 按需补人物（人物页的 AI 生成） */
+  | 'cast-gen'
+  /** 按需补世界观条目（世界观页的 AI 生成） */
+  | 'world-gen'
   // 分析类
   | 'consistency' | 'style-check' | 'voice-check' | 'pacing'
   | 'character-arc' | 'foreshadow-audit' | 'reader-sim' | 'critique'

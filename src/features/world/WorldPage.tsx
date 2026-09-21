@@ -10,6 +10,7 @@ import { WORLD_CATEGORY_LABELS } from "@/db/defaults";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading, StatCard } from "@/components/common/ui";
 import { ConflictModal } from "./ConflictModal";
+import { WorldGenDialog } from "./WorldGenDialog";
 import { EntryEditor } from "./EntryEditor";
 import { EntryList } from "./EntryList";
 import { GlossaryTab } from "./GlossaryTab";
@@ -37,6 +38,7 @@ export function WorldPage() {
   const [rawQuery, setRawQuery] = useState("");
   const [treeMode, setTreeMode] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
 
   /** 搜索防抖：大列表输入时不做无谓的重算 */
   const filterQuery = useDebounced(rawQuery, 220);
@@ -121,6 +123,10 @@ export function WorldPage() {
       }
       actions={
         <>
+          <Button variant="outline" size="sm" onPress={() => setGenOpen(true)}>
+            <Sparkles className="size-4" />
+            AI 生成条目
+          </Button>
           <Button variant="outline" size="sm" onPress={() => setConflictOpen(true)}>
             <ShieldAlert className="size-4" />
             规则冲突自检
@@ -236,6 +242,13 @@ export function WorldPage() {
           </Tabs.Panel>
         </Tabs>
       </div>
+
+      <WorldGenDialog
+        open={genOpen}
+        onOpenChange={setGenOpen}
+        projectId={projectId}
+        defaultCategory={category === "all" ? undefined : category}
+      />
 
       <ConflictModal
         projectId={projectId}

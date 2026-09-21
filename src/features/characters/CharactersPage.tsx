@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Card, Chip, Modal } from "@heroui/react";
-import { Plus, Search, Trash2, Users } from "lucide-react";
+import { Plus, Search, Sparkles, Trash2, Users } from "lucide-react";
+import { CastGenDialog } from "./CastGenDialog";
 import type { CharacterRole, ID } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading } from "@/components/common/ui";
@@ -50,6 +51,7 @@ function CharacterList({ projectId }: { projectId: string }) {
   const [sort, setSort] = useState<SortKey>("role");
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [createOpen, setCreateOpen] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: ID; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -122,10 +124,16 @@ function CharacterList({ projectId }: { projectId: string }) {
       title="人物"
       description={description}
       actions={
-        <Button variant="primary" size="sm" onPress={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          新建人物
-        </Button>
+        <>
+          <Button variant="outline" size="sm" onPress={() => setGenOpen(true)}>
+            <Sparkles className="size-4" />
+            AI 生成人物
+          </Button>
+          <Button variant="primary" size="sm" onPress={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            新建人物
+          </Button>
+        </>
       }
     >
       {rows === undefined ? (
@@ -136,10 +144,17 @@ function CharacterList({ projectId }: { projectId: string }) {
           title="还没有人物"
           description="创建角色后可以在这里维护外貌、性格、欲望与口吻卡；AI 生成对话和续写时会自动带上这些设定。"
           action={
-            <Button variant="primary" size="sm" onPress={() => setCreateOpen(true)}>
-              <Plus className="size-4" />
-              新建第一个人物
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="primary" size="sm" onPress={() => setCreateOpen(true)}>
+                <Plus className="size-4" />
+                新建第一个人物
+              </Button>
+              {/* 空状态下也放 AI 入口：这是最需要它的时刻 */}
+              <Button variant="outline" size="sm" onPress={() => setGenOpen(true)}>
+                <Sparkles className="size-4" />
+                AI 生成人物
+              </Button>
+            </div>
           }
         />
       ) : (
@@ -295,6 +310,13 @@ function CharacterList({ projectId }: { projectId: string }) {
         onOpenChange={setCreateOpen}
         projectId={projectId}
         onCreated={(id) => navigate(ROUTES.character(projectId, id))}
+      />
+
+      <CastGenDialog
+        open={genOpen}
+        onOpenChange={setGenOpen}
+        projectId={projectId}
+        onApplied={() => setLimit((n) => n)}
       />
 
       <ConfirmDialog
