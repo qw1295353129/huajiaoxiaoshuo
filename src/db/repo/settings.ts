@@ -157,6 +157,17 @@ export async function resolveModel(taskKind: TaskRouting['kind']): Promise<{ pro
 
 // ---------------- 计费 ----------------
 
+/**
+ * 删除一条单价。
+ *
+ * 之前只有 upsert，没有删除 —— 填错了只能改成 0，而 0 和"没填"在界面上看不出区别。
+ */
+export async function deletePricing(key: string): Promise<void> {
+  const all = await db.pricing.toArray();
+  const hit = all.find((p) => p.key === key);
+  if (hit) await db.pricing.delete(hit.id);
+}
+
 export async function listPricing(): Promise<ModelPricing[]> {
   return db.pricing.toArray();
 }

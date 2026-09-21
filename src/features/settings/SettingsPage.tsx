@@ -21,6 +21,7 @@ import { AuthorProfileSettings } from "./AuthorProfileSettings";
 import { ChangelogPanel } from "./ChangelogPanel";
 import { MemoryPanel } from "./MemoryPanel";
 import { ProxyCard } from "./ProxyCard";
+import { PricingPanel } from "./PricingPanel";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
 import { APP_VERSION } from "@/core";
 
@@ -462,6 +463,8 @@ function ModelsTab() {
       )}
 
       <ProxyCard />
+
+      <PricingPanel />
 
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
         <h2 className="text-sm font-semibold">生成参数默认值</h2>

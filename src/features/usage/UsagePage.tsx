@@ -32,8 +32,9 @@ function PricingNote({ rows, onOpenSettings }: { rows: ModelPricing[]; onOpenSet
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">成本暂时算不出来</p>
             <p className="mt-1 text-xs leading-relaxed opacity-70">
-              这里还没有填写任何模型单价，所以「估算成本」一直为 0。在「设置 → 模型与 AI → 计费」里按
-              「供应商::模型」填上每百万 token 的输入 / 输出单价，之后新的调用就会自动算钱。
+              这些模型还没有填单价，所以「估算成本」显示为「—」。到「设置 → 模型与 AI →
+              模型单价」填上每百万 token 的输入 / 输出单价即可（那里会列出你用过的模型，
+              点一下就填好）。只影响之后的新调用，已有记录不会追溯重算。
             </p>
           </div>
           <Button size="sm" variant="outline" onPress={onOpenSettings}>
