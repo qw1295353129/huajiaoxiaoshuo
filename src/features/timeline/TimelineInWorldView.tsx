@@ -43,10 +43,10 @@ export function TimelineInWorldView({
       {groups.map((group, groupIndex) => (
         <section key={group.label + "-" + groupIndex}>
           <div className="mb-3 flex items-center gap-2">
-            <span className="grid size-6 place-items-center rounded-full bg-violet-500/12 text-violet-500">
+            <span className="grid size-6 place-items-center rounded-full bg-neutral-900/12 text-neutral-700">
               <Clock className="size-3.5" />
             </span>
-            <h3 className="text-sm font-semibold text-violet-600 dark:text-violet-300">{group.label}</h3>
+            <h3 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">{group.label}</h3>
             <span className="text-[11px] opacity-45">{group.items.length} 个事件</span>
           </div>
 
@@ -62,7 +62,7 @@ export function TimelineInWorldView({
                       className="absolute -left-4 top-4 size-2.5 rounded-full ring-4 ring-neutral-50 dark:ring-neutral-950"
                       style={{ backgroundColor: importanceHex(event.importance) }}
                     />
-                    <Card className={"p-4 transition " + (highlighted ? "ring-2 ring-violet-500/60" : "")}>
+                    <Card className={"p-4 transition " + (highlighted ? "ring-2 ring-neutral-900/60" : "")}>
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">

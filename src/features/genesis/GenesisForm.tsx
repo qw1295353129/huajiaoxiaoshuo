@@ -96,7 +96,7 @@ export function GenesisForm({
     <Card className="space-y-5 p-5">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <Sparkles className="size-4 text-violet-500" />
+          <Sparkles className="size-4 text-neutral-700" />
           <p className="text-sm font-semibold tracking-tight">一句话灵感</p>
         </div>
         <TextField value={seed} onChange={onSeedChange} fullWidth>
@@ -140,7 +140,7 @@ export function GenesisForm({
                 className={
                   "rounded-lg border px-2.5 py-1.5 text-left text-xs transition " +
                   (constraints.lengthClass === option.value
-                    ? "border-violet-500/60 bg-violet-500/[0.06]"
+                    ? "border-black/40 bg-black/[0.04]"
                     : "border-black/8 hover:border-black/20 dark:border-white/10 dark:hover:border-white/25")
                 }
               >
@@ -162,7 +162,7 @@ export function GenesisForm({
                 className={
                   "rounded-lg border px-2.5 py-1.5 text-xs transition " +
                   (constraints.pov === option.value
-                    ? "border-violet-500/60 bg-violet-500/[0.06] font-medium"
+                    ? "border-black/40 bg-black/[0.04] font-medium"
                     : "border-black/8 hover:border-black/20 dark:border-white/10 dark:hover:border-white/25")
                 }
               >
@@ -204,7 +204,7 @@ export function GenesisForm({
                 }
               }}
               placeholder="输入后回车，如：冷峻、宿命感"
-              className="w-44 rounded-lg border border-black/8 bg-transparent px-2 py-1 text-xs outline-none placeholder:opacity-40 focus:border-violet-500/50 dark:border-white/10"
+              className="w-44 rounded-lg border border-black/8 bg-transparent px-2 py-1 text-xs outline-none placeholder:opacity-40 focus:border-black/30 dark:border-white/10"
             />
             <Button size="sm" variant="ghost" isIconOnly aria-label="添加基调关键词" onPress={addTone}>
               <Plus className="size-3.5" />
@@ -245,7 +245,7 @@ export function GenesisForm({
           <select
             value={until}
             onChange={(e) => onUntilChange(e.target.value as UntilStage)}
-            className="w-full rounded-lg border border-black/8 bg-white/60 px-2.5 py-2 text-sm outline-none focus:border-violet-500/50 dark:border-white/10 dark:bg-white/5"
+            className="w-full rounded-lg border border-black/8 bg-white/60 px-2.5 py-2 text-sm outline-none focus:border-black/30 dark:border-white/10 dark:bg-white/5"
           >
             {UNTIL_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

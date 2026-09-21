@@ -365,7 +365,7 @@ export function MemoryPanel() {
       </section>
 
       {candidates.length > 0 && (
-        <section className="rounded-xl border border-violet-500/40 bg-violet-500/[0.04] p-4">
+        <section className="rounded-xl border border-black/25 bg-black/[0.03] p-4">
           <SectionTitle hint="勾选后写入记忆；不选就丢弃，不会自动生效">
             AI 归纳出 {candidates.length} 条候选偏好
           </SectionTitle>
@@ -376,7 +376,7 @@ export function MemoryPanel() {
                   type="checkbox"
                   checked={selected.includes(c.text)}
                   onChange={() => setSelected((s) => (s.includes(c.text) ? s.filter((x) => x !== c.text) : [...s, c.text]))}
-                  className="mt-0.5 accent-violet-500"
+                  className="mt-0.5 accent-neutral-900"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">{c.text}</p>
@@ -829,7 +829,7 @@ function MemoryRow({
         (fact.paused
           ? "border-black/5 opacity-45 dark:border-white/5"
           : fact.pinned
-            ? "border-violet-500/40 bg-violet-500/[0.04]"
+            ? "border-black/25 bg-black/[0.03]"
             : "border-black/8 dark:border-white/10")
       }
     >

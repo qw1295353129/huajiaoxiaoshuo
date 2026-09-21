@@ -202,7 +202,7 @@ export function WorldGenDialog({
                           onChange={() =>
                             setChecked((s) => (s.includes(row.title) ? s.filter((x) => x !== row.title) : [...s, row.title]))
                           }
-                          className="mt-0.5 accent-violet-500"
+                          className="mt-0.5 accent-neutral-900"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">

@@ -80,7 +80,7 @@ export function EntryList({
           onChange={(e) => onQuery(e.target.value)}
           placeholder="搜索标题 / 别名 / 正文…"
           aria-label="搜索世界观条目"
-          className="w-full rounded-lg border border-black/10 bg-white/70 py-2 pl-8 pr-8 text-sm outline-none transition placeholder:opacity-40 focus:border-violet-500/60 dark:border-white/10 dark:bg-white/5"
+          className="w-full rounded-lg border border-black/10 bg-white/70 py-2 pl-8 pr-8 text-sm outline-none transition placeholder:opacity-40 focus:border-black/40 dark:border-white/10 dark:bg-white/5"
         />
         {searching && (
           <button
@@ -106,7 +106,7 @@ export function EntryList({
                 onClick={() => onCategory("all")}
                 className={
                   "flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition " +
-                  (category === "all" ? "bg-violet-500/10 font-medium text-violet-600 dark:text-violet-300" : "opacity-75 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5")
+                  (category === "all" ? "bg-black/[0.06] font-medium text-neutral-800 dark:text-neutral-200" : "opacity-75 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5")
                 }
               >
                 <span className="truncate">全部</span>
@@ -120,7 +120,7 @@ export function EntryList({
                   onClick={() => onCategory(c.key)}
                   className={
                     "flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition " +
-                    (category === c.key ? "bg-violet-500/10 font-medium text-violet-600 dark:text-violet-300" : "opacity-75 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5")
+                    (category === c.key ? "bg-black/[0.06] font-medium text-neutral-800 dark:text-neutral-200" : "opacity-75 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5")
                   }
                 >
                   <span className="truncate">{c.label}</span>
@@ -229,7 +229,7 @@ function EntryRow({
       className={
         "w-full rounded-xl border px-3 py-2.5 text-left transition " +
         (selected
-          ? "border-violet-500/40 bg-violet-500/10"
+          ? "border-black/25 bg-black/[0.06]"
           : "border-black/5 bg-white/60 hover:border-black/10 hover:bg-white dark:border-white/5 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]")
       }
     >

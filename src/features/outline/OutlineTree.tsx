@@ -182,8 +182,8 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
 
     return (
       <li key={chapter.id} className="relative">
-        {drop === "before" && <span className="absolute inset-x-1 -top-0.5 h-0.5 rounded bg-violet-500" />}
-        {drop === "after" && <span className="absolute inset-x-1 -bottom-0.5 h-0.5 rounded bg-violet-500" />}
+        {drop === "before" && <span className="absolute inset-x-1 -top-0.5 h-0.5 rounded bg-neutral-900" />}
+        {drop === "after" && <span className="absolute inset-x-1 -bottom-0.5 h-0.5 rounded bg-neutral-900" />}
         <div
           data-chapter-row={chapter.id}
           role="button"
@@ -219,7 +219,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
           }}
           className={
             "group flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 transition " +
-            (active ? "bg-violet-500/[0.12] ring-1 ring-violet-500/30" : "hover:bg-black/[0.04] dark:hover:bg-white/5") +
+            (active ? "bg-neutral-900/[0.12] ring-1 ring-neutral-900/30" : "hover:bg-black/[0.04] dark:hover:bg-white/5") +
             (dragging ? " opacity-40" : "")
           }
         >
@@ -233,7 +233,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
           <span
             className={
               "tabular w-6 shrink-0 text-right text-[11px] " +
-              (chapter.tension > 0 ? "text-violet-500" : chapter.tension < 0 ? "text-sky-500" : "opacity-40")
+              (chapter.tension > 0 ? "text-neutral-700" : chapter.tension < 0 ? "text-sky-500" : "opacity-40")
             }
           >
             {tensionText(chapter.tension)}
@@ -338,7 +338,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
                   }}
                   className={
                     "flex items-center gap-1.5 rounded-t-xl px-2 py-2 transition " +
-                    (dropping ? "bg-violet-500/[0.12] ring-1 ring-violet-500/40" : "bg-black/[0.02] dark:bg-white/[0.03]")
+                    (dropping ? "bg-neutral-900/[0.12] ring-1 ring-black/25" : "bg-black/[0.02] dark:bg-white/[0.03]")
                   }
                 >
                   <button
@@ -362,7 +362,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
                         if (e.key === "Enter") void commitRename(arc);
                         if (e.key === "Escape") setRenamingId(undefined);
                       }}
-                      className="min-w-0 flex-1 rounded border border-violet-500/50 bg-white/80 px-1.5 py-0.5 text-[13px] font-medium outline-none dark:bg-neutral-900/70"
+                      className="min-w-0 flex-1 rounded border border-black/30 bg-white/80 px-1.5 py-0.5 text-[13px] font-medium outline-none dark:bg-neutral-900/70"
                     />
                   ) : (
                     <span
@@ -417,7 +417,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
                     {group.chapters.length === 0 ? (
                       <p className="px-2 py-2 text-[11px] opacity-45">
                         这一卷还没有章节，
-                        <button type="button" className="text-violet-500 hover:underline" onClick={() => void addChapter(arc)}>
+                        <button type="button" className="text-neutral-700 hover:underline" onClick={() => void addChapter(arc)}>
                           新建一章
                         </button>
                       </p>
@@ -433,7 +433,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
       )}
 
       {creatingArc ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-violet-500/40 p-2">
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-black/25 p-2">
           <input
             autoFocus
             value={newArcTitle}
@@ -446,7 +446,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
                 setNewArcTitle("");
               }
             }}
-            className="min-w-0 flex-1 rounded border border-black/10 bg-white/70 px-2 py-1 text-[13px] outline-none focus:border-violet-500 dark:border-white/10 dark:bg-neutral-900/70"
+            className="min-w-0 flex-1 rounded border border-black/10 bg-white/70 px-2 py-1 text-[13px] outline-none focus:border-neutral-900 dark:border-white/10 dark:bg-neutral-900/70"
           />
           <Button size="sm" variant="primary" onPress={() => void addArc()}>
             新建
@@ -466,7 +466,7 @@ export function OutlineTree({ projectId, arcs, chapters, selectedId, onSelect, o
         <button
           type="button"
           onClick={() => setCreatingArc(true)}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-black/10 py-2 text-[12px] opacity-60 transition hover:border-violet-500/40 hover:opacity-100 dark:border-white/10"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-black/10 py-2 text-[12px] opacity-60 transition hover:border-black/25 hover:opacity-100 dark:border-white/10"
         >
           <Plus className="size-3.5" />
           新建卷

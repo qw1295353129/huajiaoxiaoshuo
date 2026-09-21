@@ -107,7 +107,7 @@ export function NewProject() {
                   className={
                     "rounded-xl border p-3 text-left transition " +
                     (pov === o.value
-                      ? "border-violet-500/60 bg-violet-500/[0.06]"
+                      ? "border-black/40 bg-black/[0.04]"
                       : "border-black/8 hover:border-black/20 dark:border-white/10 dark:hover:border-white/25")
                   }
                 >
@@ -129,7 +129,7 @@ export function NewProject() {
                   className={
                     "rounded-lg border px-3 py-1.5 text-sm transition " +
                     (lengthClass === o.value
-                      ? "border-violet-500/60 bg-violet-500/[0.06] font-medium"
+                      ? "border-black/40 bg-black/[0.04] font-medium"
                       : "border-black/8 hover:border-black/20 dark:border-white/10 dark:hover:border-white/25")
                   }
                 >

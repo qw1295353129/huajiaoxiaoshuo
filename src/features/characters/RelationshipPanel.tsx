@@ -185,7 +185,7 @@ export function RelationshipPanel({ projectId, characterId }: { projectId: ID; c
                   {other ? <CharacterAvatar character={other} size={28} /> : null}
                   <button
                     type="button"
-                    className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-violet-500"
+                    className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-neutral-700"
                     onClick={() => other && navigate(ROUTES.character(projectId, other.id))}
                   >
                     {other?.name ?? "（角色已删除）"}
@@ -234,7 +234,7 @@ export function RelationshipPanel({ projectId, characterId }: { projectId: ID; c
                       step={1}
                       value={value}
                       aria-label="好感度"
-                      className="mt-1 h-1.5 w-full cursor-pointer accent-violet-500"
+                      className="mt-1 h-1.5 w-full cursor-pointer accent-neutral-900"
                       onChange={(e) => changeAffinity(r, Number(e.target.value))}
                       onPointerUp={() => flushAffinity(r)}
                       onKeyUp={() => flushAffinity(r)}

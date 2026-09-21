@@ -32,7 +32,7 @@ export function Composer({
     <div
       className={
         "rounded-2xl border bg-white/70 p-2 transition dark:bg-white/[0.04] " +
-        (busy ? "border-violet-500/40" : "border-black/8 dark:border-white/10")
+        (busy ? "border-black/25" : "border-black/8 dark:border-white/10")
       }
     >
       <textarea

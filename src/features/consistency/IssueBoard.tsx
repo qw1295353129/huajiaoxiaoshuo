@@ -166,7 +166,7 @@ export function IssueBoard({
                 >
                   <span className="w-16 shrink-0 truncate text-[11px] opacity-60">{KIND_LABELS[r.kind]}</span>
                   <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
-                    <span className="block h-full rounded-full bg-violet-500" style={{ width: fmtPct(r.count / stats.kindMax) }} />
+                    <span className="block h-full rounded-full bg-neutral-900" style={{ width: fmtPct(r.count / stats.kindMax) }} />
                   </span>
                   <span className="tabular w-6 shrink-0 text-right text-[11px] opacity-60">{r.count}</span>
                 </button>
@@ -185,7 +185,7 @@ export function IssueBoard({
               value={filters.query}
               onChange={(e) => onFiltersChange({ ...filters, query: e.target.value })}
               placeholder="搜索标题、详情、原文或建议…"
-              className="w-full rounded-lg border border-black/10 bg-white py-1.5 pl-8 pr-2.5 text-xs outline-none transition focus:border-violet-400 dark:border-white/10 dark:bg-neutral-900"
+              className="w-full rounded-lg border border-black/10 bg-white py-1.5 pl-8 pr-2.5 text-xs outline-none transition focus:border-black/40 dark:border-white/10 dark:bg-neutral-900"
             />
           </div>
 
@@ -290,7 +290,7 @@ export function IssueBoard({
                           className={
                             "w-full rounded-xl border px-3 py-2 text-left transition " +
                             (selectedId === i.id
-                              ? "border-violet-400/60 bg-violet-500/[0.06]"
+                              ? "border-black/40 bg-black/[0.04]"
                               : "border-black/5 hover:bg-black/[0.03] dark:border-white/5 dark:hover:bg-white/[0.04]")
                           }
                         >
@@ -355,7 +355,7 @@ export function IssueBoard({
                   {selected.chapterId ? (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 text-violet-500 hover:underline"
+                      className="inline-flex items-center gap-1 text-neutral-700 hover:underline"
                       onClick={() => openChapter(selected.chapterId, selected.evidence?.from, selected.evidence?.to, selected.evidence?.quote)}
                     >
                       第{(chapterMap.get(selected.chapterId)?.order ?? 0) + 1}章 {chapterMap.get(selected.chapterId)?.title ?? "未知章节"}

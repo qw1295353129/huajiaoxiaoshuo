@@ -440,7 +440,7 @@ function ViewSwitch({
           className={
             "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition " +
             (value === option.value
-              ? "bg-violet-500 text-white shadow-sm"
+              ? "bg-neutral-900 text-white shadow-sm"
               : "opacity-60 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10")
           }
         >

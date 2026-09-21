@@ -71,7 +71,7 @@ export function TensionCurve({ chapters, metrics, selectedId, onSelect, showDial
         action={
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 text-[11px] opacity-60">
-              <span className="inline-block size-2 rounded-full bg-violet-500" />
+              <span className="inline-block size-2 rounded-full bg-neutral-900" />
               张力
             </span>
             <Switch isSelected={showDialogue} onChange={onShowDialogueChange} size="sm">
@@ -137,14 +137,14 @@ export function TensionCurve({ chapters, metrics, selectedId, onSelect, showDial
           )}
 
           {/* 张力主线 */}
-          <path d={areaPath} className="fill-violet-500/[0.08]" />
+          <path d={areaPath} className="fill-neutral-800/[0.08]" />
           <polyline
             points={polyline(tensionPoints)}
             fill="none"
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="stroke-violet-500"
+            className="stroke-neutral-800"
           />
 
           {/* 数据点（可点击选中章节） */}
@@ -161,7 +161,7 @@ export function TensionCurve({ chapters, metrics, selectedId, onSelect, showDial
                   cy={p.y}
                   r={active ? 5.5 : 3.2}
                   strokeWidth={active ? 2 : 0}
-                  className={active ? "fill-emerald-500 stroke-white dark:stroke-neutral-950" : "fill-violet-500"}
+                  className={active ? "fill-emerald-500 stroke-white dark:stroke-neutral-950" : "fill-neutral-800"}
                 />
               </g>
             );

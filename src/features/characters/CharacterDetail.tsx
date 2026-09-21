@@ -312,7 +312,7 @@ export function CharacterDetail() {
           <SectionCard
             title="口吻卡"
             hint="AI 生成对白与续写时会带上这张卡；写得越具体，人物说话越像他自己"
-            icon={<MessageSquare className="size-4 text-violet-500" />}
+            icon={<MessageSquare className="size-4 text-neutral-700" />}
             accent
             dirty={dirtyOf("voice")}
             saving={savingSection === "voice"}

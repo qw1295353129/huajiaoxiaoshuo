@@ -351,7 +351,7 @@ export function AiFillDialog({
                         <div className="flex flex-wrap items-center gap-2">
                           <input
                             type="checkbox"
-                            className="size-4 accent-violet-500"
+                            className="size-4 accent-neutral-900"
                             checked={row.checked}
                             aria-label={"采用 " + row.label}
                             onChange={(e) => toggle(row.key, e.target.checked)}
@@ -375,8 +375,8 @@ export function AiFillDialog({
                               {row.current || "（空）"}
                             </p>
                           </div>
-                          <div className="rounded-md bg-violet-500/[0.07] p-2 ring-1 ring-violet-500/15">
-                            <p className="mb-1 text-[11px] text-violet-500">AI 建议</p>
+                          <div className="rounded-md bg-black/[0.05] p-2 ring-1 ring-neutral-900/15">
+                            <p className="mb-1 text-[11px] text-neutral-700">AI 建议</p>
                             {row.kind === "sentenceLength" ? (
                               <select
                                 className="w-full rounded-md border border-black/10 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-neutral-900"
@@ -389,7 +389,7 @@ export function AiFillDialog({
                               </select>
                             ) : (
                               <textarea
-                                className="w-full resize-y rounded-md border border-black/10 bg-white px-2 py-1 text-xs leading-relaxed outline-none focus:border-violet-400 dark:border-white/10 dark:bg-neutral-900"
+                                className="w-full resize-y rounded-md border border-black/10 bg-white px-2 py-1 text-xs leading-relaxed outline-none focus:border-black/40 dark:border-white/10 dark:bg-neutral-900"
                                 rows={row.kind === "list" ? 2 : 3}
                                 value={row.suggestion}
                                 onChange={(e) => edit(row.key, e.target.value)}

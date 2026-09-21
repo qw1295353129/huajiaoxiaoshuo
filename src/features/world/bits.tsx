@@ -88,7 +88,7 @@ export function WikiBody({
               type="button"
               onClick={() => onOpen(target.id)}
               title={"跳转到《" + target.title + "》"}
-              className="mx-0.5 rounded bg-violet-500/10 px-1 font-medium text-violet-600 transition hover:bg-violet-500/20 dark:text-violet-300"
+              className="mx-0.5 rounded bg-black/[0.06] px-1 font-medium text-neutral-800 transition hover:bg-black/[0.08] dark:text-neutral-200"
             >
               {seg.target}
             </button>

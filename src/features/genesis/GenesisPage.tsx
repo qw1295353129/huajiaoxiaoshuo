@@ -333,7 +333,7 @@ export function GenesisPage() {
                     type="checkbox"
                     checked={parts[key]}
                     onChange={() => togglePart(key)}
-                    className="accent-violet-500"
+                    className="accent-neutral-900"
                   />
                   {PART_LABELS[key]}
                 </label>

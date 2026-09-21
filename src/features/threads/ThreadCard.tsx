@@ -37,7 +37,7 @@ export function ThreadCard({
     <Card
       className={
         "p-4 transition " +
-        (highlighted ? "ring-2 ring-violet-500/60" : "")
+        (highlighted ? "ring-2 ring-neutral-900/60" : "")
       }
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -81,7 +81,7 @@ export function ThreadCard({
 
       {/* 埋设 → 计划回收 → 实际回收 */}
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded-md bg-violet-500/10 px-2 py-1 text-violet-600 dark:text-violet-300">
+        <span className="rounded-md bg-black/[0.06] px-2 py-1 text-neutral-800 dark:text-neutral-200">
           埋设　{chapterLabel(chapters, thread.plantedChapterId)}
         </span>
         <ArrowRight className="size-3.5 opacity-35" />

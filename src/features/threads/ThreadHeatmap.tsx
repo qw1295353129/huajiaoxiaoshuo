@@ -16,10 +16,10 @@ const SCAN_LIMIT = 120;
 type CellKind = "plant" | "payoff" | "planned" | "mentioned" | "gap" | "before" | "plain";
 
 const CELL_CLASS: Record<CellKind, string> = {
-  plant: "bg-violet-500",
+  plant: "bg-neutral-900",
   payoff: "bg-emerald-500",
   planned: "bg-amber-400/80 ring-1 ring-inset ring-amber-600/70",
-  mentioned: "bg-violet-400/40",
+  mentioned: "bg-black/25",
   gap: "bg-rose-400/25",
   before: "bg-black/[0.035] dark:bg-white/[0.04]",
   plain: "bg-black/[0.07] dark:bg-white/[0.07]",

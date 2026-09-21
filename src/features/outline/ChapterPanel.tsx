@@ -304,7 +304,7 @@ export function ChapterPanel({ projectId, chapter, index }: Props) {
             step={1}
             value={draft.tension}
             onChange={(e) => setDraft((prev) => ({ ...prev, tension: clampTension(Number(e.target.value)) }))}
-            className="w-full accent-violet-500"
+            className="w-full accent-neutral-900"
           />
           <div className="mt-1 flex justify-between text-[10px] opacity-40">
             <span>-5 低谷</span>
@@ -318,7 +318,7 @@ export function ChapterPanel({ projectId, chapter, index }: Props) {
           <select
             value={draft.status}
             onChange={(e) => setDraft((prev) => ({ ...prev, status: e.target.value as ChapterStatus }))}
-            className="w-full rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-sm outline-none transition focus:border-violet-500 dark:border-white/10 dark:bg-neutral-900/60"
+            className="w-full rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-sm outline-none transition focus:border-neutral-900 dark:border-white/10 dark:bg-neutral-900/60"
           >
             {CHAPTER_STATUS_ORDER.map((status) => (
               <option key={status} value={status}>

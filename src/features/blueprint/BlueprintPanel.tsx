@@ -200,7 +200,7 @@ export function BlueprintPanel({ projectId }: { projectId: ID }) {
                 key={row.id}
                 className={
                   "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-2.5 py-1.5 " +
-                  (activeId === row.id ? "border-violet-500/50 bg-violet-500/[0.05]" : "border-black/8 dark:border-white/10")
+                  (activeId === row.id ? "border-black/30 bg-black/[0.04]" : "border-black/8 dark:border-white/10")
                 }
               >
                 <button type="button" onClick={() => loadSaved(row.id)} className="min-w-0 flex-1 text-left">

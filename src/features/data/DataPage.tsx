@@ -116,7 +116,7 @@ function ExportTab({ projectId }: { projectId: string }) {
               className={
                 "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition " +
                 (format === key
-                  ? "border-violet-500/60 bg-violet-500/[0.08] font-medium"
+                  ? "border-black/40 bg-black/[0.05] font-medium"
                   : "border-black/10 hover:border-black/25 dark:border-white/15 dark:hover:border-white/30")
               }
             >
@@ -153,7 +153,7 @@ function ExportTab({ projectId }: { projectId: string }) {
                   onChange={() =>
                     setSelected((s) => (s.includes(c.id) ? s.filter((x) => x !== c.id) : [...s, c.id]))
                   }
-                  className="accent-violet-500"
+                  className="accent-neutral-900"
                 />
                 <span className="tabular w-8 opacity-45">{c.order + 1}</span>
                 <span className="min-w-0 flex-1 truncate">{c.title}</span>
@@ -185,7 +185,7 @@ function Check2({
         checked={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="accent-violet-500"
+        className="accent-neutral-900"
       />
       {label}
     </label>
@@ -272,7 +272,7 @@ function ImportTab({ projectId }: { projectId: string }) {
       </section>
 
       {preview && (
-        <section className="rounded-xl border border-violet-500/40 bg-violet-500/[0.04] p-4">
+        <section className="rounded-xl border border-black/25 bg-black/[0.03] p-4">
           <SectionTitle hint={"共 " + preview.chapters.length + " 章 · " + formatWords(preview.totalWords)}>识别结果预览</SectionTitle>
           <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
             {preview.chapters.map((c, i) => (
@@ -285,7 +285,7 @@ function ImportTab({ projectId }: { projectId: string }) {
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <label className="flex cursor-pointer items-center gap-2 text-xs">
-              <input type="radio" checked={mode === "append"} onChange={() => setMode("append")} className="accent-violet-500" />
+              <input type="radio" checked={mode === "append"} onChange={() => setMode("append")} className="accent-neutral-900" />
               追加到现有章节之后
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-xs">
@@ -383,7 +383,7 @@ function BackupTab({ projectId }: { projectId: string }) {
         </label>
 
         {inspect && (
-          <div className="mt-4 rounded-xl border border-violet-500/40 bg-violet-500/[0.04] p-3">
+          <div className="mt-4 rounded-xl border border-black/25 bg-black/[0.03] p-3">
             <p className="text-xs font-medium">
               备份时间：{new Date(inspect.createdAt).toLocaleString("zh-CN")} · schema v{inspect.version}
             </p>
@@ -399,7 +399,7 @@ function BackupTab({ projectId }: { projectId: string }) {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <label className="flex cursor-pointer items-center gap-1.5 text-xs">
-                <input type="radio" checked={mode === "merge"} onChange={() => setMode("merge")} className="accent-violet-500" />
+                <input type="radio" checked={mode === "merge"} onChange={() => setMode("merge")} className="accent-neutral-900" />
                 合并（保留现有数据）
               </label>
               <label className="flex cursor-pointer items-center gap-1.5 text-xs">

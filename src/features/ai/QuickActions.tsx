@@ -117,7 +117,7 @@ export function QuickActions({
         className={
           "shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition " +
           (direct
-            ? "border-violet-500/50 bg-violet-500/10 text-violet-600 dark:text-violet-300"
+            ? "border-black/30 bg-black/[0.06] text-neutral-800 dark:text-neutral-200"
             : "border-black/10 opacity-60 hover:opacity-100 dark:border-white/15")
         }
         title="开启后，点击快捷动作会直接发送给 AI"

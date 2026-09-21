@@ -141,16 +141,25 @@ export function affinityColor(v: number): ChipColor {
 /**
  * 头像配色：用 id 做稳定哈希，保证同一个人每次渲染颜色一致。
  * 注意必须是完整类名字面量，Tailwind 才能扫描到（不能运行时拼类名）。
+ *
+ * ## 为什么是灰阶而不是彩色
+ *
+ * 这里原本是 8 种色相（天蓝 / 翠绿 / 琥珀 / 玫瑰 / 青 / 品红 / 蓝绿）。
+ * 它的作用是**让不同人物一眼区分** —— 属于"功能性用色"，不是装饰。
+ * 但整套界面已改为白 / 黑 / 浅灰，彩色圆点会在人物列表里非常突兀。
+ *
+ * 取舍：改用**不同深浅的灰**做区分。辨识度不如色相明显，但风格统一。
+ * 如果将来觉得人多了分不清，可以把这里换回彩色 —— 只改这一个数组即可。
  */
 const AVATAR_CLASSES = [
-  "bg-violet-500/15 text-violet-600 dark:text-violet-300",
-  "bg-sky-500/15 text-sky-600 dark:text-sky-300",
-  "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
-  "bg-amber-500/15 text-amber-600 dark:text-amber-300",
-  "bg-rose-500/15 text-rose-600 dark:text-rose-300",
-  "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
-  "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-300",
-  "bg-teal-500/15 text-teal-600 dark:text-teal-300",
+  "bg-black/[0.07] text-neutral-800 dark:text-neutral-200",
+  "bg-black/[0.12] text-neutral-900 dark:bg-white/[0.10] dark:text-neutral-100",
+  "bg-black/[0.05] text-neutral-700 dark:bg-white/[0.06] dark:text-neutral-300",
+  "bg-black/[0.16] text-white dark:bg-white/[0.16] dark:text-neutral-50",
+  "bg-black/[0.09] text-neutral-800 dark:bg-white/[0.08] dark:text-neutral-200",
+  "bg-black/[0.20] text-white dark:bg-white/[0.20] dark:text-neutral-50",
+  "bg-black/[0.03] text-neutral-600 dark:bg-white/[0.04] dark:text-neutral-400",
+  "bg-black/[0.14] text-neutral-900 dark:bg-white/[0.13] dark:text-neutral-100",
 ];
 
 export function hashString(input: string): number {

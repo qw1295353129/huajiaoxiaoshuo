@@ -28,7 +28,7 @@ export function TaskBars({
               </div>
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
                 <div
-                  className="h-full rounded-full bg-violet-500 transition-all"
+                  className="h-full rounded-full bg-neutral-900 transition-all"
                   style={{ width: (max > 0 ? (item.tokens / max) * 100 : 0) + "%" }}
                 />
               </div>
@@ -101,12 +101,12 @@ export function DailyLine({ points }: { points: { date: string; tokens: number }
                 strokeWidth={1}
               />
             ))}
-            {area && <polygon points={area} className="fill-violet-500/10" />}
+            {area && <polygon points={area} className="fill-neutral-800/10" />}
             {coords.length > 1 && (
               <polyline
                 points={line}
                 fill="none"
-                className="stroke-violet-500"
+                className="stroke-neutral-800"
                 strokeWidth={2}
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -114,7 +114,7 @@ export function DailyLine({ points }: { points: { date: string; tokens: number }
             )}
             {coords.map((c) => (
               <g key={c.date}>
-                <circle cx={c.x} cy={c.y} r={3} className="fill-violet-500">
+                <circle cx={c.x} cy={c.y} r={3} className="fill-neutral-800">
                   <title>{c.date + "：" + formatNumber(c.tokens) + " tokens"}</title>
                 </circle>
               </g>

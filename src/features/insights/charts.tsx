@@ -355,10 +355,10 @@ export interface HeatCell {
 
 const LEVEL_CLASS = [
   "bg-black/[0.05] dark:bg-white/[0.06]",
-  "bg-violet-200 dark:bg-violet-500/25",
-  "bg-violet-300 dark:bg-violet-500/45",
-  "bg-violet-400 dark:bg-violet-500/70",
-  "bg-violet-600 dark:bg-violet-500",
+  "bg-black/15 dark:bg-white/10",
+  "bg-black/20 dark:bg-white/20",
+  "bg-black/40 dark:bg-black/60",
+  "bg-neutral-800 dark:bg-neutral-900",
 ];
 
 const WEEKDAY_LABEL = ["日", "一", "二", "三", "四", "五", "六"];
@@ -467,7 +467,7 @@ export function MiniHistogram({ values, labels }: { values: number[]; labels: st
       {values.map((v, i) => (
         <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1">
           <div className="flex h-16 w-full items-end rounded-sm bg-black/[0.04] dark:bg-white/[0.06]">
-            <div className="w-full rounded-sm bg-violet-400/80 dark:bg-violet-500/70" style={{ height: Math.max(2, (v / max) * 100) + "%" }} />
+            <div className="w-full rounded-sm bg-black/50 dark:bg-black/60" style={{ height: Math.max(2, (v / max) * 100) + "%" }} />
           </div>
           <span className="tabular text-[10px] opacity-45">{labels[i]}</span>
         </div>

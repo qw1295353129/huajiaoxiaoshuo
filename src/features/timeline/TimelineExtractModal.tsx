@@ -194,8 +194,8 @@ export function TimelineExtractModal({
                   </Button>
                 </div>
 
-                <p className="flex items-start gap-1.5 rounded-lg bg-violet-500/[0.07] p-2.5 text-[11px] leading-relaxed opacity-70">
-                  <Sparkles className="mt-0.5 size-3.5 shrink-0 text-violet-500" />
+                <p className="flex items-start gap-1.5 rounded-lg bg-black/[0.05] p-2.5 text-[11px] leading-relaxed opacity-70">
+                  <Sparkles className="mt-0.5 size-3.5 shrink-0 text-neutral-700" />
                   只使用正文里真实描写过的事件与时间，模型不会凭空推断。抽取结果需要你确认后才会写入数据库。
                 </p>
 
@@ -257,7 +257,7 @@ export function TimelineExtractModal({
                             <div className="flex items-start gap-2">
                               <input
                                 type="checkbox"
-                                className="mt-1 size-4 shrink-0 accent-violet-500"
+                                className="mt-1 size-4 shrink-0 accent-neutral-900"
                                 checked={draft.checked}
                                 onChange={(e) =>
                                   setDrafts((prev) =>

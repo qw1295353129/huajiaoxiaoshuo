@@ -78,7 +78,7 @@ export function SnapshotPanel({
           {snapshots.map((s) => (
             <li
               key={s.id}
-              className="rounded-xl border border-black/8 p-3 transition hover:border-violet-500/40 dark:border-white/10"
+              className="rounded-xl border border-black/8 p-3 transition hover:border-black/25 dark:border-white/10"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">

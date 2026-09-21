@@ -288,7 +288,7 @@ export function ConflictModal({ projectId, open, onOpenChange, entries, projectR
                     <div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
                         <div
-                          className="h-full rounded-full bg-violet-500 transition-all"
+                          className="h-full rounded-full bg-neutral-900 transition-all"
                           style={{ width: Math.round((progress.done / Math.max(1, progress.total)) * 100) + "%" }}
                         />
                       </div>
@@ -468,7 +468,7 @@ function Side({
         <button
           type="button"
           onClick={() => onOpenEntry(entryId)}
-          className="text-[11px] text-violet-600 underline decoration-dotted underline-offset-2 dark:text-violet-300"
+          className="text-[11px] text-neutral-800 underline decoration-dotted underline-offset-2 dark:text-neutral-200"
         >
           查看条目
         </button>

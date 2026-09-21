@@ -91,7 +91,7 @@ export function TimelineChapterView({
         <div className="flex flex-wrap gap-[3px]">
           {ordered.map((chapter) => {
             const count = countByChapter.get(chapter.id) ?? 0;
-            const tone = count === 0 ? "bg-black/[0.07] dark:bg-white/10" : count < 3 ? "bg-violet-400" : "bg-violet-600";
+            const tone = count === 0 ? "bg-black/[0.07] dark:bg-white/10" : count < 3 ? "bg-black/40" : "bg-neutral-800";
             return (
               <button
                 key={chapter.id}
@@ -214,7 +214,7 @@ function EventMiniCard({
 }) {
   return (
     <Card
-      className={"group p-3 transition " + (highlighted ? "ring-2 ring-violet-500/60" : "")}
+      className={"group p-3 transition " + (highlighted ? "ring-2 ring-neutral-900/60" : "")}
       id={"tl-evt-" + event.id}
     >
       <div className="flex items-start gap-2">

@@ -59,7 +59,7 @@ export function PomodoroTimer({ onComplete }: { onComplete: (minutes: number, wo
                 }}
                 className={
                   "rounded px-2 py-0.5 text-[11px] transition " +
-                  (minutes === p ? "bg-violet-500/15 text-violet-600 dark:text-violet-300" : "opacity-55 hover:opacity-90")
+                  (minutes === p ? "bg-black/[0.07] text-neutral-800 dark:text-neutral-200" : "opacity-55 hover:opacity-90")
                 }
               >
                 {p}分
@@ -71,7 +71,7 @@ export function PomodoroTimer({ onComplete }: { onComplete: (minutes: number, wo
             <button
               type="button"
               onClick={() => (running ? setRunning(false) : remaining === minutes * 60 ? start() : setRunning(true))}
-              className="rounded-lg bg-violet-500 px-3 py-1 text-xs text-white transition hover:bg-violet-600"
+              className="rounded-lg bg-neutral-900 px-3 py-1 text-xs text-white transition hover:bg-neutral-800"
             >
               {running ? <Pause className="size-3" /> : <Play className="size-3" />}
             </button>

@@ -94,7 +94,7 @@ export function ThreadAuditModal({
                           <p className="text-sm font-medium">{f.title || "（未命名伏笔）"}</p>
                           <p className="mt-1.5 text-xs leading-relaxed opacity-75">{f.problem}</p>
                           {f.advice && (
-                            <p className={"mt-2 border-t pt-2 text-xs leading-relaxed text-violet-600 dark:text-violet-300 " + DIVIDER_CLASS}>
+                            <p className={"mt-2 border-t pt-2 text-xs leading-relaxed text-neutral-800 dark:text-neutral-200 " + DIVIDER_CLASS}>
                               建议：{f.advice}
                             </p>
                           )}

@@ -30,7 +30,7 @@ function KV({ label, value }: { label: string; value?: string }) {
 function PickBox({ checked, onToggle, hint }: { checked: boolean; onToggle: () => void; hint: string }) {
   return (
     <label className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-[11px] opacity-65 transition hover:opacity-100" title={hint}>
-      <input type="checkbox" checked={checked} onChange={onToggle} className="accent-violet-500" />
+      <input type="checkbox" checked={checked} onChange={onToggle} className="accent-neutral-900" />
       采用
     </label>
   );
@@ -129,7 +129,7 @@ function CharacterSection({
               className={
                 "rounded-xl border p-3 transition " +
                 (checked
-                  ? "border-violet-500/40 bg-violet-500/[0.04]"
+                  ? "border-black/25 bg-black/[0.03]"
                   : "border-black/5 opacity-55 dark:border-white/5")
               }
             >

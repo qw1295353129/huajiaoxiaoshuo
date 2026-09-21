@@ -160,7 +160,7 @@ export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedIns
       <div className="shrink-0 border-b border-black/5 px-4 py-3 dark:border-white/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Wand2 className="size-4 text-violet-500" />
+            <Wand2 className="size-4 text-neutral-700" />
             <span className="text-sm font-medium">AI 助手</span>
           </div>
           <button
@@ -201,7 +201,7 @@ export function AiPanel({ projectId, chapterId, onInsert, onSuggest, injectedIns
                 title={a.hint}
                 className={
                   "flex flex-col items-center gap-1 rounded-lg border border-black/8 py-2 text-[11px] transition dark:border-white/10 " +
-                  (disabled ? "cursor-not-allowed opacity-35" : "hover:border-violet-500/50 hover:bg-violet-500/[0.06]")
+                  (disabled ? "cursor-not-allowed opacity-35" : "hover:border-black/30 hover:bg-black/[0.04]")
                 }
               >
                 <a.icon className="size-3.5" />
@@ -411,7 +411,7 @@ function ResultCard({
                   className={
                     "rounded-md px-2 py-0.5 text-[10px] transition " +
                     (i === result.activeIndex
-                      ? "bg-violet-500/15 text-violet-600 dark:text-violet-300"
+                      ? "bg-black/[0.07] text-neutral-800 dark:text-neutral-200"
                       : "opacity-50 hover:opacity-90")
                   }
                 >

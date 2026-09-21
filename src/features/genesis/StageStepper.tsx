@@ -57,7 +57,7 @@ export function StageStepper({
               className={
                 "flex items-start gap-3 rounded-xl border px-3 py-2 transition " +
                 (stage.status === "running"
-                  ? "border-violet-500/40 bg-violet-500/[0.05]"
+                  ? "border-black/25 bg-black/[0.04]"
                   : stage.status === "failed"
                     ? "border-rose-500/30 bg-rose-500/[0.05]"
                     : "border-black/5 dark:border-white/5")

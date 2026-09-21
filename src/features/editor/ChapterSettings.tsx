@@ -141,7 +141,7 @@ export function ChapterSettings({
                 step={1}
                 value={tension}
                 onChange={(e) => setTension(Number(e.target.value))}
-                className="w-full accent-violet-500"
+                className="w-full accent-neutral-900"
               />
             </div>
           </div>
@@ -185,7 +185,7 @@ export function ChapterSettings({
                       type="checkbox"
                       checked={plants.includes(t.id)}
                       onChange={() => toggle(plants, setPlants, t.id)}
-                      className="accent-violet-500"
+                      className="accent-neutral-900"
                     />
                     <span className="truncate">{t.title}</span>
                   </label>

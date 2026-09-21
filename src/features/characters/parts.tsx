@@ -11,7 +11,7 @@ import { avatarClass, avatarInitial, splitTags } from "./meta";
 
 const FIELD_BASE =
   "rounded-lg border border-black/10 bg-white px-3 py-2 text-sm leading-relaxed outline-none transition " +
-  "placeholder:text-black/30 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/15 " +
+  "placeholder:text-black/30 focus:border-black/40 focus:ring-2 focus:ring-neutral-900/15 " +
   "disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-neutral-900 dark:placeholder:text-white/25";
 
 export const inputClass = FIELD_BASE + " w-full";
@@ -187,7 +187,7 @@ export function SectionCard({
     <Card
       className={
         "p-4 " +
-        (accent ? "ring-1 ring-violet-500/25 dark:ring-violet-400/20" : "")
+        (accent ? "ring-1 ring-neutral-900/25 dark:ring-neutral-900/40/20" : "")
       }
     >
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -195,7 +195,7 @@ export function SectionCard({
           <div className="flex items-center gap-1.5 text-sm font-semibold tracking-tight">
             {icon}
             <span className="truncate">{title}</span>
-            {dirty ? <span className="size-1.5 rounded-full bg-violet-500" title="有未保存的修改" /> : null}
+            {dirty ? <span className="size-1.5 rounded-full bg-neutral-900" title="有未保存的修改" /> : null}
           </div>
           {hint ? <p className="mt-0.5 text-xs leading-relaxed opacity-55">{hint}</p> : null}
         </div>

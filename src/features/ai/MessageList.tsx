@@ -121,7 +121,7 @@ export function MessageList({
           <div key={message.id} className={isUser ? "flex justify-end" : "flex justify-start"}>
             <div className={"min-w-0 " + (isUser ? "max-w-[85%]" : "w-full")}>
               {isUser ? (
-                <div className="rounded-2xl rounded-br-md bg-violet-500/10 px-3.5 py-2.5 text-sm whitespace-pre-wrap text-violet-900 dark:text-violet-100">
+                <div className="rounded-2xl rounded-br-md bg-black/[0.06] px-3.5 py-2.5 text-sm whitespace-pre-wrap">
                   {message.content}
                 </div>
               ) : (
@@ -155,7 +155,7 @@ export function MessageList({
               <Sparkles className="size-3 animate-pulse" />
               创作助手 · 正在生成
             </div>
-            <div className="rounded-2xl rounded-bl-md border border-violet-500/20 bg-white/70 px-3.5 py-2.5 text-sm dark:bg-white/[0.04]">
+            <div className="rounded-2xl rounded-bl-md border border-neutral-900/20 bg-white/70 px-3.5 py-2.5 text-sm dark:bg-white/[0.04]">
               {reasoning ? (
                 <details className="mb-2">
                   <summary className="cursor-pointer text-[11px] opacity-50">思考过程</summary>
@@ -167,7 +167,7 @@ export function MessageList({
               ) : (
                 <span className="text-xs opacity-50">正在等待模型响应…</span>
               )}
-              <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-violet-500 align-text-bottom" />
+              <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse rounded-sm bg-neutral-900 align-text-bottom" />
             </div>
             <div className="mt-1.5 flex items-center gap-3 text-[11px] opacity-45">
               <button

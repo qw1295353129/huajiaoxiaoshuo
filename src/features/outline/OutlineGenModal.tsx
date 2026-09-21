@@ -141,7 +141,7 @@ export function OutlineGenModal({ projectId, open, onOpenChange, onWritten }: Pr
                                 <span className="font-medium">{chapter.title}</span>
                                 {chapter.summary && <span className="ml-1 opacity-60">— {chapter.summary}</span>}
                               </span>
-                              <span className="tabular shrink-0 text-[11px] text-violet-500">{tensionText(chapter.tension)}</span>
+                              <span className="tabular shrink-0 text-[11px] text-neutral-700">{tensionText(chapter.tension)}</span>
                             </li>
                           ))}
                         </ul>

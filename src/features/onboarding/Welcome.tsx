@@ -27,7 +27,7 @@ export function Welcome() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Card className="p-5">
-            <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+            <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-black/[0.06] text-neutral-700">
               <Wand2 className="size-4.5" />
             </div>
             <h2 className="font-medium">一句话成书</h2>

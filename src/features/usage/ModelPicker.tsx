@@ -72,7 +72,7 @@ export function ModelPicker({
             const model = parts.slice(1).join("::");
             if (providerId && model) onSelect(providerId, model);
           }}
-          className="w-full rounded-lg border border-black/8 bg-white/60 px-2.5 py-2 text-sm outline-none focus:border-violet-500/50 dark:border-white/10 dark:bg-white/5"
+          className="w-full rounded-lg border border-black/8 bg-white/60 px-2.5 py-2 text-sm outline-none focus:border-black/30 dark:border-white/10 dark:bg-white/5"
         >
           <option value="">选择模型…</option>
           {providers.map((provider) => (

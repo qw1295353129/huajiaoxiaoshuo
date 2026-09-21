@@ -74,7 +74,7 @@ function ReleaseRow({
   })).filter((c) => c.n > 0);
 
   return (
-    <div className={"rounded-lg border " + (latest ? "border-violet-500/40 bg-violet-500/[0.04]" : "border-black/8 dark:border-white/10")}>
+    <div className={"rounded-lg border " + (latest ? "border-black/25 bg-black/[0.03]" : "border-black/8 dark:border-white/10")}>
       <button type="button" onClick={onToggle} className="flex w-full items-start gap-2 px-3 py-2.5 text-left">
         {open ? <ChevronDown className="mt-0.5 size-3.5 shrink-0 opacity-50" /> : <ChevronRight className="mt-0.5 size-3.5 shrink-0 opacity-50" />}
         <div className="min-w-0 flex-1">

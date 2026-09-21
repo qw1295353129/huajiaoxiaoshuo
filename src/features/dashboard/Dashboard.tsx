@@ -116,7 +116,7 @@ export function Dashboard() {
                   </div>
                   <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
                     <div
-                      className="h-full rounded-full bg-violet-500 transition-all"
+                      className="h-full rounded-full bg-neutral-900 transition-all"
                       style={{ width: `${pct(p.stats.words, p.targetWords)}%` }}
                     />
                   </div>

@@ -200,7 +200,7 @@ export function CastGenDialog({
                           onChange={() =>
                             setChecked((s) => (s.includes(row.name) ? s.filter((x) => x !== row.name) : [...s, row.name]))
                           }
-                          className="mt-0.5 accent-violet-500"
+                          className="mt-0.5 accent-neutral-900"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">

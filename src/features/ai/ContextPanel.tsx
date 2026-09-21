@@ -71,7 +71,7 @@ export function ContextPanel({
               </span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
-              <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: percent + "%" }} />
+              <div className="h-full rounded-full bg-neutral-900 transition-all" style={{ width: percent + "%" }} />
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] opacity-55">耗时</span>

@@ -142,7 +142,7 @@ export function EmbeddingModelPicker({
       )}
 
       {pulling && progress && (
-        <div className="rounded-lg border border-violet-500/30 bg-violet-500/[0.05] px-3 py-2">
+        <div className="rounded-lg border border-black/20 bg-black/[0.04] px-3 py-2">
           <div className="flex items-center gap-2 text-[11px]">
             <HardDriveDownload className="size-3.5" />
             <span className="font-medium">正在下载 {pulling}</span>
@@ -155,7 +155,7 @@ export function EmbeddingModelPicker({
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.08] dark:bg-white/10">
             <div
-              className="h-full rounded-full bg-violet-500 transition-all"
+              className="h-full rounded-full bg-neutral-900 transition-all"
               style={{ width: (progress.percent ?? 15) + "%" }}
             />
           </div>
@@ -172,7 +172,7 @@ export function EmbeddingModelPicker({
               key={m.name}
               className={
                 "flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-2 " +
-                (active ? "border-violet-500/50 bg-violet-500/[0.05]" : "border-black/8 dark:border-white/10")
+                (active ? "border-black/30 bg-black/[0.04]" : "border-black/8 dark:border-white/10")
               }
             >
               <button

@@ -71,7 +71,7 @@ export function AppearancePanel({ characterId, projectId }: { characterId: ID; p
 
           <div className="mt-3 flex items-center gap-3 text-[11px] opacity-55">
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-violet-500" />
+              <span className="size-2 rounded-full bg-neutral-900" />
               被提及
             </span>
             <span className="flex items-center gap-1">
@@ -94,7 +94,7 @@ export function AppearancePanel({ characterId, projectId }: { characterId: ID; p
                 <div className="mt-1 space-y-0.5">
                   <div className="h-1.5 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
                     <div
-                      className="h-full rounded-full bg-violet-500"
+                      className="h-full rounded-full bg-neutral-900"
                       style={{ width: Math.round(((row.mentioned ?? 0) / stats.maxMentioned) * 100) + "%" }}
                     />
                   </div>

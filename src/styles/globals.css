@@ -62,9 +62,15 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* 品牌色：把 HeroUI 的 accent 从默认蓝替换为花椒紫（浅色 + 深色） */
+/**
+ * 品牌色已改为**中性**：整套界面只用白 / 黑 / 浅灰，不再有彩色主色。
+ *
+ * accent 仍然存在（HeroUI 的选中态、焦点环、滑块都依赖它），
+ * 但它现在是最深的中性灰 —— 在浅色模式里就是近黑，在深色模式里是浅灰。
+ * 这样所有"跟随主题色"的控件自动变成中性，不需要逐个覆盖。
+ */
 :root {
-  --accent: oklch(0.62 0.19 292);
+  --accent: oklch(0.21 0 0);
   --accent-foreground: oklch(0.99 0 0);
   /**
    * 次级按钮的文字色。
@@ -80,8 +86,8 @@
   --accent-soft-foreground: var(--foreground);
 }
 .dark {
-  --accent: oklch(0.72 0.17 292);
-  --accent-foreground: oklch(0.13 0.02 292);
+  --accent: oklch(0.93 0 0);
+  --accent-foreground: oklch(0.15 0 0);
   --accent-soft-foreground: var(--foreground);
 }
 

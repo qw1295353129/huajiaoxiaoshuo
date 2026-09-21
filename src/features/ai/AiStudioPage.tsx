@@ -372,7 +372,7 @@ export function AiStudioPage() {
                     type="checkbox"
                     checked={withChapter}
                     onChange={(e) => setWithChapter(e.target.checked)}
-                    className="accent-violet-500"
+                    className="accent-neutral-900"
                   />
                   带上当前章节
                   <span className="opacity-70">（{chapterLabel}）</span>

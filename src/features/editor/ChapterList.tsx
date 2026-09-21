@@ -113,7 +113,7 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
               className={
                 "grid size-8 place-items-center rounded-md text-[11px] tabular transition " +
                 (c.id === activeChapterId
-                  ? "bg-violet-500/15 text-violet-600 dark:text-violet-300"
+                  ? "bg-black/[0.07] text-neutral-800 dark:text-neutral-200"
                   : "opacity-55 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5")
               }
               title={c.title}
@@ -140,9 +140,9 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
         className={
           "group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition " +
           (c.id === activeChapterId
-            ? "bg-violet-500/10 font-medium text-violet-700 dark:text-violet-200"
+            ? "bg-black/[0.06] font-medium text-neutral-900 dark:text-neutral-100"
             : "hover:bg-black/5 dark:hover:bg-white/5") +
-          (dropTarget === c.id && dragId !== c.id ? " ring-1 ring-violet-500/50" : "")
+          (dropTarget === c.id && dragId !== c.id ? " ring-1 ring-black/30" : "")
         }
       >
         <GripVertical className="size-3 shrink-0 cursor-grab opacity-0 transition group-hover:opacity-40" />
@@ -188,7 +188,7 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
                 if (e.key === "Enter") void commitRename();
                 if (e.key === "Escape") setRenaming(null);
               }}
-              className="w-full rounded bg-white px-1 text-sm outline-none ring-1 ring-violet-500/40 dark:bg-neutral-900"
+              className="w-full rounded bg-white px-1 text-sm outline-none ring-1 ring-black/25 dark:bg-neutral-900"
             />
           ) : (
             <span>

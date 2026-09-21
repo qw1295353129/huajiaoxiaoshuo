@@ -65,7 +65,7 @@ export function SessionSidebar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="搜索对话内容…"
-          className="w-full rounded-lg border border-black/8 bg-white/60 px-2.5 py-1.5 text-xs outline-none transition placeholder:opacity-40 focus:border-violet-500/50 dark:border-white/10 dark:bg-white/5"
+          className="w-full rounded-lg border border-black/8 bg-white/60 px-2.5 py-1.5 text-xs outline-none transition placeholder:opacity-40 focus:border-black/30 dark:border-white/10 dark:bg-white/5"
         />
       </div>
 
@@ -98,7 +98,7 @@ export function SessionSidebar({
                       if (e.key === "Enter") commit(session.id);
                       if (e.key === "Escape") setEditingId(undefined);
                     }}
-                    className="min-w-0 flex-1 rounded-md border border-violet-500/50 bg-transparent px-1.5 py-1 text-xs outline-none"
+                    className="min-w-0 flex-1 rounded-md border border-black/30 bg-transparent px-1.5 py-1 text-xs outline-none"
                   />
                   <button type="button" aria-label="确认重命名" onClick={() => commit(session.id)}>
                     <Check className="size-3.5 text-emerald-500" />

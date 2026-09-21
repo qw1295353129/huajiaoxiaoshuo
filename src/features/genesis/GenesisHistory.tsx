@@ -35,7 +35,7 @@ export function GenesisHistory({
                 className={
                   "flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 transition " +
                   (run.id === currentId
-                    ? "border-violet-500/40 bg-violet-500/[0.04]"
+                    ? "border-black/25 bg-black/[0.03]"
                     : "border-black/5 dark:border-white/5")
                 }
               >

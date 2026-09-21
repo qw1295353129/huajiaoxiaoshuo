@@ -145,7 +145,7 @@ export function MilestonePanel({ character, projectId }: { character: Character;
             const chapter = m.chapterId ? sortedChapters.find((c) => c.id === m.chapterId) : undefined;
             return (
               <li key={m.id} className="relative">
-                <span className="absolute top-1.5 -left-[21px] size-2 rounded-full bg-violet-500" />
+                <span className="absolute top-1.5 -left-[21px] size-2 rounded-full bg-neutral-900" />
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm leading-snug font-medium">{m.label}</p>

@@ -358,8 +358,8 @@ export function EntryEditor({
           硬规则 · {enabledRules} 条生效
         </SectionTitle>
 
-        <div className="mb-3 flex items-start gap-2 rounded-xl bg-violet-500/[0.07] px-3 py-2 text-[11px] leading-relaxed opacity-80">
-          <Info className="mt-0.5 size-3.5 shrink-0 text-violet-500" />
+        <div className="mb-3 flex items-start gap-2 rounded-xl bg-black/[0.05] px-3 py-2 text-[11px] leading-relaxed opacity-80">
+          <Info className="mt-0.5 size-3.5 shrink-0 text-neutral-700" />
           <span>
             启用的规则会随该条目一起进入 AI 的【世界观设定】上下文（硬性规则标为「硬规则」），续写与一致性检查都会以此为准；
             停用的规则只保留在本地，不发给模型。

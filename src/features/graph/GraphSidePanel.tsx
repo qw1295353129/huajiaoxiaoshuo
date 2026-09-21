@@ -216,7 +216,7 @@ function NodeDetail({
                   min={-100}
                   max={100}
                   value={affinity}
-                  className="mt-2 w-full accent-violet-500"
+                  className="mt-2 w-full accent-neutral-900"
                   onChange={(e) => setAffinity(Number(e.target.value))}
                 />
               </div>
@@ -391,7 +391,7 @@ function EdgeEditor({
             min={-100}
             max={100}
             value={affinity}
-            className="w-full accent-violet-500"
+            className="w-full accent-neutral-900"
             onChange={(e) => setAffinity(Number(e.target.value))}
           />
           <div className="mt-1 flex justify-between text-[10px] opacity-40">

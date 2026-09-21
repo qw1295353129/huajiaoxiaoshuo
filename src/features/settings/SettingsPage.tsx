@@ -436,7 +436,7 @@ function ModelsTab() {
                       className={
                         "rounded-md px-1.5 py-0.5 text-[10px] transition " +
                         (settings.activeModel === m
-                          ? "bg-violet-500/15 text-violet-600 dark:text-violet-300"
+                          ? "bg-black/[0.07] text-neutral-800 dark:text-neutral-200"
                           : "bg-black/[0.04] opacity-60 hover:opacity-100 dark:bg-white/[0.06]")
                       }
                     >
@@ -579,7 +579,7 @@ function ProviderEditor({
             type="checkbox"
             checked={Boolean(draft.corsBlocked)}
             onChange={(e) => setDraft({ ...draft, corsBlocked: e.target.checked })}
-            className="accent-violet-500"
+            className="accent-neutral-900"
           />
           该服务不支持浏览器跨域（会尝试通过本地代理转发）
         </label>

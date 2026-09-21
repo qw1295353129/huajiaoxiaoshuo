@@ -174,7 +174,7 @@ export function StyleFingerprintPanel({ projectId, chapters }: { projectId: ID; 
         ) : (
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2 leading-relaxed">
             {cloud.map((w) => (
-              <span key={w.word} className="cursor-default transition hover:text-violet-500" style={{ fontSize: w.size, opacity: w.opacity }} title={w.word + " · " + w.count + " 次"}>
+              <span key={w.word} className="cursor-default transition hover:text-neutral-700" style={{ fontSize: w.size, opacity: w.opacity }} title={w.word + " · " + w.count + " 次"}>
                 {w.word}
               </span>
             ))}

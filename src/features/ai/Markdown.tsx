@@ -122,7 +122,7 @@ export function Markdown({ text, className }: { text: string; className?: string
       blocks.push(
         <blockquote
           key={key()}
-          className="my-2 space-y-1 border-l-2 border-violet-500/40 pl-3 text-[13px] leading-relaxed opacity-75"
+          className="my-2 space-y-1 border-l-2 border-black/25 pl-3 text-[13px] leading-relaxed opacity-75"
         >
           {buffer.map((b, bi) => (
             <p key={bi}>{inline(b, key() + "-" + bi)}</p>

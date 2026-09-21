@@ -173,7 +173,7 @@ export function ProjectOverview({ project }: { project: Project }) {
           </div>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
-          <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: pct(stats.words, target) + "%" }} />
+          <div className="h-full rounded-full bg-neutral-900 transition-all" style={{ width: pct(stats.words, target) + "%" }} />
         </div>
 
         <div className="mt-4 grid gap-3 border-t border-black/5 pt-4 sm:grid-cols-3 dark:border-white/5">
@@ -214,7 +214,7 @@ export function ProjectOverview({ project }: { project: Project }) {
           <Card className="divide-y divide-black/5 p-0 dark:divide-white/5">
             {todos.map((t) => (
               <div key={t.key} className="flex items-center gap-3 px-4 py-3">
-                <span className="text-violet-500">{t.icon}</span>
+                <span className="text-neutral-700">{t.icon}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{t.title}</p>
                   {t.hint && <p className="mt-0.5 truncate text-[11px] opacity-55">{t.hint}</p>}
@@ -237,7 +237,7 @@ export function ProjectOverview({ project }: { project: Project }) {
                   <Tooltip key={b.key}>
                     <Tooltip.Trigger>
                       <div
-                        className={(b.words > 0 ? "bg-violet-500/70" : "bg-black/[0.06] dark:bg-white/10") + " flex-1 rounded-sm"}
+                        className={(b.words > 0 ? "bg-black/60" : "bg-black/[0.06] dark:bg-white/10") + " flex-1 rounded-sm"}
                         style={{ height: Math.max(3, (b.words / maxBar) * 100) + "%" }}
                       />
                     </Tooltip.Trigger>
@@ -261,7 +261,7 @@ export function ProjectOverview({ project }: { project: Project }) {
                 <div key={status} className="flex items-center gap-2 text-xs">
                   <span className="w-14 shrink-0 opacity-60">{CHAPTER_STATUS_LABEL[status] ?? status}</span>
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
-                    <div className="h-full rounded-full bg-violet-500/70" style={{ width: pct(count, writing.kept.length) + "%" }} />
+                    <div className="h-full rounded-full bg-black/60" style={{ width: pct(count, writing.kept.length) + "%" }} />
                   </div>
                   <span className="tabular w-8 text-right opacity-60">{count}</span>
                 </div>

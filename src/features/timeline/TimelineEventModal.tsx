@@ -323,8 +323,8 @@ export function TimelineEventModal({
                   />
                 </div>
 
-                <p className="flex items-start gap-1.5 rounded-lg bg-violet-500/[0.07] p-2.5 text-[11px] leading-relaxed opacity-70">
-                  <Info className="mt-0.5 size-3.5 shrink-0 text-violet-500" />
+                <p className="flex items-start gap-1.5 rounded-lg bg-black/[0.05] p-2.5 text-[11px] leading-relaxed opacity-70">
+                  <Info className="mt-0.5 size-3.5 shrink-0 text-neutral-700" />
                   剧情内时间是自由文本，只要写清「年 / 月 / 日 / 季节」就能参与先后比对；
                   写「三年后」这类相对时间不会被比对，以免误报。
                 </p>

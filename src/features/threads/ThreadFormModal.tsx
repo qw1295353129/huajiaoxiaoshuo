@@ -282,7 +282,7 @@ export function ThreadFormModal({
                 {suggestedChapterId && !form.plantedChapterId && (
                   <button
                     type="button"
-                    className="text-xs text-violet-500 underline-offset-2 hover:underline"
+                    className="text-xs text-neutral-700 underline-offset-2 hover:underline"
                     onClick={() => set("plantedChapterId", suggestedChapterId)}
                   >
                     用当前定位的章节（{chapterLabel(chapters, suggestedChapterId)}）作为埋设章

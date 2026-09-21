@@ -31,7 +31,7 @@ export function StatCard({
 }) {
   const toneClass: Record<string, string> = {
     default: "text-neutral-500",
-    accent: "text-violet-500",
+    accent: "text-neutral-700",
     success: "text-emerald-500",
     warning: "text-amber-500",
     danger: "text-rose-500",

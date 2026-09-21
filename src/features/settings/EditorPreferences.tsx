@@ -35,7 +35,7 @@ export function EditorPreferences() {
                 max={26}
                 value={settings.editorFontSize}
                 onChange={(e) => updateSettings({ editorFontSize: Number(e.target.value) })}
-                className="flex-1 accent-violet-500"
+                className="flex-1 accent-neutral-900"
               />
               <Button
                 isIconOnly
@@ -53,7 +53,7 @@ export function EditorPreferences() {
                     onClick={() => updateSettings({ editorFontSize: s })}
                     className={
                       "rounded px-1.5 py-0.5 text-[10px] transition " +
-                      (settings.editorFontSize === s ? "bg-violet-500/15 text-violet-600 dark:text-violet-300" : "opacity-50 hover:opacity-90")
+                      (settings.editorFontSize === s ? "bg-black/[0.07] text-neutral-800 dark:text-neutral-200" : "opacity-50 hover:opacity-90")
                     }
                   >
                     {s}
@@ -75,7 +75,7 @@ export function EditorPreferences() {
               step={20}
               value={settings.editorMaxWidth}
               onChange={(e) => updateSettings({ editorMaxWidth: Number(e.target.value) })}
-              className="w-full accent-violet-500"
+              className="w-full accent-neutral-900"
             />
             <p className="mt-1 text-[11px] opacity-50">中文正文单行 30~40 字阅读最舒适，约 700~820px。</p>
           </div>
@@ -152,7 +152,7 @@ export function EditorPreferences() {
                 className={
                   "rounded-lg border px-3 py-1.5 text-xs transition " +
                   (settings.theme === t
-                    ? "border-violet-500/60 bg-violet-500/[0.08] font-medium"
+                    ? "border-black/40 bg-black/[0.05] font-medium"
                     : "border-black/10 hover:border-black/25 dark:border-white/15 dark:hover:border-white/30")
                 }
               >
@@ -220,7 +220,7 @@ function ToggleRow({
         <span className="block text-xs font-medium">{label}</span>
         <span className="mt-0.5 block text-[11px] opacity-55">{hint}</span>
       </span>
-      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} className="mt-1 accent-violet-500" />
+      <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} className="mt-1 accent-neutral-900" />
     </label>
   );
 }
