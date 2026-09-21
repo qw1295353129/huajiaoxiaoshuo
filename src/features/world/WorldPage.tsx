@@ -41,7 +41,8 @@ export function WorldPage() {
   /** 搜索防抖：大列表输入时不做无谓的重算 */
   const filterQuery = useDebounced(rawQuery, 220);
   /** 仅用于首屏加载态（订阅式 hook 无法区分「加载中」和「空」） */
-  const [, loading] = useAsync(() => listWorldEntries(projectId), [projectId], []);
+  const worldRes = useAsync(() => listWorldEntries(projectId), [projectId], []);
+  const loading = worldRes.loading;
 
   const titleIndex = useMemo(() => buildTitleIndex(entries), [entries]);
   const refMaps = useMemo(() => computeRefMaps(entries), [entries]);

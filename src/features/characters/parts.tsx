@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button, Card, Modal } from "@heroui/react";
-import { Plus, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import type { Character } from "@/core";
 import { avatarClass, avatarInitial, splitTags } from "./meta";
 
@@ -200,15 +200,16 @@ export function SectionCard({
         <div className="flex shrink-0 items-center gap-2">
           {actions}
           {onSave ? (
-            <Button
-              size="sm"
-              variant={dirty ? "primary" : "ghost"}
-              isDisabled={!dirty}
-              isPending={saving}
-              onPress={onSave}
-            >
-              {dirty ? saveLabel : "已保存"}
-            </Button>
+            dirty || saving ? (
+              <Button size="sm" variant="primary" isPending={saving} onPress={onSave}>
+                {saveLabel}
+              </Button>
+            ) : (
+              <span className="flex items-center gap-1 text-[11px] opacity-35">
+                <Check className="size-3" />
+                已同步
+              </span>
+            )
           ) : null}
         </div>
       </div>

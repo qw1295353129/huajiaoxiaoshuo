@@ -90,12 +90,15 @@ export function ThreadFormModal({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
-  // 每次打开时按当前编辑对象重置表单
+  // 每次打开时按当前编辑对象重置表单（只依赖 id，避免后台数据刷新打断输入）
+  const editingId = thread?.id;
   useEffect(() => {
     if (!open) return;
-    if (thread) setForm(toForm(thread));
+    const current = thread;
+    if (current) setForm(toForm(current));
     else setForm(EMPTY_FORM);
-  }, [open, thread]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editingId]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));

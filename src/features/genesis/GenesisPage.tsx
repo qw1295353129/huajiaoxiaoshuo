@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Card, Chip } from "@heroui/react";
@@ -112,10 +112,27 @@ export function GenesisPage() {
     setSelectedWorld(new Set(Array.from({ length: worldCount }, (_, i) => i)));
   }, [run?.id, charCount, worldCount]);
 
-  // 轮询正在生成的 run，拿到实时阶段状态
-  const tick = async () => {
+  const loadHistory = useCallback(async () => {
     const list = await listGenesisRuns(projectId);
     setHistory(list);
+    return list;
+  }, [projectId]);
+
+  // 进入页面就读一次历史，并默认展示最近一次的产物
+  useEffect(() => {
+    let alive = true;
+    void loadHistory().then((list) => {
+      if (!alive || pollRef.current || list.length === 0) return;
+      setRun((prev) => prev ?? list[0]);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [loadHistory]);
+
+  // 生成中轮询，拿到实时阶段状态与产物
+  const tick = async () => {
+    const list = await loadHistory();
     const started = pollRef.current;
     if (!started) return;
     const live = list.find((r) => new Date(r.createdAt).getTime() >= started.startedAt - 3000);
@@ -170,8 +187,7 @@ export function GenesisPage() {
         },
       });
       setRun(result);
-      const list = await listGenesisRuns(projectId);
-      setHistory(list);
+      await loadHistory();
       if (result.status === "failed") {
         notify("danger", "生成中断", result.error ?? "有阶段失败了，可以重试，也可以先应用已完成的部分");
       } else {
@@ -207,8 +223,7 @@ export function GenesisPage() {
         "人物 " + result.characters + " · 世界观 " + result.worldEntries + " · 规则 " + result.rules +
           " · 卷 " + result.arcs + " · 章节 " + result.chapters,
       );
-      const list = await listGenesisRuns(projectId);
-      setHistory(list);
+      const list = await loadHistory();
       const updated = list.find((r) => r.id === target.id);
       if (updated) setRun(updated);
     } catch (e) {

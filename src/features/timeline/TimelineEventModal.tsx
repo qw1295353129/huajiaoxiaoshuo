@@ -84,16 +84,19 @@ export function TimelineEventModal({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
+  const editingId = event?.id;
   useEffect(() => {
     if (!open) return;
-    if (event) setForm(toForm(event));
+    const current = event;
+    if (current) setForm(toForm(current));
     else
       setForm({
         ...EMPTY_FORM,
         chapterIds: suggestedChapterId ? [suggestedChapterId] : [],
         orderKey: suggestedOrderKey === undefined ? "" : String(suggestedOrderKey),
       });
-  }, [open, event, suggestedChapterId, suggestedOrderKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editingId, suggestedChapterId, suggestedOrderKey]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));

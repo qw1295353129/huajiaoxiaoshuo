@@ -1,16 +1,26 @@
 # 已知陷阱与规避方式
 
-## TypeScript 6 元组解构推断缺陷
+## TypeScript 6.0.3 元组解构推断缺陷（已实测确认，非臆测）
+最小复现（`tsc --noEmit` 必报 TS2349 "This expression is not callable"）：
 ```ts
-// ✗ 第 4 个元素会被错误推断为 Boolean，报 "This expression is not callable"
-const [value, loading, error, reload] = useAsync(fn, deps, initial);
-
-// ✓ 用索引访问
-const res = useAsync(fn, deps, initial);
-const value = res[0];
-const reload = res[3];
+const [providers, reload] = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
+reload();   // ← 这里报错，reload 被推断成 Boolean
 ```
-影响：任何返回元组的自定义 hook。新增此类 hook 时优先返回对象而不是元组。
+以下三种写法**全部复现**：顶层直接调用、在闭包内调用、先使用后声明。
+但把返回类型注解换成对象后一切正常 —— 说明问题出在**返回元组的自定义 hook + 解构**这一组合。
+
+**项目约定：自定义 hook 一律返回对象，不返回元组。**
+```ts
+// hooks.ts 里的正确写法（已迁移完成）
+export interface AsyncResult<T> { value: T; loading: boolean; error: Error | undefined; reload: () => void }
+export function useAsync<T>(...): AsyncResult<T> { ... return { value, loading, error, reload } }
+
+// 使用侧
+const res = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
+const providers = res.value;
+res.reload();
+```
+注意：给元组加带标签的元素类型注解（`[value: T, loading: boolean, ...]`）**不能**规避该缺陷。
 
 ## Dexie 4 的类型约束
 - `table.modify((row) => { Object.assign(row, patch); })`：回调**不能有返回值**；

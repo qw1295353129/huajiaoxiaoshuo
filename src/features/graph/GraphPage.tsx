@@ -46,10 +46,11 @@ export function GraphPage() {
   const chapters = useChapters(projectId);
 
   // liveQuery 首帧只返回空数组，用一次真实查询判断加载完成
-  const [booted] = useAsync(async () => {
+  const bootRes = useAsync(async () => {
     await listCharacters(projectId);
     return true;
   }, [projectId], false);
+  const booted = bootRes.value;
 
   const [mode, setMode] = useState<FilterMode>("all");
   const [egoId, setEgoId] = useState("");
@@ -179,7 +180,13 @@ export function GraphPage() {
   }, [selectedNodeId, neighborMap]);
 
   const fingerprint = useMemo(
-    () => layoutFingerprint(nodeInputs.map((n) => n.id), edgeInputs.map((e) => e.id)) + "#" + layoutNonce,
+    () =>
+      layoutFingerprint(
+        nodeInputs.map((n) => n.id + ":" + n.radius),
+        edgeInputs.map((e) => e.id + ":" + e.width.toFixed(2)),
+      ) +
+      "#" +
+      layoutNonce,
     [nodeInputs, edgeInputs, layoutNonce],
   );
 

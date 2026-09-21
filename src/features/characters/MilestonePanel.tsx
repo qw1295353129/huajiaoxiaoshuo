@@ -95,7 +95,11 @@ export function MilestonePanel({ character, projectId }: { character: Character;
       </div>
 
       {formOpen && (
-        <div className="mb-4 space-y-2 rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.03]">
+        <div
+          role="group"
+          aria-label="新增里程碑"
+          className="mb-4 space-y-2 rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.03]"
+        >
           <div className="grid gap-2 sm:grid-cols-2">
             <Labeled label="关联章节">
               <select className={selectClass} value={chapterId} onChange={(e) => setChapterId(e.target.value)}>

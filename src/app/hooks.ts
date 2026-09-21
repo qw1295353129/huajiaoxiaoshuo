@@ -151,9 +151,18 @@ export function useHotkey(combo: string, handler: (e: KeyboardEvent) => void, en
   }, [combo, enabled]);
 }
 
-export type AsyncResult<T> = [value: T, loading: boolean, error: Error | undefined, reload: () => void];
+export interface AsyncResult<T> {
+  value: T;
+  loading: boolean;
+  error: Error | undefined;
+  reload: () => void;
+}
 
-/** 一次性异步加载（无实时订阅）。返回元组，第 4 项是手动重新加载函数。 */
+/**
+ * 一次性异步加载（无实时订阅）。
+ * 注意：**返回对象而不是元组**。TypeScript 6.0.3 对返回元组的自定义 hook 解构时
+ * 会把元素推断错误（第 4 位被当成 Boolean），返回对象可彻底规避。
+ */
 export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], initial: T): AsyncResult<T> {
   const [value, setValue] = useState<T>(initial);
   const [loading, setLoading] = useState(true);
@@ -186,5 +195,5 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], initial: T): 
   }, [...deps, nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  return [value, loading, error, reload];
+  return { value, loading, error, reload };
 }

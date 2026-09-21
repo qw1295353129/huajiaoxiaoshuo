@@ -81,9 +81,9 @@ function ModelsTab() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const notify = useAppStore((s) => s.notify);
-  const __providersRes = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
-  const providers = __providersRes[0];
-  const reload = __providersRes[3];
+  const providersRes = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
+  const providers = providersRes.value;
+  const reload = providersRes.reload;
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [checking, setChecking] = useState<string | null>(null);
@@ -427,11 +427,11 @@ function ProviderEditor({
 // ==================== 任务路由 ====================
 
 function RoutingTab() {
-  const __routingRes = useAsync(() => listRouting(), [], [] as TaskRouting[]);
-  const routing = __routingRes[0];
-  const reload = __routingRes[3];
-  const providersRes = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
-  const providers = providersRes[0];
+  const routingRes = useAsync(() => listRouting(), [], [] as TaskRouting[]);
+  const routing = routingRes.value;
+  const reload = routingRes.reload;
+  const providerListRes = useAsync(() => listProviders(), [], [] as ProviderConfig[]);
+  const providers = providerListRes.value;
   const notify = useAppStore((s) => s.notify);
 
   const options = providers
@@ -635,9 +635,9 @@ function ContextEstimator() {
 // ==================== 数据 ====================
 
 function DataTab() {
-  const __statsRes = useAsync(() => databaseStats(), [], { name: "", verno: 0, stores: [], totalRecords: 0, estimatedBytes: 0 });
-  const stats = __statsRes[0];
-  const reload = __statsRes[3];
+  const statsRes = useAsync(() => databaseStats(), [], { name: "", verno: 0, stores: [], totalRecords: 0, estimatedBytes: 0 });
+  const stats = statsRes.value;
+  const reload = statsRes.reload;
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const notify = useAppStore((s) => s.notify);
   const navigate = useNavigate();

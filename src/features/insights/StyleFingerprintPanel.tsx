@@ -103,7 +103,7 @@ export function StyleFingerprintPanel({ projectId, chapters }: { projectId: ID; 
     const max = Math.max(1, ...words.map((w) => w.count));
     return words.slice(0, 36).map((w) => ({
       ...w,
-      size: 12 + Math.round((w.count / max) * 20),
+      size: 12 + Math.round((w.count / max) * 14),
       opacity: 0.45 + (w.count / max) * 0.55,
     }));
   }, [fp]);

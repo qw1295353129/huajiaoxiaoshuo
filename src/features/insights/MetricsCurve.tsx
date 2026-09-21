@@ -21,7 +21,8 @@ interface SeriesDef {
 
 const SERIES_DEFS: SeriesDef[] = [
   { key: "wordCount", label: "字数/章", color: SERIES_COLORS.violet, format: (v) => fmtInt(v) + " 字", pick: (m) => m.wordCount },
-  { key: "dialogueRatio", label: "对话占比", color: SERIES_COLORS.emerald, format: (v) => fmtPct(v, 1), pick: (m) => m.dialogueRatio * 100 },
+  // 注意：series 里的值已经是百分数（0~100），格式化时不要再乘 100
+  { key: "dialogueRatio", label: "对话占比", color: SERIES_COLORS.emerald, format: (v) => fmt1(v) + "%", pick: (m) => m.dialogueRatio * 100 },
   { key: "avgSentenceLength", label: "平均句长", color: SERIES_COLORS.amber, format: (v) => fmt1(v) + " 字", pick: (m) => m.avgSentenceLength },
   { key: "tension", label: "张力", color: SERIES_COLORS.rose, format: (v) => fmt1(v), pick: (m) => m.tension },
 ];

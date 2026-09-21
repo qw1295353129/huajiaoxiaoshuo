@@ -132,7 +132,11 @@ export function RelationshipPanel({ projectId, characterId }: { projectId: ID; c
       </div>
 
       {adding && (
-        <div className="mb-3 space-y-2 rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.03]">
+        <div
+          role="group"
+          aria-label="新增关系"
+          className="mb-3 space-y-2 rounded-lg border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.03]"
+        >
           <Labeled label="关系对象">
             <select className={selectClass} value={targetId} onChange={(e) => setTargetId(e.target.value)}>
               <option value="">选择角色…</option>

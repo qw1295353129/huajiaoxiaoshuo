@@ -31,10 +31,11 @@ export function TimelinePage() {
   const arcs = useArcs(projectId);
 
   // liveQuery 首帧只返回空数组，用一个真实查询来判断是否加载完成
-  const [booted] = useAsync(async () => {
+  const bootRes = useAsync(async () => {
     await listTimeline(projectId);
     return true;
   }, [projectId], false);
+  const booted = bootRes.value;
 
   const [view, setView] = useState<View>("inworld");
   const [query, setQuery] = useState("");

@@ -39,11 +39,15 @@ export function ThreadsPage() {
   const characters = useCharacters(projectId);
 
   // 首次读库完成前显示加载态（liveQuery 首帧只返回空数组，无法区分「空」与「未加载」）
-  const [booted] = useAsync(async () => {
+  const bootedRes = useAsync(async () => {
+    /* eslint-disable @typescript-eslint/no-unused-vars */
     await listThreads(projectId);
     return true;
   }, [projectId], false);
-  const [problems, , , reloadProblems] = useAsync(() => auditThreads(projectId), [projectId], [] as ThreadProblem[]);
+  const booted = bootedRes.value;
+  const problemsRes = useAsync(() => auditThreads(projectId), [projectId], [] as ThreadProblem[]);
+  const problems = problemsRes.value;
+  const reloadProblems = problemsRes.reload;
 
   const [view, setView] = useState<View>("list");
   const [groupBy, setGroupBy] = useState<GroupBy>("kind");
