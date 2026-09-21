@@ -176,8 +176,21 @@ export function WorldPage() {
             {loading ? (
               <Loading />
             ) : (
-              <div className="grid items-start gap-4 pt-3 lg:grid-cols-[320px_minmax(0,1fr)]">
-                <div className="lg:sticky lg:top-0 lg:max-h-[calc(100dvh-13rem)] lg:overflow-y-auto lg:pr-1">
+              <>
+                {/*
+                  两栏比例是调过的：原来列表固定 320px、编辑器吃掉剩下的全部宽度
+                  （1512 宽的屏上编辑器有 1152px，标题输入框横跨一整屏，很难看）。
+                  现在列表固定 380px 并把剩余空间全部给它，编辑器收在上限 680px ——
+                  表单双列展开后每列约 320px，是舒服的输入宽度；宽屏下多出来的空间
+                  给列表，条目多了也更好扫。
+                */}
+                {/*
+                  分栏从 xl（1280）才开始。最初用 lg（1024）时，1024 宽的屏上
+                  固定 380px 的列表会把编辑区压到 348px —— 比不分栏还难用。
+                  小屏改为上下排列：列表在上、编辑器在下，各自都能用满宽度。
+                */}
+                <div className="grid items-start gap-4 pt-3 xl:grid-cols-[380px_minmax(0,1fr)]">
+                <div className="xl:sticky xl:top-0 xl:max-h-[calc(100dvh-13rem)] xl:overflow-y-auto xl:pr-1">
                   <EntryList
                     entries={entries}
                     selectedId={activeId}
@@ -194,7 +207,7 @@ export function WorldPage() {
                   />
                 </div>
 
-                <div className="min-w-0">
+                <div className="min-w-0 xl:max-w-[680px]">
                   {creating || selected ? (
                     <EntryEditor
                       projectId={projectId}
@@ -233,7 +246,8 @@ export function WorldPage() {
                     />
                   )}
                 </div>
-              </div>
+                </div>
+              </>
             )}
           </Tabs.Panel>
 
