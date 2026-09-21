@@ -1,15 +1,16 @@
 /**
- * 回归：页签（Tabs）的活动态必须一眼看得出来。
+ * 回归：页签（Tabs）的活动态必须一眼看得出来，且外观要与官方一致。
  *
- * 背景：HeroUI 的 .tabs__tab[data-selected="true"] 只改了文字颜色，
- * 在浅灰底上几乎看不出差别 —— 作者不知道自己在哪个视图里。
- * 项目在 globals.css 里把活动态改成了实心药丸（品牌色填充 + 反色文字）。
+ * 背景（这段弯路值得留着）：
+ *  ① HeroUI 的 .tabs__tab[data-selected="true"] 只改文字颜色，浅灰底上几乎看不出差别；
+ *  ② 我先自己画了个"品牌色实心药丸"，结果紫色太跳、文字对比度还被压住 —— 两头不讨好；
+ *  ③ 官方其实有 Tabs.Indicator（白色药丸 + 滑动动画），但它是 React Aria 的 SharedElement，
+ *     需要 SharedElementTransition 包裹；补上包裹层后不崩了，却在本项目里**根本不渲染**；
+ *  ④ 最终用官方那套原料（--segment 纯白 + --surface-shadow 细阴影）直接画在选中的 tab 上，
+ *     并补上 Tabs.ListContainer（浅灰底 bg-default 挂在它上面）。
  *
- * 这里断言三件事：① 任何时刻**恰好一个** tab 是选中的（含 aria 与 data 属性）；
- * ② 活动态确实有填充色，不是只换了个浅色文字；③ 点击能正确切换。
- *
- * 顺带防一个真实的坑：初始渲染时如果没有任何 tab 选中，
- * 界面看起来就是"全都没选"，用户会以为坏了。
+ * 所以这里断言的是**官方分段控件的三个特征**：灰底容器、白色药丸、细阴影。
+ * 另外防一个真实风险：任何时刻必须恰好一个 tab 被选中（全都没选看起来就像坏了）。
  */
 import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 
@@ -34,6 +35,10 @@ const readTabs = (page) =>
     const selected = tabs.filter((t) => t.getAttribute("data-selected") === "true");
     const s = selected[0];
     const cs = s ? getComputedStyle(s) : null;
+    // 浅灰底挂在 ListContainer 上，不是 tablist 本身
+    const list = document.querySelector('[role="tablist"]');
+    const container = list?.closest(".tabs__list-container") ?? null;
+    const ccs = container ? getComputedStyle(container) : null;
     return {
       total: tabs.length,
       selectedData: selected.length,
@@ -42,6 +47,9 @@ const readTabs = (page) =>
       bg: cs?.backgroundColor ?? null,
       color: cs?.color ?? null,
       weight: cs?.fontWeight ?? null,
+      shadow: cs?.boxShadow ?? null,
+      containerBg: ccs?.backgroundColor ?? null,
+      hasContainer: Boolean(container),
       labels: tabs.map((t) => (t.textContent ?? "").trim()),
     };
   });
@@ -74,7 +82,10 @@ check("初始状态就有一个被选中（不是全都未选）", gotSelected =
 check("data-selected 恰好一个", a?.selectedData === 1, String(a?.selectedData));
 check("aria-selected 与之一致（无障碍也正确）", a?.selectedAria === 1, String(a?.selectedAria));
 check("活动态有填充色，不只是换文字颜色", !transparent(a?.bg), String(a?.bg));
-check("活动态文字是反色且加粗", a?.weight === "600", String(a?.weight));
+// 官方分段控件的三个特征
+check("选中项是浅色药丸（--segment）", (a?.bg ?? "").includes("1 0 0") || (a?.bg ?? "").includes("255, 255, 255"), String(a?.bg));
+check("选中项带细阴影（--surface-shadow）", (a?.shadow ?? "") !== "none" && (a?.shadow ?? "").includes("rgba"), String(a?.shadow).slice(0, 50));
+check("页签外层有浅灰底容器（ListContainer）", a?.hasContainer === true && !transparent(a?.containerBg), JSON.stringify({ has: a?.hasContainer, bg: a?.containerBg }));
 
 console.log("【点击切换】");
 const target = a?.labels?.[3];

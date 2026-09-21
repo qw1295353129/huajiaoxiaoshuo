@@ -17,37 +17,41 @@
 }
 
 /**
- * 2) 让「当前选中的 Tab」一眼看得出来。
+ * 2) 让「当前选中的 Tab」一眼看得出来 —— 复刻官方分段控件的外观。
  *
- * HeroUI 的 .tabs__tab[data-selected="true"] 只改了文字颜色（text-segment-foreground），
- * 在浅灰底上几乎看不出差别 —— 作者根本不知道自己现在在哪个视图里。
+ * ## 走过的弯路（值得留着，免得下次再犯）
  *
- * 这里改成实心药丸：用品牌强调色填充 + 反色文字。
- * tabs__list 本身是浅灰底 + p-1，所以药丸是"嵌在里面"的效果，不会突兀。
- * 半径与高度沿用 HeroUI 的 rounded-3xl / h-8，不改变尺寸，只强化对比。
+ * 1. HeroUI 的 .tabs__tab[data-selected="true"] 只改文字颜色，在浅灰底上几乎看不出差别。
+ * 2. 我第一版自己画了个"品牌色实心药丸"。结果**两头不讨好**：
+ *    紫色太跳，把标签栏变成整页最抢眼的东西；同时色块压住了文字对比度，
+ *    反而更难看清哪一个被选中。
+ * 3. 官方其实有现成的 Tabs.Indicator（白色药丸 + 滑动动画），但它是 React Aria 的
+ *    SelectionIndicator，内部用 SharedElement，必须包在 SharedElementTransition 里 ——
+ *    项目原来那句"会崩所以不用"的注释是对的。我补了包裹层，崩溃没了，
+ *    可它在本项目的 HeroUI 组合下**根本不渲染**（DOM 里查不到节点），原因没能定位。
+ *
+ * ## 最终做法
+ *
+ * 放弃那个不工作的组件，改用**它所用的同一套原料**，直接画在选中的 tab 上：
+ *   background: var(--segment)          —— 纯白
+ *   box-shadow: var(--surface-shadow)   —— 官方那三层的细阴影
+ *   border-radius: 沿用 rounded-3xl
+ * 也就是官方文档里那个"白色药丸嵌在浅灰底上"的样子，克重与对比度都对。
+ *
+ * 唯一的代价：**没有滑动动画**（官方那个指示器会平滑移动过去）。
+ * 静态外观一致，动效没有 —— 这是为了先把它做对，而不是为了好看而好看。
  */
 :where(.tabs__tab[data-selected="true"]) {
-  background-color: var(--accent);
-  color: var(--accent-foreground);
-  font-weight: 600;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 0.18);
+  background-color: var(--segment);
+  color: var(--segment-foreground);
+  font-weight: 500;
+  box-shadow: var(--surface-shadow);
 }
 
-/* 未选中的：悬停时给一点反馈，让"可以点"这件事更明确 */
+/* 未选中的：悬停给一点反馈，让"可以点"更明确 */
 :where(.tabs__tab:not([data-selected="true"]):not(:disabled):not([aria-disabled="true"])):hover {
-  background-color: oklch(0 0 0 / 0.05);
   color: var(--foreground);
   opacity: 1;
-}
-
-:where(.dark) :where(.tabs__tab:not([data-selected="true"])):hover {
-  background-color: oklch(1 0 0 / 0.08);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :where(.tabs__tab) {
-    transition: none;
-  }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

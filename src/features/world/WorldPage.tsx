@@ -165,10 +165,12 @@ export function WorldPage() {
         </div>
 
         <Tabs aria-label="世界观视图" selectedKey={tab} onSelectionChange={(key) => setTab(String(key))}>
-          <Tabs.List>
-            <Tabs.Tab id="entries">世界观条目</Tabs.Tab>
-            <Tabs.Tab id="glossary">名词表</Tabs.Tab>
-          </Tabs.List>
+          <Tabs.ListContainer>
+            <Tabs.List>
+              <Tabs.Tab id="entries">世界观条目</Tabs.Tab>
+              <Tabs.Tab id="glossary">名词表</Tabs.Tab>
+            </Tabs.List>
+          </Tabs.ListContainer>
 
           <Tabs.Panel id="entries">
             {loading ? (

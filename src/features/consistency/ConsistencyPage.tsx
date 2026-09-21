@@ -47,14 +47,15 @@ export function ConsistencyPage() {
     >
       <div className="mx-auto max-w-6xl">
         <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))} className="w-full">
-          {/* 注意：Tabs.Indicator 需要外层 SharedElementTransition，这里不用，避免运行时崩溃 */}
-          <Tabs.List className="mb-5">
-            {TABS.map((t) => (
-              <Tabs.Tab key={t.key} id={t.key}>
-                {t.label}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
+          <Tabs.ListContainer className="mb-5">
+            <Tabs.List>
+              {TABS.map((t) => (
+                <Tabs.Tab key={t.key} id={t.key}>
+                  {t.label}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs.ListContainer>
 
           <Tabs.Panel id="board">
             <IssueBoard

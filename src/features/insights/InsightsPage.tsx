@@ -42,14 +42,20 @@ export function InsightsPage() {
     <PageScaffold title="写作分析" description={chapters.length + " 章 · " + formatWords(totalWords)} withNav>
       <div className="mx-auto max-w-6xl">
         <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))} className="w-full">
-          {/* 注意：Tabs.Indicator 需要外层 SharedElementTransition，这里不用，避免运行时崩溃 */}
-          <Tabs.List className="mb-5">
-            {TABS.map((t) => (
-              <Tabs.Tab key={t.key} id={t.key}>
-                {t.label}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
+          {/*
+            必须用 ListContainer 包住 List：浅灰底（bg-default）挂在 .tabs__list-container 上，
+            少了这一层，白药丸就没有底色托着，选中态又会显得弱。
+            选中态的样式在 globals.css，见那里的说明。
+          */}
+          <Tabs.ListContainer className="mb-5">
+            <Tabs.List>
+              {TABS.map((t) => (
+                <Tabs.Tab key={t.key} id={t.key}>
+                  {t.label}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs.ListContainer>
 
           <Tabs.Panel id="trend">
             <WritingTrend projectId={projectId} chapters={chapters} />

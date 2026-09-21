@@ -285,3 +285,33 @@ evaluate 里必须返回纯数据（数字/字符串/普通对象）。
 可靠做法：**用文件写入工具直接写**，或者用 `String.fromCharCode(92)` 拼反斜杠，
 或者干脆避免在源码里写转义序列（例如用 `split(CR).join(NL)` 代替 `replace(/\r\n/g, NL)`）。
 写完一定要 `node --check` / `tsc` 验证。
+
+## 页签选中态：我绕了一大圈，最后发现要用 Tabs.ListContainer
+
+事情经过（每一步都值得记下来）：
+
+1. HeroUI 的 `.tabs__tab[data-selected="true"]` **只改文字颜色**，浅灰底上几乎看不出差别。
+2. 我第一版自己画了个**品牌色实心药丸**。结果两头不讨好：紫色太跳，标签栏成了整页最抢眼的东西；
+   同时色块压住了文字对比度，反而更难看清选中了哪个。
+3. 官方文档的示例是**分段控件**（白药丸嵌在浅灰底上），靠 `Tabs.Indicator` 实现。
+   项目里原来留着一句"需要 SharedElementTransition，会崩"，我一开始不信。
+   **那句注释是对的**：不包裹就抛 `SharedElement must be rendered inside a SharedElementTransition`。
+4. 补上包裹层后不崩了，但指示器**在本项目里根本不渲染**（DOM 里查不到节点），原因没能定位。
+5. 最终做法：用**它所用的同一套原料**直接画在选中的 tab 上 ——
+   `background: var(--segment)`（纯白）+ `box-shadow: var(--surface-shadow)`（官方三层细阴影）。
+   代价是**没有滑动动画**。
+
+**关键的一个坑**：浅灰底（`bg-default`）挂在 `.tabs__list-container` 上，
+不是 `.tabs__list`。少了 `Tabs.ListContainer` 这一层，白药丸就没有底色托着，选中态看起来还是弱。
+正确结构是：
+
+```jsx
+<Tabs.ListContainer>
+  <Tabs.List>
+    <Tabs.Tab id="a">A</Tabs.Tab>
+  </Tabs.List>
+</Tabs.ListContainer>
+```
+
+**教训**：遇到"官方组件不能用"时，先怀疑自己**用法不全**（少了容器/包裹层），
+而不是立刻自己写 CSS 覆盖 —— 自己造的外观很难同时满足"不跳"和"看得清"。
