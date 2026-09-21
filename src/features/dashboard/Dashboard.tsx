@@ -28,8 +28,9 @@ export function Dashboard() {
   if (projectId) return <ProjectOverviewRoute projectId={projectId} />;
 
   const list = projects ?? [];
+  // 外层路由是 h-dvh + overflow-hidden，页面必须自己滚动，否则内容被直接裁掉
   return (
-    <div className="min-h-dvh bg-neutral-50 dark:bg-neutral-950">
+    <div className="h-full overflow-y-auto overscroll-contain bg-neutral-50 dark:bg-neutral-950">
       <div className="mx-auto max-w-5xl px-6 py-12">
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -138,7 +139,7 @@ function ProjectOverviewRoute({ projectId }: { projectId: string }) {
 
   if (!project) {
     return (
-      <div className="grid min-h-dvh place-items-center">
+      <div className="grid h-full place-items-center">
         <div className="text-center">
           <p className="text-sm opacity-60">找不到这本书</p>
           <Button className="mt-3" variant="outline" size="sm" onPress={() => navigate(ROUTES.home)}>
@@ -148,5 +149,10 @@ function ProjectOverviewRoute({ projectId }: { projectId: string }) {
       </div>
     );
   }
-  return <ProjectOverview project={project} />;
+  // 同上：总览内容比视口高，必须自带滚动
+  return (
+    <div className="h-full overflow-y-auto overscroll-contain">
+      <ProjectOverview project={project} />
+    </div>
+  );
 }
