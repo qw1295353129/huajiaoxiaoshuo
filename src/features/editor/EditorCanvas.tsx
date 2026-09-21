@@ -25,6 +25,15 @@ export interface EditorCanvasHandle {
   getSelectionOffsets: () => { from: number; to: number; text: string } | null;
   /** 把一段纯文本偏移滚动到视野内并选中 */
   selectRange: (from: number, to: number) => void;
+  /**
+   * 直接读编辑器**当前**的内容，不经过 React 状态。
+   *
+   * 保存必须用它。之前保存读的是渲染闭包里的 draftHtml，
+   * 而最后一次输入触发的 onChange → setState → 重新渲染 → 新的 doSave
+   * 这条链断在最后一步：新的 doSave 建好了，但已经没有下一次输入来触发它，
+   * 于是最后一个字永远存不进去（实测：正文「起点甲乙丙丁」，库里「起点甲乙丙」）。
+   */
+  getContent: () => { html: string; words: number };
   focus: () => void;
 }
 
@@ -179,6 +188,10 @@ export function EditorCanvas({
         const dom = editor.view.domAtPos(start);
         const el = dom.node instanceof Element ? dom.node : dom.node.parentElement;
         el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      },
+      getContent() {
+        const html = editor.getHTML();
+        return { html, words: countWords(stripHtml(html)) };
       },
       focus() {
         editor.commands.focus();

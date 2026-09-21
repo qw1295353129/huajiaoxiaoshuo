@@ -140,8 +140,18 @@ export function EditorPage() {
       const state = useEditorStore.getState();
       const cid = state.chapterId;
       if (!cid || !state.dirty) return;
+      /*
+        内容直接从编辑器读，不要用 draftHtml。
+        draftHtml 是渲染闭包里的值，永远比编辑器晚一拍 —— 实测：
+        正文里是「起点甲乙丙丁」，存进去的却是「起点甲乙丙」（少最后一个字），
+        而且之后没有新的输入就不会再触发保存，所以永远补不上。
+        报错现象就是"写完一切换就没了"。
+      */
+      const current = handleRef.current?.getContent();
+      const html = current?.html ?? draftHtml;
+      if (!html) return;
       state.setSaving(true);
-      const res = await saveChapterContent(cid, draftHtml);
+      const res = await saveChapterContent(cid, html);
       state.markSaved(res.words);
       if (reason === "manual") notify("success", "已保存", formatWords(res.words));
       if (state.session) {
@@ -153,6 +163,12 @@ export function EditorPage() {
     },
     [draftHtml, notify],
   );
+
+  // handle 的 ref：doSave 需要在调用那一刻取到最新的编辑器句柄
+  const handleRef = useRef<EditorCanvasHandle | null>(null);
+  useEffect(() => {
+    handleRef.current = handle;
+  }, [handle]);
 
   const onEditorChange = useCallback(
     (html: string, words: number) => {
