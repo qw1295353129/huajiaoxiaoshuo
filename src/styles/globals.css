@@ -16,6 +16,40 @@
   width: 100%;
 }
 
+/**
+ * 2) 让「当前选中的 Tab」一眼看得出来。
+ *
+ * HeroUI 的 .tabs__tab[data-selected="true"] 只改了文字颜色（text-segment-foreground），
+ * 在浅灰底上几乎看不出差别 —— 作者根本不知道自己现在在哪个视图里。
+ *
+ * 这里改成实心药丸：用品牌强调色填充 + 反色文字。
+ * tabs__list 本身是浅灰底 + p-1，所以药丸是"嵌在里面"的效果，不会突兀。
+ * 半径与高度沿用 HeroUI 的 rounded-3xl / h-8，不改变尺寸，只强化对比。
+ */
+:where(.tabs__tab[data-selected="true"]) {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 600;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.18);
+}
+
+/* 未选中的：悬停时给一点反馈，让"可以点"这件事更明确 */
+:where(.tabs__tab:not([data-selected="true"]):not(:disabled):not([aria-disabled="true"])):hover {
+  background-color: oklch(0 0 0 / 0.05);
+  color: var(--foreground);
+  opacity: 1;
+}
+
+:where(.dark) :where(.tabs__tab:not([data-selected="true"])):hover {
+  background-color: oklch(1 0 0 / 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.tabs__tab) {
+    transition: none;
+  }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {

@@ -239,3 +239,19 @@ evaluate 里必须返回纯数据（数字/字符串/普通对象）。
    "用了哪些记忆 → 这次生成 → 作者给了什么评价"这条链就自动成立。
    代价是注入发生在 system prompt 组装时（那时还没有 generationId），
    得先用模块级变量把 fact id 记下来、在生成落库时补上（见 `runner.ts` 的 pendingInjections）。
+
+## 页签（Tabs）的活动态要靠自己补
+
+**现象**：「写作分析」页那排页签看不出自己在哪一个（用户原话："不是很醒目"）。
+
+**真因**：HeroUI 的样式只写了 `.tabs__tab[data-selected="true"] { @apply text-segment-foreground }` ——
+**只改文字颜色，没有背景**。在浅灰底上几乎无差别。
+
+**修法**：`globals.css` 里给 `[data-selected="true"]` 加实心药丸（品牌色填充 + 反色文字 + 字重 600）。
+`tabs__list` 本身是浅灰底 + p-1，所以药丸是"嵌在里面"的效果。别改圆角与高度，只强化对比。
+
+**测量陷阱（我因此白查一轮）**：`page.goto` 之后**立刻**读 `[role="tab"]`，
+会拿到"5 个全部未选中"，看起来像"活动态完全没生效"。
+实际是选中属性晚一拍才落到 DOM。必须用 waitForFunction 等
+`querySelectorAll('[role="tab"][data-selected="true"]').length === 1` 出现再断言。
+**不要靠固定 sleep，也不要凭一次早期读数下结论。**
