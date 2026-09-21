@@ -339,14 +339,50 @@ export function GenesisPage() {
             {applyResult && (
               <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3">
                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">落库完成</p>
+                {/*
+                  区分"新建"与"更新"：再次应用同一个方案时不会产生重复数据，
+                  但如果只显示"新建 0 位人物"，作者会以为没生效。
+                */}
                 <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] opacity-75">
-                  <span className="tabular">人物 {applyResult.characters}</span>
+                  <span className="tabular">
+                    人物 {applyResult.characters}
+                    {applyResult.mergedCharacters > 0 && (
+                      <span className="opacity-60">（更新 {applyResult.mergedCharacters}）</span>
+                    )}
+                  </span>
                   <span className="tabular">世界观 {applyResult.worldEntries}</span>
-                  <span className="tabular">硬规则 {applyResult.rules}</span>
-                  <span className="tabular">分卷 {applyResult.arcs}</span>
-                  <span className="tabular">章节 {applyResult.chapters}</span>
-                  <span className="tabular">开篇 {applyResult.openingWords} 字</span>
+                  <span className="tabular">
+                    硬规则 {applyResult.rules}
+                    {applyResult.mergedRules > 0 && <span className="opacity-60">（更新 {applyResult.mergedRules}）</span>}
+                  </span>
+                  <span className="tabular">
+                    分卷 {applyResult.arcs}
+                    {applyResult.mergedArcs > 0 && <span className="opacity-60">（更新 {applyResult.mergedArcs}）</span>}
+                  </span>
+                  <span className="tabular">
+                    章节 {applyResult.chapters}
+                    {applyResult.mergedChapters > 0 && (
+                      <span className="opacity-60">（更新 {applyResult.mergedChapters}）</span>
+                    )}
+                  </span>
+                  <span className="tabular">
+                    开篇 {applyResult.openingWords} 字
+                    {applyResult.openingChapterTitle && (
+                      <span className="opacity-60">（写入 {applyResult.openingChapterTitle}）</span>
+                    )}
+                  </span>
                 </div>
+                {/* 开篇只在空章节落地，避免把作者已经写好的开头顶掉 */}
+                {applyResult.openingSkipped && (
+                  <p className="mt-2 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
+                    {applyResult.openingSkipped}
+                  </p>
+                )}
+                {(applyResult.mergedCharacters > 0 || applyResult.mergedArcs > 0 || applyResult.mergedChapters > 0) && (
+                  <p className="mt-2 text-[11px] leading-relaxed opacity-60">
+                    相同名称的人物 / 分卷 / 章节已按原记录更新，没有重复新增；你手写的正文与设定不受影响。
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onPress={() => navigate(ROUTES.overview(projectId))}>
                     <LayoutList className="size-3.5" />

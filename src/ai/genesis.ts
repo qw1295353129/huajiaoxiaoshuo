@@ -1,7 +1,10 @@
 import type { Arc, Chapter, Character, GenesisConstraints, GenesisRun, GenesisStage, ID, PovStyle, WorldCategory } from "@/core";
 import { db } from "@/db/database";
-import { createChapter, createArc, saveChapterContent, updateChapter } from "@/db/repo/outline";
-import { createCharacter, upsertRelationship } from "@/db/repo/cast";
+import {
+  createChapter, createArc, listArcs, listChapters, saveChapterContent, updateArc, updateChapter,
+} from "@/db/repo/outline";
+import type { ContinuityRule } from "@/core";
+import { createCharacter, listCharacters, updateCharacter, upsertRelationship } from "@/db/repo/cast";
 import { upsertGlossary, upsertRule, upsertWorldEntry } from "@/db/repo/world";
 import { upsertThread } from "@/db/repo/story";
 import { updateGenesisRun, createGenesisRun } from "@/db/repo/genesis";
@@ -359,6 +362,21 @@ export interface ApplyGenesisResult {
   arcs: number;
   chapters: number;
   openingWords: number;
+  /**
+   * 本次是"更新已有记录"而不是"新建"的数量。
+   *
+   * 为什么需要它：这套流程的核心承诺是 **重复应用同一个 run 不会产生重复数据**。
+   * 界面必须能把这件事说清楚（"更新了 N 位人物"），否则作者点完「再次应用」
+   * 看到人物数没变，会以为是没生效。
+   */
+  mergedCharacters: number;
+  mergedArcs: number;
+  mergedChapters: number;
+  mergedRules: number;
+  /** 开篇写进了哪一章（为空表示没写） */
+  openingChapterTitle?: string;
+  /** 开篇被跳过时的原因（不覆盖作者已写的内容） */
+  openingSkipped?: string;
 }
 
 /** 把 GenesisRun 的产物写进项目 */
@@ -367,8 +385,43 @@ export async function applyGenesis(projectId: ID, run: GenesisRun, opts: ApplyGe
   const bible = run.stages.find((s) => s.kind === "premise" && s.status === "done")?.data as BibleData | undefined;
   const arcs = (run.stages.find((s) => s.kind === "structure" && s.status === "done")?.data ?? []) as Arc[];
   const chapters = (run.stages.find((s) => s.kind === "outline" && s.status === "done")?.data ?? []) as Chapter[];
-  const result: ApplyGenesisResult = { characters: 0, worldEntries: 0, rules: 0, arcs: 0, chapters: 0, openingWords: 0 };
+  const result: ApplyGenesisResult = {
+    characters: 0, worldEntries: 0, rules: 0, arcs: 0, chapters: 0, openingWords: 0,
+    mergedCharacters: 0, mergedArcs: 0, mergedChapters: 0, mergedRules: 0,
+  };
   const now = new Date().toISOString();
+
+  /**
+   * 幂等的前提：先看清项目里已经有什么。
+   *
+   * 之前的实现是"来什么插什么"，于是点一次「再次应用」人物和分卷就翻一倍。
+   * 世界观与规则本来就用了 upsert 所以没出问题 —— 这个差异正是 bug 的来源：
+   * 同一套流程里一半幂等一半不幂等，最容易被忽略。
+   *
+   * 匹配口径与各自的 upsert 保持一致：人物按名字（含别名），分卷/章节按标题。
+   */
+  const existingCharacters = await listCharacters(projectId);
+  const existingArcs = await listArcs(projectId);
+  const existingChapters = await listChapters(projectId);
+  const charByName = new Map<string, Character>();
+  for (const c of existingCharacters) {
+    if (!charByName.has(c.name)) charByName.set(c.name, c);
+    for (const a of c.aliases) if (a && !charByName.has(a)) charByName.set(a, c);
+  }
+  const arcByTitle = new Map<string, Arc>();
+  for (const a of existingArcs) if (!arcByTitle.has(a.title)) arcByTitle.set(a.title, a);
+  const chapterByTitle = new Map<string, Chapter>();
+  for (const c of existingChapters) if (!chapterByTitle.has(c.title)) chapterByTitle.set(c.title, c);
+
+  /**
+   * 注意 upsertRule 的语义：它是**按 id** upsert —— 不传 id 时永远新建。
+   * 名字叫 upsert 很容易让人以为它会按 name 去重（我第一版就上当了，
+   * 结果「再次应用」把硬规则也翻了一倍）。所以这里自己按名称匹配。
+   */
+  const ruleByName = new Map<string, ContinuityRule>();
+  for (const r of await db.rules.where("projectId").equals(projectId).toArray()) {
+    if (!ruleByName.has(r.name)) ruleByName.set(r.name, r);
+  }
 
   if (bible && parts.includes("profile")) {
     await updateProject(projectId, {
@@ -389,7 +442,7 @@ export async function applyGenesis(projectId: ID, run: GenesisRun, opts: ApplyGe
       const name = pickStr(raw, "name", "姓名");
       if (!name) continue;
       const voiceRaw = (raw.voice as Record<string, unknown>) ?? {};
-      const created = await createCharacter(projectId, {
+      const patch = {
         name,
         aliases: asArray<unknown>(raw.aliases).map((x) => asString(x)),
         role: normalizeRole(pickStr(raw, "role")),
@@ -413,9 +466,27 @@ export async function applyGenesis(projectId: ID, run: GenesisRun, opts: ApplyGe
           sampleLines: asArray<unknown>(voiceRaw.sampleLines).map((x) => asString(x)),
         },
         tags: ["AI 建档"],
-      });
-      nameToId.set(created.name, created.id);
-      result.characters += 1;
+      };
+
+      /**
+       * 先按名字（含别名）找已有的人物。
+       *
+       * 匹配到就更新而不是新建 —— 这是「再次应用」不产生重复人物的关键。
+       * 只覆盖本次带到的字段，作者后续手写的设定（里程碑、关系、出场）不受影响。
+       */
+      const hit = charByName.get(name) ?? patch.aliases.map((a) => charByName.get(a)).find(Boolean);
+      if (hit) {
+        await updateCharacter(hit.id, patch);
+        nameToId.set(hit.name, hit.id);
+        result.mergedCharacters += 1;
+      } else {
+        const created = await createCharacter(projectId, patch);
+        // 同一批里出现重名时，后一个要更新前一个，不能各建一份
+        charByName.set(created.name, created);
+        for (const a of created.aliases) charByName.set(a, created);
+        nameToId.set(created.name, created.id);
+        result.characters += 1;
+      }
     }
     // 关系：从人物之间的欲望冲突推断，交给后续抽取补充，这里不做猜测
   }
@@ -440,31 +511,50 @@ export async function applyGenesis(projectId: ID, run: GenesisRun, opts: ApplyGe
       const title = pickStr(raw, "title", "名称", "name");
       const statement = pickStr(raw, "statement", "规则", "description");
       if (!title || !statement) continue;
-      await upsertRule(projectId, {
+      const patch = {
         name: title,
         description: statement,
-        kind: "custom-llm",
+        kind: "custom-llm" as const,
         value: statement,
-        severity: /error|硬/.test(pickStr(raw, "severity", "严重度")) ? "error" : "warn",
+        severity: (/error|硬/.test(pickStr(raw, "severity", "严重度")) ? "error" : "warn") as ContinuityRule["severity"],
         enabled: true,
-      });
-      result.rules += 1;
+      };
+      // 同名的规则要更新，不能又插一条
+      const hit = ruleByName.get(title);
+      if (hit) {
+        await upsertRule(projectId, { ...patch, id: hit.id });
+        result.mergedRules += 1;
+      } else {
+        const created = await upsertRule(projectId, patch);
+        ruleByName.set(created.name, created);
+        result.rules += 1;
+      }
     }
   }
 
   const arcIdMap = new Map<string, ID>();
   if (parts.includes("structure")) {
     for (const a of arcs) {
-      const created = await createArc(projectId, a.title, {
-        kind: "volume",
+      const patch = {
+        kind: "volume" as const,
         summary: a.summary,
         goal: a.goal,
         conflict: a.conflict,
         outcome: a.outcome,
         color: a.color,
-      });
-      arcIdMap.set(a.id, created.id);
-      result.arcs += 1;
+      };
+      // 与人物同理：按标题匹配后更新，重复应用不会多出分卷
+      const hit = arcByTitle.get(a.title);
+      if (hit) {
+        await updateArc(hit.id, patch);
+        arcIdMap.set(a.id, hit.id);
+        result.mergedArcs += 1;
+      } else {
+        const created = await createArc(projectId, a.title, patch);
+        arcByTitle.set(created.title, created);
+        arcIdMap.set(a.id, created.id);
+        result.arcs += 1;
+      }
     }
   }
 
@@ -476,28 +566,50 @@ export async function applyGenesis(projectId: ID, run: GenesisRun, opts: ApplyGe
         await db.chapterContents.delete(c.id);
       }
     }
+    /**
+     * 章节也要幂等。没有 replaceChapters 时，之前的实现是"再追加一遍"，
+     * 于是同一批章节在项目里出现两次、order 也被打乱。
+     *
+     * 匹配按标题：命中就只更新大纲层面（arcId / summary / goals / tension / hook），
+     * **不动 status 与正文** —— 作者可能已经动笔写了这一章，绝不能被再次应用清掉。
+     */
     for (const c of chapters) {
-      const created = await createChapter(projectId, {
-        title: c.title,
-        arcId: c.arcId ? arcIdMap.get(c.arcId) : undefined,
-        summary: c.summary,
-      });
-      await updateChapter(created.id, {
-        goals: c.goals,
-        tension: c.tension,
-        hook: c.hook,
-        status: "outlined",
-      });
-      result.chapters += 1;
+      const arcId = c.arcId ? arcIdMap.get(c.arcId) : undefined;
+      const hit = chapterByTitle.get(c.title);
+      if (hit) {
+        await updateChapter(hit.id, { arcId, summary: c.summary, goals: c.goals, tension: c.tension, hook: c.hook });
+        // 已经写过字的章节不退回 outlined，否则写作台会以为还没动笔
+        if (hit.wordCount === 0 && hit.status === "idea") {
+          await updateChapter(hit.id, { status: "outlined" });
+        }
+        result.mergedChapters += 1;
+      } else {
+        const created = await createChapter(projectId, { title: c.title, arcId, summary: c.summary });
+        await updateChapter(created.id, { goals: c.goals, tension: c.tension, hook: c.hook, status: "outlined" });
+        chapterByTitle.set(created.title, created);
+        result.chapters += 1;
+      }
     }
   }
 
+  /**
+   * 开篇正文：只能写进**空章节**。
+   *
+   * 之前的实现无条件覆盖第一章 —— 作者已经动笔之后点一次「再次应用」，
+   * 亲手写的开头就被生成的开篇顶掉了。这是数据丢失，比重复入库严重得多。
+   * 现在按顺序找第一个没写过字的章节；全都写过就整个跳过并告知，绝不覆盖。
+   */
   if (bible?.openingScene && parts.includes("opening")) {
-    const first = (await db.chapters.where("projectId").equals(projectId).toArray()).sort((a, b) => a.order - b.order)[0];
-    if (first) {
+    const all = (await db.chapters.where("projectId").equals(projectId).toArray()).sort((a, b) => a.order - b.order);
+    const empty = all.filter((c) => c.wordCount === 0);
+    const target = empty[0];
+    if (target) {
       const html = textToHtml(bible.openingScene.replace(/\n+/g, NL + NL));
-      await saveChapterContent(first.id, html, { touchStatus: false });
+      await saveChapterContent(target.id, html, { touchStatus: false });
       result.openingWords = countWords(bible.openingScene);
+      result.openingChapterTitle = target.title;
+    } else if (all.length) {
+      result.openingSkipped = "所有章节都已经写过内容，开篇没有覆盖任何一章";
     }
   }
 
