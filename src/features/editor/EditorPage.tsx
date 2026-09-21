@@ -71,7 +71,13 @@ export function EditorPage() {
   const [draftWords, setDraftWords] = useState(0);
   const [loadedFor, setLoadedFor] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  /**
+   * 正在编辑属性的章节。
+   *
+   * 两个入口都指向它：左侧章节列表里每条的小齿轮，以及工具栏的齿轮（作用于当前章）。
+   * 用"哪一章"而不是布尔值 —— 这样从列表点非当前章时也不会改错对象。
+   */
+  const [settingsFor, setSettingsFor] = useState<Chapter | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const sessionRef = useRef<ID | undefined>(undefined);
@@ -494,7 +500,7 @@ export function EditorPage() {
         )}
         <Tooltip>
           <Tooltip.Trigger>
-            <Button isIconOnly size="sm" variant="ghost" onPress={() => setShowSettings(true)}>
+            <Button isIconOnly size="sm" variant="ghost" aria-label="章节属性" onPress={() => chapter && setSettingsFor(chapter)}>
               <Settings2 className="size-4" />
             </Button>
           </Tooltip.Trigger>
@@ -592,6 +598,7 @@ export function EditorPage() {
           chapters={chapters}
           activeChapterId={routeChapterId}
           collapsed={false}
+          onOpenSettings={setSettingsFor}
         />
       )}
       {!flow && sidebarCollapsed && (
@@ -601,6 +608,7 @@ export function EditorPage() {
           chapters={chapters}
           activeChapterId={routeChapterId}
           collapsed
+          onOpenSettings={setSettingsFor}
         />
       )}
 
@@ -694,11 +702,11 @@ export function EditorPage() {
         />
       )}
 
-      {showSettings && chapter && (
+      {settingsFor && (
         <ChapterSettings
-          chapter={chapter}
+          chapter={settingsFor}
           projectId={projectId}
-          onClose={() => setShowSettings(false)}
+          onClose={() => setSettingsFor(null)}
           onSaved={() => notify("success", "章节属性已保存")}
         />
       )}

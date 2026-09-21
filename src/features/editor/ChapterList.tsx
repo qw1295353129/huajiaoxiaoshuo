@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Chip, Tooltip } from "@heroui/react";
-import { ChevronDown, ChevronRight, GripVertical, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import type { Arc, Chapter, ID } from "@/core";
 import { CHAPTER_STATUS_LABEL } from "@/app/theme";
 import { useAppStore } from "@/app/store";
@@ -16,10 +16,17 @@ interface Props {
   chapters: Chapter[];
   activeChapterId?: ID;
   collapsed: boolean;
+  /**
+   * 打开某一章的「章节属性」。
+   *
+   * 入口放在章节列表上（每条一个齿轮），因为"这一章的属性"本来就该在
+   * 找到这一章的地方改 —— 而不是先切到它、再去工具栏点一个按钮。
+   */
+  onOpenSettings?: (chapter: Chapter) => void;
 }
 
 /** 写作台左侧：卷/章导航，支持拖拽排序、内联改名、快速新建。 */
-export function ChapterList({ projectId, arcs, chapters, activeChapterId, collapsed }: Props) {
+export function ChapterList({ projectId, arcs, chapters, activeChapterId, collapsed, onOpenSettings }: Props) {
   const navigate = useNavigate();
   const notify = useAppStore((s) => s.notify);
   const [query, setQuery] = useState("");
@@ -139,6 +146,29 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
         }
       >
         <GripVertical className="size-3 shrink-0 cursor-grab opacity-0 transition group-hover:opacity-40" />
+        {onOpenSettings && (
+          <Tooltip>
+            <Tooltip.Trigger>
+              <button
+                type="button"
+                aria-label="章节属性"
+                // 默认不显示，hover 或当前章才出现 —— 列表里不该有一排常驻图标
+                className={
+                  "shrink-0 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/15 " +
+                  (c.id === activeChapterId ? "opacity-50" : "opacity-0 group-hover:opacity-50") +
+                  " hover:!opacity-100"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenSettings(c);
+                }}
+              >
+                <Settings2 className="size-3.5" />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Content>章节属性</Tooltip.Content>
+          </Tooltip>
+        )}
         <button
           type="button"
           className="min-w-0 flex-1 truncate text-left"
