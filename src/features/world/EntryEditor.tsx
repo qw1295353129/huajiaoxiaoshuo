@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, Card, Chip, Tooltip } from "@heroui/react";
 import { Eye, Info, Link2, Pencil, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { ID, WorldCategory, WorldEntry, WorldRule } from "@/core";
@@ -15,6 +15,15 @@ import { collectDescendantIds, parseLines, parseTags, resolveRefs, type TitleInd
 interface Props {
   projectId: ID;
   entry?: WorldEntry;
+  /**
+   * 平铺模式：不画 Card 外框。
+   *
+   * 这一层编辑内容现在被两种容器复用：
+   *  - 独立面板（带 Card 分块）
+   *  - 弹窗（弹窗自己就是容器，再套 Card 会变成"框里套框"）
+   * 用变体而不是复制一份表单 —— 字段多了以后，两份必然会改漏。
+   */
+  flat?: boolean;
   /** true 时 entry 为空，表示正在新建 */
   isNew: boolean;
   entries: WorldEntry[];
@@ -26,6 +35,18 @@ interface Props {
   onDeleted: () => void;
   /** 点击死链时的「创建该条目」入口 */
   onQuickCreate: (title: string) => Promise<void>;
+}
+
+/**
+ * 编辑块的容器。
+ *
+ * flat=false（独立面板）：画一张 Card，块与块之间有间距。
+ * flat=true（弹窗内）：弹窗自己已经是容器了，再画 Card 就成了框里套框；
+ * 同时要去掉左右与底部的内边距 —— 那部分由弹窗统一给。
+ */
+function Shell({ flat, children }: { flat?: boolean; children: ReactNode }) {
+  if (flat) return <div className="space-y-4">{children}</div>;
+  return <Card className="p-4">{children}</Card>;
 }
 
 interface Draft {
@@ -58,6 +79,7 @@ function sameDraft(a: Draft, b: Draft): boolean {
 
 /** 右侧详情面板：条目字段编辑 + 硬规则增删改 + [[链接]] 预览 */
 export function EntryEditor({
+  flat,
   projectId,
   entry,
   isNew,
@@ -182,7 +204,7 @@ export function EntryEditor({
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Shell flat={flat}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs opacity-55">{isNew ? "新建条目" : "编辑条目"}</p>
@@ -296,9 +318,9 @@ export function EntryEditor({
             />
           </div>
         </div>
-      </Card>
+      </Shell>
 
-      <Card className="p-4">
+      <Shell flat={flat}>
         <SectionTitle
           hint="用 [[条目标题]] 引用其他条目，预览里可直接跳转，死链可以一键建条目"
           action={
@@ -343,9 +365,9 @@ export function EntryEditor({
             {draftRefs.map((id) => byId.get(id)?.title ?? id).join("、")}
           </p>
         )}
-      </Card>
+      </Shell>
 
-      <Card className="p-4">
+      <Shell flat={flat}>
         <SectionTitle
           hint="这些规则会写进 AI 上下文，生成与检查时必须遵守"
           action={
@@ -407,10 +429,10 @@ export function EntryEditor({
             ))}
           </div>
         )}
-      </Card>
+      </Shell>
 
       {!isNew && entry && (
-        <Card className="p-4">
+        <Shell flat={flat}>
           <SectionTitle hint="引用关系由正文里的 [[标题]] 实时解析">引用关系</SectionTitle>
           <div className="space-y-2 text-xs">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -452,7 +474,7 @@ export function EntryEditor({
             </div>
             {childCount > 0 && <p className="opacity-55">子条目 {childCount} 个 · 删除本条目会解除它们的挂载</p>}
           </div>
-        </Card>
+        </Shell>
       )}
 
       <div className="flex flex-wrap items-center gap-2 pb-2">
