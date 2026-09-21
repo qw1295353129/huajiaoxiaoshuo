@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Card, Chip, Tabs } from "@heroui/react";
-import { Clock, Filter, Plus, Search, Sparkles, X } from "lucide-react";
+import { Button, Card, Chip } from "@heroui/react";
+import { Clock, Filter, Layers, Plus, Search, Sparkles, X } from "lucide-react";
 import type { ID, TimelineEvent } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading, StatCard } from "@/components/common/ui";
@@ -15,7 +15,7 @@ import { TimelineExtractModal } from "./TimelineExtractModal";
 import { TimelineInWorldView } from "./TimelineInWorldView";
 import { IMPORTANCE_LABELS, storyTimeSortValue, timeSpanLabel } from "./timelineMeta";
 import { conflictIndex, detectTimelineConflicts } from "./timelineConflicts";
-import { DIVIDER_CLASS, FIELD_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
+import { FIELD_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
 
 type View = "inworld" | "chapter";
 
@@ -180,14 +180,17 @@ export function TimelinePage() {
 
         <TimelineConflictPanel conflicts={conflicts} onLocate={locate} />
 
-        <Tabs selectedKey={view} onSelectionChange={(key) => setView(key === "chapter" ? "chapter" : "inworld")}>
-          <Tabs.List>
-            <Tabs.Tab id="inworld">剧情内时间轴</Tabs.Tab>
-            <Tabs.Tab id="chapter">章节轴</Tabs.Tab>
-          </Tabs.List>
+        <ViewSwitch
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "inworld", label: "剧情内时间轴", icon: <Clock className="size-3.5" /> },
+            { value: "chapter", label: "章节轴", icon: <Layers className="size-3.5" /> },
+          ]}
+        />
 
-          <Tabs.Panel id="inworld">
-            <div className="space-y-4 pt-3">
+        {view === "inworld" ? (
+          <div className="space-y-4">
               <FilterBar
                 query={query}
                 setQuery={setQuery}
@@ -223,11 +226,9 @@ export function TimelinePage() {
                   onDelete={remove}
                 />
               )}
-            </div>
-          </Tabs.Panel>
-
-          <Tabs.Panel id="chapter">
-            <div className="space-y-4 pt-3">
+          </div>
+        ) : (
+          <div className="space-y-4">
               <FilterBar
                 query={query}
                 setQuery={setQuery}
@@ -252,9 +253,8 @@ export function TimelinePage() {
                 onDelete={remove}
                 onAddToChapter={(chapterId) => openCreate(chapterId)}
               />
-            </div>
-          </Tabs.Panel>
-        </Tabs>
+          </div>
+        )}
       </div>
     );
   };
@@ -339,8 +339,9 @@ function FilterBar({
   conflictCount: number;
 }) {
   return (
-    <Card className={"flex flex-wrap items-end gap-3 p-3 " + DIVIDER_CLASS}>
-      <div className="min-w-[200px] flex-1">
+    <Card className="p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[200px] flex-1">
         <label className={LABEL_CLASS}>搜索</label>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 opacity-40" />
@@ -395,13 +396,46 @@ function FilterBar({
         <span className="tabular text-xs opacity-55">
           {shown} / {total}
         </span>
-        {filtersActive && (
-          <Button size="sm" variant="ghost" onPress={resetFilters}>
-            <Filter className="size-3.5" />
-            清空筛选
-          </Button>
-        )}
+          {filtersActive && (
+            <Button size="sm" variant="ghost" onPress={resetFilters}>
+              <Filter className="size-3.5" />
+              清空筛选
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
+  );
+}
+
+/** 视图切换：剧情内时间轴 / 章节轴（原生按钮实现，避免依赖实验性的 Tabs.Indicator） */
+function ViewSwitch({
+  value,
+  options,
+  onChange,
+}: {
+  value: View;
+  options: { value: View; label: string; icon: ReactNode }[];
+  onChange: (value: View) => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-xl border border-black/5 bg-white/70 p-1 dark:border-white/5 dark:bg-neutral-900/50">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={
+            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition " +
+            (value === option.value
+              ? "bg-violet-500 text-white shadow-sm"
+              : "opacity-60 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10")
+          }
+        >
+          {option.icon}
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }

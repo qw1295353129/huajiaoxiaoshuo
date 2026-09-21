@@ -42,13 +42,15 @@ export function TimelineConflictPanel({
 
   if (conflicts.length === 0) {
     return (
-      <Card className="flex items-center gap-3 p-4">
-        <CheckCircle2 className="size-5 shrink-0 text-emerald-500" />
-        <div>
-          <p className="text-sm font-medium">时间线自检通过</p>
-          <p className="mt-0.5 text-xs opacity-55">
-            没有发现同章时间颠倒、跨章时间矛盾或未挂章节的事件。切换到剧情内时间轴可以继续核对细节。
-          </p>
+      <Card className="p-4">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="size-5 shrink-0 text-emerald-500" />
+          <div>
+            <p className="text-sm font-medium">时间线自检通过</p>
+            <p className="mt-0.5 text-xs opacity-55">
+              没有发现同章时间颠倒、跨章时间矛盾或未挂章节的事件。切换到剧情内时间轴可以继续核对细节。
+            </p>
+          </div>
         </div>
       </Card>
     );

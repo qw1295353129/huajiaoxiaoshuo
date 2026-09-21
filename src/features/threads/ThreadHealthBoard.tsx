@@ -48,13 +48,15 @@ export function ThreadHealthBoard({
 
   if (problems.length === 0) {
     return (
-      <Card className="flex items-center gap-3 p-4">
-        <CheckCircle2 className="size-5 shrink-0 text-emerald-500" />
-        <div>
-          <p className="text-sm font-medium">伏笔健康：暂无风险</p>
-          <p className="mt-0.5 text-xs opacity-55">
-            没有超期未回收、久未提及或尚未埋设的伏笔。继续写下去即可，系统会在出现风险时提醒你。
-          </p>
+      <Card className="p-4">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="size-5 shrink-0 text-emerald-500" />
+          <div>
+            <p className="text-sm font-medium">伏笔健康：暂无风险</p>
+            <p className="mt-0.5 text-xs opacity-55">
+              没有超期未回收、久未提及或尚未埋设的伏笔。继续写下去即可，系统会在出现风险时提醒你。
+            </p>
+          </div>
         </div>
       </Card>
     );

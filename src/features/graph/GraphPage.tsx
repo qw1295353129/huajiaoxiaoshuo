@@ -25,7 +25,7 @@ import {
   roleColor,
   roleLabel,
 } from "./graphMeta";
-import { DIVIDER_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
+import { LABEL_CLASS, SELECT_CLASS } from "./styles";
 
 type FilterMode = "all" | "main" | "hostile" | "ego";
 
@@ -232,9 +232,10 @@ export function GraphPage() {
           />
         </div>
 
-        <Card className={"flex flex-wrap items-end gap-3 p-3 " + DIVIDER_CLASS}>
-          <div>
-            <label className={LABEL_CLASS}>筛选</label>
+        <Card className="p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className={LABEL_CLASS}>筛选</label>
             <div className="flex flex-wrap gap-1.5">
               {(Object.keys(MODE_LABELS) as FilterMode[]).map((m) => (
                 <button key={m} type="button" className="transition active:scale-95" onClick={() => setMode(m)}>
@@ -276,10 +277,11 @@ export function GraphPage() {
                 取消选中
               </Button>
             )}
-            <Button size="sm" variant="outline" onPress={() => setLayoutNonce((n) => n + 1)}>
-              <RefreshCw className="size-3.5" />
-              重新布局
-            </Button>
+              <Button size="sm" variant="outline" onPress={() => setLayoutNonce((n) => n + 1)}>
+                <RefreshCw className="size-3.5" />
+                重新布局
+              </Button>
+            </div>
           </div>
         </Card>
 

@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Card, Chip, Tabs } from "@heroui/react";
-import { Filter, GitBranch, Plus, Search, Sparkles, X } from "lucide-react";
+import { Button, Card, Chip } from "@heroui/react";
+import { Filter, GitBranch, LayoutGrid, ListTree, Plus, Search, Sparkles, X } from "lucide-react";
 import type { PlotThread } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading, SectionTitle, StatCard } from "@/components/common/ui";
@@ -24,7 +24,7 @@ import {
   latestOrder,
   type ThreadProblem,
 } from "./threadMeta";
-import { DIVIDER_CLASS, FIELD_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
+import { FIELD_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
 
 type View = "list" | "heatmap";
 type GroupBy = "kind" | "status" | "none";
@@ -195,14 +195,17 @@ export function ThreadsPage() {
           />
         </div>
 
-        <Tabs selectedKey={view} onSelectionChange={(key) => setView(key === "heatmap" ? "heatmap" : "list")}>
-          <Tabs.List>
-            <Tabs.Tab id="list">列表</Tabs.Tab>
-            <Tabs.Tab id="heatmap">伏笔热力图</Tabs.Tab>
-          </Tabs.List>
+        <ViewSwitch
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "list", label: "列表", icon: <ListTree className="size-3.5" /> },
+            { value: "heatmap", label: "伏笔热力图", icon: <LayoutGrid className="size-3.5" /> },
+          ]}
+        />
 
-          <Tabs.Panel id="list">
-            <div className="space-y-4 pt-3">
+        {view === "list" ? (
+          <div className="space-y-4">
               <Card className="p-3">
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="min-w-[200px] flex-1">
@@ -326,15 +329,10 @@ export function ThreadsPage() {
                   ))}
                 </div>
               )}
-            </div>
-          </Tabs.Panel>
-
-          <Tabs.Panel id="heatmap">
-            <div className="pt-3">
-              <ThreadHeatmap threads={filtered} chapters={chapters} onEditThread={openEdit} />
-            </div>
-          </Tabs.Panel>
-        </Tabs>
+          </div>
+        ) : (
+          <ThreadHeatmap threads={filtered} chapters={chapters} onEditThread={openEdit} />
+        )}
 
         <UnresolvedHint threads={threads} problems={problems} />
       </div>
@@ -386,15 +384,49 @@ function UnresolvedHint({ threads, problems }: { threads: PlotThread[]; problems
   if (planted.length === 0) return null;
   const overdue = problems.filter((p) => p.problem === "overdue").length;
   return (
-    <Card className="flex flex-wrap items-center gap-2 p-3 text-xs">
-      <Chip size="sm" color={overdue > 0 ? "danger" : "accent"}>
-        {planted.length} 条已埋设未回收
-      </Chip>
-      <span className="opacity-60">
-        {overdue > 0
-          ? "其中 " + overdue + " 条已经写过了计划回收章，建议尽快回收或调整计划。"
-          : "回收节奏正常，继续按计划推进即可。"}
-      </span>
+    <Card className="p-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <Chip size="sm" color={overdue > 0 ? "danger" : "accent"}>
+          {planted.length} 条已埋设未回收
+        </Chip>
+        <span className="opacity-60">
+          {overdue > 0
+            ? "其中 " + overdue + " 条已经写过了计划回收章，建议尽快回收或调整计划。"
+            : "回收节奏正常，继续按计划推进即可。"}
+        </span>
+      </div>
     </Card>
+  );
+}
+
+/** 视图切换：列表 / 热力图（用原生按钮实现，避免依赖实验性的 Tabs.Indicator） */
+function ViewSwitch({
+  value,
+  options,
+  onChange,
+}: {
+  value: View;
+  options: { value: View; label: string; icon: ReactNode }[];
+  onChange: (value: View) => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-xl border border-black/5 bg-white/70 p-1 dark:border-white/5 dark:bg-neutral-900/50">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={
+            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition " +
+            (value === option.value
+              ? "bg-violet-500 text-white shadow-sm"
+              : "opacity-60 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10")
+          }
+        >
+          {option.icon}
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }

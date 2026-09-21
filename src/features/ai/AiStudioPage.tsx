@@ -227,8 +227,8 @@ export function AiStudioPage() {
           model: result.model,
           providerId: result.providerId,
           ms: result.ms,
-          ok: result.ok,
-          error: result.error,
+          ok: result.ok || aborted,
+          error: result.ok || aborted ? undefined : result.error,
           contextTokens: result.contextTokens,
           sources: result.contextSources,
         },
@@ -343,7 +343,6 @@ export function AiStudioPage() {
           sessions={sessions}
           activeId={active?.id}
           archived={archived}
-          busy={busy}
           onSelect={selectSession}
           onCreate={() => void newSession()}
           onRename={(id, title) => void renameSession(id, title)}

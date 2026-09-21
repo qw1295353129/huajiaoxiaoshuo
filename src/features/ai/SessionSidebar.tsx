@@ -10,7 +10,6 @@ interface Props {
   activeId?: ID;
   /** 本次会话中被归档、可以就地恢复的对话 */
   archived: AiSession[];
-  busy?: boolean;
   onSelect: (id: ID) => void;
   onCreate: () => void;
   onRename: (id: ID, title: string) => void;
@@ -24,7 +23,6 @@ export function SessionSidebar({
   sessions,
   activeId,
   archived,
-  busy,
   onSelect,
   onCreate,
   onRename,
@@ -110,12 +108,7 @@ export function SessionSidebar({
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => onSelect(session.id)}
-                  className="block w-full text-left"
-                  disabled={busy && !active}
-                >
+                <button type="button" onClick={() => onSelect(session.id)} className="block w-full text-left">
                   <span className="flex items-center gap-1.5">
                     <MessageSquare className="size-3.5 shrink-0 opacity-40" />
                     <span className="min-w-0 flex-1 truncate text-xs font-medium">{session.title}</span>

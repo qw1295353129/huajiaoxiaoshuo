@@ -91,11 +91,6 @@ function CharacterList({ projectId }: { projectId: string }) {
     return list;
   }, [rows, role, search, sort, appearanceCount]);
 
-  // 筛选条件变化后回到第一批，避免看到"空白的第 3 页"
-  useEffect(() => {
-    setLimit(PAGE_SIZE);
-  }, [search, role, sort]);
-
   const visible = filtered.slice(0, limit);
   const total = rows?.length ?? 0;
 
@@ -156,14 +151,21 @@ function CharacterList({ projectId }: { projectId: string }) {
                 className={inputClass + " pl-9"}
                 value={query}
                 placeholder="搜索姓名 / 别名 / 定位 / 标签…"
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  // 筛选条件一变就回到第一批，避免停在"空白的第 3 页"
+                  setLimit(PAGE_SIZE);
+                }}
               />
             </div>
             <select
               className={selectInlineClass + " min-w-32"}
               value={role}
               aria-label="按角色类型筛选"
-              onChange={(e) => setRole(e.target.value as "all" | CharacterRole)}
+              onChange={(e) => {
+                setRole(e.target.value as "all" | CharacterRole);
+                setLimit(PAGE_SIZE);
+              }}
             >
               <option value="all">全部类型（{total}）</option>
               {ROLE_ORDER.filter((r) => (roleCount.get(r) ?? 0) > 0 || role === r).map((r) => (
@@ -176,7 +178,10 @@ function CharacterList({ projectId }: { projectId: string }) {
               className={selectInlineClass + " min-w-32"}
               value={sort}
               aria-label="排序方式"
-              onChange={(e) => setSort(e.target.value as SortKey)}
+              onChange={(e) => {
+                setSort(e.target.value as SortKey);
+                setLimit(PAGE_SIZE);
+              }}
             >
               {SORT_ORDER.map((k) => (
                 <option key={k} value={k}>
