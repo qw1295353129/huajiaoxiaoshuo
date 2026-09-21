@@ -71,6 +71,27 @@ const type = async (s) => {
   await page.keyboard.type(s);
 };
 
+/**
+ * 点章节列表里的某一章。
+ *
+ * 必须限定在章节列表容器内 —— 项目导航里也有「第二章」这样的项目吗？没有，
+ * 但**章节列表项里现在多了一个齿轮按钮**，全页面 find(textContent.includes(...))
+ * 很容易命中别的元素（我因此让这条回归假失败过一次）。
+ */
+const clickChapterInList = (title) =>
+  page.evaluate((t) => {
+    const list = [...document.querySelectorAll("div")].find(
+      (d) => (d.className || "").toString().includes("w-72") && /border-r/.test((d.className || "").toString()),
+    );
+    const row = [...(list?.querySelectorAll("li") ?? [])].find((li) => (li.textContent ?? "").includes(t));
+    const nameBtn = row?.querySelector("button");
+    if (nameBtn) {
+      nameBtn.click();
+      return true;
+    }
+    return false;
+  }, title);
+
 const openFirst = () => gotoApp(page, BASE + "/p/" + ids.pid + "/write/" + ids.c1, { settle: 3000 });
 
 console.log("【逐字输入的最后一个字必须落库】");
@@ -92,20 +113,14 @@ check("保存后 dirty 归位", s1.dirty === false, String(s1.dirty));
 console.log("【不等自动保存就切章】");
 await type("戊己");
 await page.waitForTimeout(200); // 远小于自动保存间隔
-await page.evaluate(() => {
-  const b = [...document.querySelectorAll("button")].find((x) => (x.textContent ?? "").includes("第二章"));
-  if (b) b.click();
-});
+await clickChapterInList("第二章");
 await page.waitForTimeout(2600);
 const s2 = await snap();
 check("切章前的内容被保住", s2.saved?.includes("戊己") === true, JSON.stringify(s2));
 check("切章后内容完整（含刚输入的最后一个字）", s2.saved?.endsWith("戊己") === true, String(s2.saved));
 
 console.log("【切回来 / 刷新后都还在】");
-await page.evaluate(() => {
-  const b = [...document.querySelectorAll("button")].find((x) => (x.textContent ?? "").includes("第一章"));
-  if (b) b.click();
-});
+await clickChapterInList("第一章");
 await page.waitForTimeout(2400);
 const s3 = await snap();
 check("切回来显示正确", s3.shown?.includes("戊己") === true, String(s3.shown));
