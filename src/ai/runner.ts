@@ -1,4 +1,4 @@
-import type { AiTaskKind, ChatMessage, ContextSource, ModelParams, ProviderConfig, PromptTemplate, TokenUsage } from "@/core";
+import type { AiTaskKind, ChatMessage, ContextSource, ID, ModelParams, ProviderConfig, PromptTemplate, TokenUsage } from "@/core";
 import { estimateCost, loadSettings, resolveModel } from "@/db/repo/settings";
 import { logGeneration } from "@/db/repo/ai";
 import { db } from "@/db/database";
@@ -8,7 +8,35 @@ import { buildContext, type BuildContextOptions } from "./context";
 import { parseJson, type ParseResult } from "./json";
 import { ProviderError, type ChatRequest, type TaskRunOptions, type TaskRunResult } from "./types";
 import { baseSystem, setMemoryBlock } from "./prompts";
-import { markMemoryUsed, memoryForProject } from "@/db/repo/memory";
+import { markMemoryUsed, memoryForProject, recordMemoryUsage } from "@/db/repo/memory";
+import { recallMemories } from "./recall";
+
+/** 一次 system prompt 里最多注入几条偏好/教训（原来的硬上限，语义召回也不打破它） */
+const MEMORY_INJECT_LIMIT = 12;
+
+/**
+ * 待登记的记忆注入清单。
+ *
+ * 为什么需要这么一个模块级变量：记忆是在 systemWithProject() 里注入的，
+ * 而这个函数由调用方在 runText() **之前**执行，那时还没有 generationId
+ * （它要等 runText 落库时才生成）。所以这里先记下"这次用了哪些 fact"，
+ * runText 开头取走，等生成记录创建出来再把 generationId 补进 memoryUsage。
+ *
+ * 局限（写在这里免得后人踩）：它假设调用方"先拼 system prompt，紧接着调 runText"，
+ * 这也是本项目所有调用点的写法。如果有人拼一次 system 却连跑多次 runText，
+ * 只有第一次会带上记忆使用记录 —— 与其为了这种罕见写法引入 correlation id 参数，
+ * 不如把假设写清楚。
+ */
+let pendingInjections: { projectId: ID; ids: ID[]; semanticIds: Set<ID>; at: number } | null = null;
+
+/** 取走待登记清单（同时防陈旧：超过 5 分钟的一定不是这次生成用的） */
+function takePendingInjections(): { ids: ID[]; semanticIds: Set<ID> } | null {
+  const p = pendingInjections;
+  pendingInjections = null;
+  if (!p) return null;
+  if (Date.now() - p.at > 5 * 60_000) return null;
+  return { ids: p.ids, semanticIds: p.semanticIds };
+}
 
 export interface RunTextOptions extends TaskRunOptions {
   system: string;
@@ -33,6 +61,8 @@ export interface TextRunResult extends TaskRunResult {
  */
 export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
   const started = performance.now();
+  // 在第一个 await 之前取走注入清单，避免并发调用互相串台
+  const injected = takePendingInjections();
   const settings = loadSettings();
   const resolved = await resolveModel(opts.taskKind);
   const target = await pickTarget(opts, resolved, settings);
@@ -97,7 +127,7 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
           ms: performance.now() - attemptStarted,
         });
         if (opts.recordUsage !== false) {
-          await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, false, "推理占满 token 预算，自动提高上限重试");
+          await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, false, "推理占满 token 预算，自动提高上限重试", injected);
         }
         params = { ...params, maxTokens: bumped };
         round -= 1; // 这次不算在模型降级轮次里
@@ -106,7 +136,7 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
 
       attempts.push({ model, ok: true, ms: performance.now() - attemptStarted });
       if (opts.recordUsage !== false) {
-        await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, true);
+        await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, true, undefined, injected);
       }
       if (starved) {
         // 重试后仍然为空：明确报错，不要让用户面对空白
@@ -151,7 +181,7 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
       : new ProviderError("network", lastError instanceof Error ? lastError.message : "生成失败");
   const failed = fail(err, started);
   if (opts.recordUsage !== false) {
-    await record(opts, provider.id, model, target.params, messages, contextSources, failed.usage, failed.ms, false, err.message);
+    await record(opts, provider.id, model, target.params, messages, contextSources, failed.usage, failed.ms, false, err.message, injected);
   }
   return { ...failed, attempts, contextSources, contextTokens };
 }
@@ -279,12 +309,13 @@ async function record(
   usage: TokenUsage,
   ms: number,
   ok: boolean,
-  error?: string,
+  error: string | undefined,
+  injected: { ids: ID[]; semanticIds: Set<ID> } | null,
 ): Promise<void> {
   if (!opts.projectId) return;
   try {
     const cost = await estimateCost(providerId + "::" + model, usage.prompt, usage.completion);
-    await logGeneration({
+    const generation = await logGeneration({
       projectId: opts.projectId,
       chapterId: opts.chapterId,
       taskKind: opts.taskKind,
@@ -300,6 +331,19 @@ async function record(
       error,
       cost,
     });
+    // 效果追踪：把"这次生成用了哪些记忆"落到 memoryUsage。
+    // 只记成功的那次 —— 作者没看到产出就不会去评价它，记进去只会稀释差评率的分母。
+    // 整个写入失败也不抛（recordMemoryUsage 内部吞异常），统计永远不能影响写作。
+    if (ok && injected?.ids.length) {
+      await recordMemoryUsage(
+        injected.ids.map((factId) => ({
+          projectId: opts.projectId as ID,
+          generationId: generation.id,
+          factId,
+          via: injected.semanticIds.has(factId) ? ("semantic" as const) : ("rule" as const),
+        })),
+      );
+    }
   } catch {
     /* 记录失败不影响主流程 */
   }
@@ -346,27 +390,46 @@ export function interpolate(text: string, vars: Record<string, string>): string 
  *
  * 写作记忆在这里统一注入：所有任务的 system prompt 都经过这个函数，
  * 所以偏好与教训会自动作用于每一次生成，不需要各调用点自己处理。
+ *
+ * opts 是可选的：不传时行为与以前完全一致（语义召回默认关闭，等于直通）。
+ * 需要在写某一章时更精准地召回，就把 chapterId / query 传进来。
  */
-export async function systemWithProject(projectId?: string, extra?: string): Promise<string> {
+export async function systemWithProject(
+  projectId?: string,
+  extra?: string,
+  opts: { chapterId?: string; query?: string } = {},
+): Promise<string> {
   const project = projectId ? await db.projects.get(projectId) : undefined;
+  pendingInjections = null;
 
   // 注入记忆：只取偏好与教训（事实/约定走上下文，避免与设定库重复），按可信度排序
   if (projectId) {
     try {
       const facts = await memoryForProject(projectId);
-      const constraints = facts
-        .filter((m) => m.kind === "preference" || m.kind === "lesson")
-        .slice(0, 12)
-        .map((m) => ({ text: m.text, kind: m.kind }));
-      setMemoryBlock({ constraints });
-      // 记录使用，供排序加权与新界面判断"这条记忆到底有没有用"
-      if (constraints.length) {
-        await markMemoryUsed(
-          facts.filter((m) => m.kind === "preference" || m.kind === "lesson").slice(0, 12).map((m) => m.id),
-        );
+      const candidates = facts.filter((m) => m.kind === "preference" || m.kind === "lesson");
+      // 语义召回（默认关闭）：开启后按当前写作内容重排候选，关闭时这一行是直通
+      const recall = await recallMemories({
+        projectId,
+        facts: candidates,
+        chapterId: opts.chapterId,
+        query: opts.query,
+      });
+      const injected = recall.facts.slice(0, MEMORY_INJECT_LIMIT);
+      setMemoryBlock({ constraints: injected.map((m) => ({ text: m.text, kind: m.kind })) });
+      if (injected.length) {
+        // 记录使用：usedCount 让"一直有用"的记忆在排序里加权；
+        // pendingInjections 让 runText 把 generationId 补进 memoryUsage（效果追踪）
+        await markMemoryUsed(injected.map((m) => m.id));
+        pendingInjections = {
+          projectId,
+          ids: injected.map((m) => m.id),
+          semanticIds: new Set(recall.pickedIds),
+          at: Date.now(),
+        };
       }
     } catch {
       setMemoryBlock({ constraints: [] });
+      pendingInjections = null;
     }
   } else {
     setMemoryBlock({ constraints: [] });

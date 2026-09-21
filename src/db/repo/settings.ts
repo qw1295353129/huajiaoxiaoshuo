@@ -1,6 +1,7 @@
 import type { AppSettings, ID, ModelPricing, ProviderConfig, TaskRouting } from '@/core';
 import { db } from '../database';
 import { DEFAULT_PARAMS, PROVIDER_PRESETS, defaultRouting } from '../defaults';
+import { DEFAULT_SEMANTIC_RECALL } from '@/core';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   activeProviderId: undefined,
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   writingPrinciples: [],
   globalForbidden: [],
   globalInstructions: undefined,
+  semanticRecall: { ...DEFAULT_SEMANTIC_RECALL },
 };
 
 /** 设置存 localStorage（非作品数据，不需要进 IndexedDB） */

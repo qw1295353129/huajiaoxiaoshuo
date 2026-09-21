@@ -189,3 +189,12 @@ export async function clearEmbeddings(projectId: ID, kind?: string): Promise<voi
   const rows = await listEmbeddings(projectId, kind);
   for (const r of rows) await db.embeddings.delete(r.id);
 }
+
+/**
+ * 按对象 id 删除向量缓存。
+ * 记忆被删/被改时调用：向量是围绕 refId 长出来的派生数据，
+ * 不删就会留下永远查不到的孤儿行（而且内容变了也判断不出来）。
+ */
+export async function deleteEmbeddingsFor(refId: ID): Promise<void> {
+  await db.embeddings.where('refId').equals(refId).delete().catch(() => undefined);
+}

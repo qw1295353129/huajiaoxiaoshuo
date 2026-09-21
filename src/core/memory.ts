@@ -97,6 +97,17 @@ export interface MemoryFact extends Timestamped {
   lastUsedAt?: ISO;
   /** 自动提取时的去重键，避免同一句话反复生成 */
   dedupeKey?: string;
+  /**
+   * 已判定过冲突、并给出处置意见的对方 id。
+   *
+   * 为什么记在记忆自己身上，而不是另开一张"冲突处置表"：
+   * 1. 冲突是两条记忆之间的**属性**，处置结果跟着记忆走最自然：删掉一条，记录自动消失，
+   *    不会留下一张需要级联清理、还可能指向已删记忆的孤表。
+   * 2. 不需要再升一次数据库版本（这次已经为了 memoryUsage 升到 v4，能少一次就少一次）。
+   * 3. 导出/备份/级联删除全都自动跟着走，不用在每个数据出口补一遍。
+   * 代价是"谁先记的"信息会丢（双方都会记对方），但我们只需要知道"这对我处理过了"。
+   */
+  conflictsResolvedWith?: ID[];
 }
 
 /** 一次记忆提取的结果，供界面展示 diff */
@@ -111,7 +122,50 @@ export interface MemoryExtraction {
   scanned: { feedback: number; suggestions: number; issues: number; review: number; sessions: number };
 }
 
+/**
+ * 一条记忆被某次生成用过的记录（记忆效果追踪）。
+ *
+ * 为什么单独一张表，而不是在 MemoryFact 上再加计数器：
+ * usedCount 只能回答"注入过几次"，回答不了"注入之后变好还是变坏"——后者必须把
+ * **记忆**和**生成结果 / 作者评价**连起来。事实表里存不下这种一对多关系。
+ *
+ * generationId 复用 AiGeneration.id：评价（AiFeedback.generationId）本来就指向它，
+ * 于是"用了哪些记忆 → 这次生成 → 作者给了什么评价"这条链不用引入任何新 id。
+ */
+export interface MemoryUsage {
+  id: ID;
+  projectId: ID;
+  /** 关联的 AiGeneration.id；生成没落库（如模型不可用）时为 undefined */
+  generationId?: ID;
+  factId: ID;
+  /** 这条记忆是怎么被选中的：规则排序 or 语义召回。用于排查"为什么这次注入了它" */
+  via?: 'rule' | 'semantic';
+  createdAt: ISO;
+}
+
+/** 一条记忆的效果统计（由 memoryUsage + feedback 聚合而来） */
+export interface MemoryEffect {
+  factId: ID;
+  /** 被注入的总次数 */
+  injections: number;
+  /** 参与过的生成次数（去重） */
+  generations: number;
+  /** 其中被作者评价过的生成次数 */
+  rated: number;
+  /** 被评价为差评的生成次数 */
+  negative: number;
+  /** 差评率 = negative / rated；没有评价时为 0（不是"差"） */
+  badRate: number;
+  lastUsedAt?: ISO;
+  /** 注入够多 + 差评率够高 → 建议暂停。只提示，绝不自动暂停 */
+  suggestPause: boolean;
+}
+
 export const MEMORY_MIN_CONFIDENCE = 0.25;
+
+/** 「建议暂停」的门槛：注入 ≥5 次且差评率 ≥50%（写在一处，界面与统计共用） */
+export const MEMORY_SUGGEST_PAUSE_MIN_INJECTIONS = 5;
+export const MEMORY_SUGGEST_PAUSE_BAD_RATE = 0.5;
 
 /** 由证据数量推算可信度（手动置顶的按 1 处理） */
 export function confidenceFrom(evidenceCount: number, source: MemorySource): number {

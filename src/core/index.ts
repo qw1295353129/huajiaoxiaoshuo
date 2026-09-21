@@ -5,6 +5,7 @@ export * from './character';
 export * from './world';
 export * from './review';
 export * from './memory';
+export * from './memory-conflict';
 export * from './changelog';
 export * from './ai';
 export * from './settings';

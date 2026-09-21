@@ -42,6 +42,48 @@ export interface AppSettings {
   globalForbidden: string[];
   /** 给 AI 的长期补充指令 */
   globalInstructions?: string;
+
+  // ---------- 语义召回（可选，默认关闭） ----------
+  semanticRecall?: SemanticRecallSettings;
+}
+
+/** 向量来源：本地 Ollama，或任意 OpenAI 兼容的 /embeddings 端点 */
+export type EmbeddingSource = 'ollama' | 'provider';
+
+export interface SemanticRecallSettings {
+  /**
+   * 默认 false：不配好 embedding 就完全走原来的规则排序。
+   * 这一点是刻意的 —— 语义召回是"锦上添花"，绝不能让没装 Ollama 的作者
+   * 每次生成都白等一次网络超时。
+   */
+  enabled: boolean;
+  source: EmbeddingSource;
+  /** source = provider 时指向「模型与 AI」里已配置的供应商（复用 key / 代理设置） */
+  providerId?: ID;
+  model: string;
+  /** source = ollama 时的地址：可以是完整端点，也可以只写主机名（自动补 /api/embeddings） */
+  endpoint: string;
+  /** 每次召回的条数 */
+  topK: number;
+}
+
+export const DEFAULT_SEMANTIC_RECALL: SemanticRecallSettings = {
+  enabled: false,
+  source: 'ollama',
+  model: 'nomic-embed-text',
+  endpoint: 'http://127.0.0.1:11434/api/embeddings',
+  topK: 8,
+};
+
+/** 补全缺省值：老版本存下来的 settings 里没有 semanticRecall */
+export function resolveSemanticRecall(settings?: Partial<AppSettings> | null): SemanticRecallSettings {
+  const raw = settings?.semanticRecall;
+  return {
+    ...DEFAULT_SEMANTIC_RECALL,
+    ...(raw ?? {}),
+    // topK 用 0 会让召回失效，兜回默认值
+    topK: raw?.topK && raw.topK > 0 ? Math.min(raw.topK, 24) : DEFAULT_SEMANTIC_RECALL.topK,
+  };
 }
 
 export interface ModelPricing {

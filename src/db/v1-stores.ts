@@ -50,3 +50,18 @@ export const V2_STORES = {
   comments: 'id, projectId, chapterId, [chapterId+resolved], resolved, createdAt',
   reviewSuggestions: 'id, projectId, chapterId, [chapterId+status], status, createdAt',
 } as const;
+
+/**
+ * Dexie v3 的表结构快照（新增写作记忆 memory）。
+ *
+ * 它是从 v3 升级到 v4 的 diff 基准：v4 只多了 memoryUsage 一张表。
+ * 之所以要单独冻结一份，是因为一旦直接在 DB_STORES 上继续加表，
+ * 老库（v3）升级时 Dexie 会拿"v3 声明"与"v4 声明"做 diff，
+ * 而 v3 声明里少了 memory —— Dexie 会认为 memory 是 v4 才新增的，
+ * 于是把它当新表处理；更糟的是如果删过索引，老库里已有的索引不会被正确保留。
+ * 一句话：**每个版本的完整结构都必须原样留着**，不要图省事直接复用 DB_STORES。
+ */
+export const V3_STORES = {
+  ...V2_STORES,
+  memory: 'id, scope, projectId, kind, paused, dedupeKey, [scope+kind], [projectId+kind]',
+} as const;

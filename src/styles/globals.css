@@ -1,6 +1,21 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
+/**
+ * HeroUI v3 修正层。
+ *
+ * 1) TextArea 默认不是全宽的：.textarea 的基础样式是 display:inline-block 且**没有** width，
+ *    HeroUI 把 w-full 放在单独的 .textarea--full-width 修饰类里。结果是 textarea 用浏览器
+ *    默认的 cols≈20 算出固有宽度（实测 161px），在侧栏里窄得读不了。
+ *    项目里 19 处 TextArea 都该全宽，所以在基础类上统一补，而不是逐个加 className。
+ *
+ *    用 :where() 把特异性压到 0，确保 .textarea--full-width 之类的修饰类仍然能覆盖它。
+ */
+:where(.textarea) {
+  display: block;
+  width: 100%;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {

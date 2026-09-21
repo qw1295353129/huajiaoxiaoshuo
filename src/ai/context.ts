@@ -4,6 +4,7 @@ import type {
 import { db } from '@/db/database';
 import { loadSettings } from '@/db/repo/settings';
 import { memoryForProject } from '@/db/repo/memory';
+import { recallMemories } from './recall';
 import { estimateTokens, fillBudget, type BudgetPiece } from '@/utils/tokens';
 import { headContext, tailContext, truncate } from '@/utils/text';
 import { POV_LABEL } from './prompts';
@@ -158,8 +159,21 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
   // 设定事实、名词约定，以及作者手动置顶但还没进 prompt 上限的条目。
   if (sections.includes('memory')) {
     const memories = await memoryForProject(opts.projectId);
-    const facts = memories.filter((m) => m.kind === 'fact' || m.kind === 'convention');
-    const pinnedExtra = memories.filter(
+    // 进入上下文的记忆有三类：设定事实、名词约定、置顶的偏好/教训。
+    // 语义召回（默认关闭）只在这批候选内部重排：与当前章节最相关的优先进入预算，
+    // 关闭时 recallMemories 原样返回候选，顺序与改动前一致。
+    const candidates = memories.filter(
+      (m) => m.kind === 'fact' || m.kind === 'convention' || (m.pinned && (m.kind === 'preference' || m.kind === 'lesson')),
+    );
+    const recall = await recallMemories({
+      projectId: opts.projectId,
+      facts: candidates,
+      chapterId: opts.chapterId,
+      query: opts.query,
+    });
+    const ordered = recall.facts;
+    const facts = ordered.filter((m) => m.kind === 'fact' || m.kind === 'convention');
+    const pinnedExtra = ordered.filter(
       (m) => m.pinned && (m.kind === 'preference' || m.kind === 'lesson'),
     );
     const lines: string[] = [];
