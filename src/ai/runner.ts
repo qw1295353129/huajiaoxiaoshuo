@@ -313,6 +313,7 @@ function fail(err: unknown, started: number): TaskRunResult {
     ok: false,
     text: "",
     error: e.hint,
+    errorKind: e.kind,
     usage: { prompt: 0, completion: 0, total: 0 },
     model: "",
     providerId: "",

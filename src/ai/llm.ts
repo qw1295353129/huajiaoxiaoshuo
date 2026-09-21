@@ -179,8 +179,17 @@ async function requestWithRetry(req: ChatRequest, body: unknown, opts: CallOptio
   for (let attempt = 0; attempt <= retries; attempt++) {
     const ep = resolveEndpoint(req.provider, '/chat/completions', { useProxy, proxyBase: opts.proxyBase });
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), opts.timeoutMs ?? 180_000);
-    const onAbort = () => controller.abort();
+    // 标记中止来源：超时和用户取消都会 abort，但对外必须区分 —— 否则用户会看到
+    // "已取消"（其实是超时），完全摸不着头脑。
+    let abortedBy: 'timeout' | 'user' | null = null;
+    const timeout = setTimeout(() => {
+      abortedBy = 'timeout';
+      controller.abort();
+    }, opts.timeoutMs ?? 180_000);
+    const onAbort = () => {
+      abortedBy = 'user';
+      controller.abort();
+    };
     req.signal?.addEventListener('abort', onAbort);
 
     try {
@@ -210,8 +219,14 @@ async function requestWithRetry(req: ChatRequest, body: unknown, opts: CallOptio
         if (!e.retryable || attempt === retries) throw e;
         lastError = e;
       } else {
-        const err = classifyFetchError(e, req.provider.id, req.provider.baseUrl);
-        if (err.kind === 'aborted') throw err;
+        let err = classifyFetchError(e, req.provider.id, req.provider.baseUrl);
+        // 我们自己超时中止的，不能报成"用户取消"
+        if (err.kind === 'aborted' && abortedBy === 'timeout') {
+          err = new ProviderError('timeout', '等待模型响应超过 ' + Math.round((opts.timeoutMs ?? 180_000) / 1000) + ' 秒，已中止本次请求。', {
+            providerId: req.provider.id,
+          });
+        }
+        if (err.kind === 'aborted' || err.kind === 'timeout') throw err;
         if (attempt === retries) {
           // 直连失败且是 CORS，自动尝试本地代理一次
           if (err.kind === 'cors' && !useProxy) {
