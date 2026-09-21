@@ -95,23 +95,52 @@ export function GraphCanvas({
     setPositions(next);
   }, []);
 
-  /** 跑 frames 帧动画（每帧推进 3 次迭代） */
+  /** 布局稳定后自动适配视图，让整张图铺满画布 */
+  const fitToNodes = useCallback(() => {
+    const list = nodesRef.current;
+    if (list.length === 0) return;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const node of list) {
+      // 预留标签与描边的空间
+      const pad = node.radius + 34;
+      minX = Math.min(minX, node.x - pad);
+      maxX = Math.max(maxX, node.x + pad);
+      minY = Math.min(minY, node.y - pad);
+      maxY = Math.max(maxY, node.y + pad);
+    }
+    const margin = 16;
+    const scale = Math.max((maxX - minX + margin * 2) / WIDTH, (maxY - minY + margin * 2) / HEIGHT);
+    const w = Math.min(MAX_VIEW_W, Math.max(MIN_VIEW_W, WIDTH * scale));
+    const h = (w / WIDTH) * HEIGHT;
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    setView(clampView({ x: cx - w / 2, y: cy - h / 2, w, h }));
+  }, []);
+
+  /** 跑 frames 帧动画（每帧推进 3 次迭代），结束后可选自动适配视图 */
   const runSimulation = useCallback(
-    (frames: number) => {
+    (frames: number, fitAfter = false) => {
       cancelAnimationFrame(rafRef.current);
       let frame = 0;
       const step = () => {
         simulate(nodesRef.current, linksRef.current, { width: WIDTH, height: HEIGHT, iterations: 3 });
         syncPositions();
         frame += 1;
-        if (frame < frames) rafRef.current = requestAnimationFrame(step);
+        if (frame < frames) {
+          rafRef.current = requestAnimationFrame(step);
+        } else if (fitAfter) {
+          fitToNodes();
+        }
       };
       rafRef.current = requestAnimationFrame(step);
     },
-    [syncPositions],
+    [syncPositions, fitToNodes],
   );
 
-  // 结构变化 → 重建节点并重新布局（30~60 帧内稳定）
+  // 结构变化 → 重建节点并重新布局（30~60 帧内稳定后自动适配视图）
   useEffect(() => {
     nodesRef.current = createLayoutNodes(
       nodes.map((n) => ({ id: n.id, radius: n.radius })),
@@ -119,7 +148,7 @@ export function GraphCanvas({
       HEIGHT,
     );
     syncPositions();
-    runSimulation(FRAMES);
+    runSimulation(FRAMES, true);
     return () => cancelAnimationFrame(rafRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fingerprint]);

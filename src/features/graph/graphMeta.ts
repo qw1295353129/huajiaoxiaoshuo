@@ -163,7 +163,7 @@ export function edgeOpacity(affinity: number): number {
 
 /** 节点半径：出场越多越大 */
 export function nodeRadius(appearances: number): number {
-  return Math.max(14, Math.min(46, 14 + Math.sqrt(Math.max(0, appearances)) * 4.5));
+  return Math.max(18, Math.min(48, 18 + Math.sqrt(Math.max(0, appearances)) * 4.5));
 }
 
 /** 关系的方向描述 */

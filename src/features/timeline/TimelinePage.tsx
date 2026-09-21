@@ -19,6 +19,9 @@ import { FIELD_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
 
 type View = "inworld" | "chapter";
 
+/** 剧情内时间轴一次最多渲染的事件数（避免上千事件时卡顿） */
+const EVENT_PAGE_SIZE = 60;
+
 /** 时间线页：剧情内时间轴 / 章节轴双视图 + 本地冲突检测 + AI 抽取。 */
 export function TimelinePage() {
   const { projectId = "" } = useParams<{ projectId: string }>();
@@ -48,6 +51,8 @@ export function TimelinePage() {
   const [suggestedChapterId, setSuggestedChapterId] = useState<ID | undefined>(undefined);
   const [extractOpen, setExtractOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | undefined>(undefined);
+  /** 剧情内时间轴当前展示的事件上限 */
+  const [visibleLimit, setVisibleLimit] = useState(EVENT_PAGE_SIZE);
 
   /** 本地冲突检测（纯离线） */
   const conflicts = useMemo(() => detectTimelineConflicts(events, chapters), [events, chapters]);
@@ -215,8 +220,9 @@ export function TimelinePage() {
                   }
                 />
               ) : (
+                <>
                 <TimelineInWorldView
-                  events={inWorldSorted}
+                  events={inWorldSorted.slice(0, visibleLimit)}
                   chapters={chapters}
                   characters={characters}
                   worldEntries={worldEntries}
@@ -225,6 +231,12 @@ export function TimelinePage() {
                   onEdit={openEdit}
                   onDelete={remove}
                 />
+                {inWorldSorted.length > visibleLimit && (
+                  <Button variant="ghost" fullWidth onPress={() => setVisibleLimit((n) => n + EVENT_PAGE_SIZE)}>
+                    还有 {inWorldSorted.length - visibleLimit} 个事件，显示更多
+                  </Button>
+                )}
+                </>
               )}
           </div>
         ) : (

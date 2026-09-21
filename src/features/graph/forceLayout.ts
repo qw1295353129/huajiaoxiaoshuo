@@ -69,7 +69,7 @@ export function simulate(nodes: LayoutNode[], links: LayoutLink[], options: Simu
     iterations = 3,
     repulsion = 9000,
     damping = 0.82,
-    centerStrength = 0.008,
+    centerStrength = 0.005,
   } = options;
 
   if (nodes.length === 0) return;
@@ -115,7 +115,7 @@ export function simulate(nodes: LayoutNode[], links: LayoutLink[], options: Simu
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-      const rest = (a.radius + b.radius) * (2.9 - Math.min(1, Math.max(0, link.strength)) * 1.3);
+      const rest = (a.radius + b.radius) * (2.4 - Math.min(1, Math.max(0, link.strength)) * 1.1) + 40;
       const force = (d - rest) * 0.05 * alpha;
       const fx = (dx / d) * force;
       const fy = (dy / d) * force;

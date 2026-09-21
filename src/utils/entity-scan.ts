@@ -65,6 +65,9 @@ export function scanKnownNames(text: string, names: KnownName[]): NameHit[] {
   return Array.from(hits.values()).sort((a, b) => b.count - a.count);
 }
 
+/** 中文汉字字符类，供变体扫描构造正则用 */
+const CJK_CLASS = "[\u4e00-\u9fff]";
+
 /** 名词一致性：找出写错的变体（如"林远"被写成"林 Yuan"或"林渊"） */
 export interface VariantHit {
   canonical: string;
@@ -78,18 +81,23 @@ export function scanNameVariants(text: string, names: KnownName[]): VariantHit[]
   const out: VariantHit[] = [];
   for (const n of names) {
     if (n.name.length < 2) continue;
-    // 同音/形近字替换检测：保留首字，末字换成常见混淆集合
+    // 形近/音近字检测：首字相同、总字数相同、只差一个字，都算可疑变体。
+    // 支持任意字数（两字名、三字名、四字名都能扫）。
     const first = n.name[0];
-    const re = new RegExp(first + "[\\u4e00-\\u9fff]", "g");
+    const tail = n.name.slice(1);
+    const gap = CJK_CLASS.repeat(tail.length);
+    const re = new RegExp(first + gap, "g");
     const seen = new Map<string, number>();
     let m: RegExpExecArray | null;
     while ((m = re.exec(clean)) !== null) {
       const cand = m[0];
       if (cand === n.name) continue;
-      const cn = normalizeForCompare(cand);
-      const nn = normalizeForCompare(n.name);
-      if (cn === nn) continue;
-      if (cand.length !== n.name.length) continue;
+      if (normalizeForCompare(cand) === normalizeForCompare(n.name)) continue;
+      // 只保留"恰好差一个字"的候选（差得多说明是另一个词，不是写错）。
+      // 注意对齐：cand 与 n.name 等长且首字相同，所以从下标 1 开始逐位比对 tail。
+      let diff = 0;
+      for (let i = 1; i < cand.length; i++) if (cand[i] !== tail[i - 1]) diff += 1;
+      if (diff !== 1) continue;
       seen.set(cand, (seen.get(cand) ?? 0) + 1);
     }
     for (const [cand, count] of seen) {

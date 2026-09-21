@@ -47,6 +47,11 @@ res.reload();
   并导致整页白屏，而 `@heroui/react` 内部没有任何组件提供该 context。
   Tabs 只用 `Tabs.List + Tabs.Tab + Tabs.Panel` 即可（本项目所有 Tabs 都遵循此约定）。
 - 复杂表单可以直接用原生 `<input>` / `<select>` / `<textarea>` 配 Tailwind，不必强行套 HeroUI 组件。
+- **`Card` 自带卡片布局样式**：把 `flex` / `grid` 之类的布局类直接写在 `<Card>` 上往往不生效，
+  正确做法是 `<Card><div className="flex ...">…</div></Card>`。Card 只当容器用。
+- 分段切换（视图/tab 之类的切换器）本项目统一用**原生 button + Tailwind** 实现，
+  不用 `Tabs`：一是 `Tabs.Indicator` 会崩（见上），二是 HeroUI Tabs 的默认样式会把少量 Tab 拉满整行，观感差。
+  需要真 Tabs 语义时用 `Tabs.List + Tabs.Tab + Tabs.Panel`。
 
 ## Tailwind v4
 - 重要修饰符后置：`bg-red-500!`（不是 `!bg-red-500`）。

@@ -31,17 +31,19 @@ export function countWords(input: string): number {
   if (!input) return 0;
   const text = stripHtml(input);
   if (!text) return 0;
-  const seg = segmenter('zh-CN');
-  if (seg) {
-    let n = 0;
-    for (const part of seg.segment(text)) {
-      if (!part.isWordLike) continue;
-      n += 1;
-    }
-    return n;
-  }
+  // 中文写作平台的通行口径：一个汉字算一个字（不是把多字词算作一个"词"）。
+  // 所以不能直接用 Intl.Segmenter 的 isWordLike 计数 —— 它会把「雨下了整夜」算成 3 个词。
   const cjk = text.match(CJK_G)?.length ?? 0;
-  const latin = text.match(LATIN_WORD)?.length ?? 0;
+  const rest = text.replace(CJK_G, ' ');
+  const seg = segmenter('zh-CN');
+  let latin = 0;
+  if (seg) {
+    for (const part of seg.segment(rest)) {
+      if (part.isWordLike) latin += 1;
+    }
+  } else {
+    latin = rest.match(LATIN_WORD)?.length ?? 0;
+  }
   return cjk + latin;
 }
 

@@ -182,7 +182,8 @@ export async function listGlossary(projectId: ID): Promise<GlossaryTerm[]> {
 export async function upsertGlossary(
   projectId: ID,
   canonical: string,
-  variants: string[],
+  /** 传入数组 = 覆盖为这些变体；传 undefined = 只增量合并 */
+  variants?: string[],
   patch: Partial<GlossaryTerm> = {},
 ): Promise<GlossaryTerm> {
   const all = await db.glossary.where('projectId').equals(projectId).toArray();
@@ -191,7 +192,9 @@ export async function upsertGlossary(
   if (existing) {
     const next: GlossaryTerm = {
       ...existing,
-      variants: Array.from(new Set([...existing.variants, ...variants])),
+      // 显式传 variants 时以传入值为准（可删除变体、可改标准写法）；
+      // 省略参数（undefined）时保持原有并集语义，方便"扫描结果一键入表"这类增量调用。
+      variants: variants === undefined ? existing.variants : Array.from(new Set(variants)),
       strict: patch.strict ?? existing.strict,
       note: patch.note ?? existing.note,
       updatedAt: now,
@@ -203,7 +206,7 @@ export async function upsertGlossary(
     id: newId('glo'),
     projectId,
     canonical,
-    variants,
+    variants: variants ?? [],
     strict: patch.strict ?? true,
     note: patch.note,
     createdAt: now,

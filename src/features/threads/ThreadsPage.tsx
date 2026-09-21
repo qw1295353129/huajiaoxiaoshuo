@@ -29,6 +29,9 @@ import { FIELD_CLASS, LABEL_CLASS, SELECT_CLASS } from "./styles";
 type View = "list" | "heatmap";
 type GroupBy = "kind" | "status" | "none";
 
+/** 分组内一次最多渲染的卡片数（超出后折叠，避免上百条伏笔时卡顿） */
+const GROUP_PAGE_SIZE = 24;
+
 /** 伏笔支线页：列表 + 健康度看板 + 热力图 + AI 审计。 */
 export function ThreadsPage() {
   const { projectId = "" } = useParams<{ projectId: string }>();
@@ -60,6 +63,8 @@ export function ThreadsPage() {
   const [editing, setEditing] = useState<PlotThread | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | undefined>(undefined);
+  /** 已展开全部分组（默认每个分组只渲染前 24 条） */
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
   const filtersActive =
     debouncedQuery.trim() !== "" || kindFilter !== "all" || statusFilter !== "all" || priorityFilter !== "all";
@@ -309,24 +314,40 @@ export function ThreadsPage() {
                 />
               ) : (
                 <div className="space-y-6">
-                  {groups.map((group) => (
-                    <section key={group.key}>
-                      <SectionTitle hint={group.items.length + " 条"}>{group.label}</SectionTitle>
-                      <div className="grid gap-3 xl:grid-cols-2">
-                        {group.items.map((thread) => (
-                          <ThreadCard
-                            key={thread.id}
-                            thread={thread}
-                            chapters={chapters}
-                            highlighted={highlightId === thread.id}
-                            onEdit={openEdit}
-                            onDelete={remove}
-                            onQuickPayoff={quickPayoff}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ))}
+                  {groups.map((group) => {
+                    const expanded = expandedGroups.includes(group.key);
+                    const visibleItems = expanded ? group.items : group.items.slice(0, GROUP_PAGE_SIZE);
+                    const rest = group.items.length - visibleItems.length;
+                    return (
+                      <section key={group.key}>
+                        <SectionTitle hint={group.items.length + " 条"}>{group.label}</SectionTitle>
+                        <div className="grid gap-3 xl:grid-cols-2">
+                          {visibleItems.map((thread) => (
+                            <ThreadCard
+                              key={thread.id}
+                              thread={thread}
+                              chapters={chapters}
+                              highlighted={highlightId === thread.id}
+                              onEdit={openEdit}
+                              onDelete={remove}
+                              onQuickPayoff={quickPayoff}
+                            />
+                          ))}
+                        </div>
+                        {rest > 0 && (
+                          <Button
+                            className="mt-3"
+                            variant="ghost"
+                            size="sm"
+                            fullWidth
+                            onPress={() => setExpandedGroups((prev) => [...prev, group.key])}
+                          >
+                            展开剩余 {rest} 条
+                          </Button>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
               )}
           </div>

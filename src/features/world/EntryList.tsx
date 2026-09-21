@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button, Card, Tooltip } from "@heroui/react";
 import { Link2, ListTree, Plus, Search, X } from "lucide-react";
 import type { ID, WorldCategory, WorldEntry } from "@/core";
@@ -7,6 +7,9 @@ import { EmptyHint, SectionTitle } from "@/components/common/ui";
 import { CategoryChip, ImportanceStars } from "./bits";
 import { categoryLabel } from "./world-labels";
 import { buildEntryTree, entryBreadcrumb, matchesQuery, summarizeBody, type EntryNode } from "./world-links";
+
+/** 列表分批渲染的批大小 */
+const PAGE_SIZE = 60;
 
 interface Props {
   entries: WorldEntry[];
@@ -59,6 +62,12 @@ export function EntryList({
   );
 
   const flatRows = useMemo(() => flatten(buildEntryTree(filtered)), [filtered]);
+
+  // 条目可能上千，列表分批渲染；筛选条件一变就回到第一批
+  const filterKey = category + "|" + filterQuery + "|" + (treeMode ? "tree" : "flat");
+  const [paging, setPaging] = useState({ key: filterKey, limit: PAGE_SIZE });
+  const limit = paging.key === filterKey ? paging.limit : PAGE_SIZE;
+  const shown = flatRows.length > limit ? flatRows.slice(0, limit) : flatRows;
 
   const searching = filterQuery.trim().length > 0;
 
@@ -126,6 +135,7 @@ export function EntryList({
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs opacity-55">
           {searching || category !== "all" ? filtered.length + " / " + entries.length + " 条" : entries.length + " 条"}
+          {shown.length < flatRows.length ? " · 已显示 " + shown.length : ""}
         </p>
         <div className="flex items-center gap-1">
           <Tooltip>
@@ -164,7 +174,7 @@ export function EntryList({
         <EmptyHint title="没有匹配的条目" description="换个关键词，或把分类切回「全部」。" />
       ) : (
         <ul className="space-y-1.5">
-          {flatRows.map((row) => (
+          {shown.map((row) => (
             <li key={row.entry.id}>
               <EntryRow
                 entry={row.entry}
@@ -177,6 +187,13 @@ export function EntryList({
               />
             </li>
           ))}
+          {shown.length < flatRows.length && (
+            <li>
+              <Button size="sm" variant="ghost" fullWidth onPress={() => setPaging({ key: filterKey, limit: limit + PAGE_SIZE })}>
+                显示更多（还有 {flatRows.length - shown.length} 条）
+              </Button>
+            </li>
+          )}
         </ul>
       )}
     </div>

@@ -277,10 +277,7 @@ export function GraphPage() {
                 取消选中
               </Button>
             )}
-              <Button size="sm" variant="outline" onPress={() => setLayoutNonce((n) => n + 1)}>
-                <RefreshCw className="size-3.5" />
-                重新布局
-              </Button>
+              <span className="text-[11px] opacity-40">节点可拖拽 · 空白处拖动平移 · 滚轮缩放</span>
             </div>
           </div>
         </Card>
