@@ -7,7 +7,9 @@
 | `verify-utils.mjs` | 纯函数测试：变体扫描（2/3/4 字名）、中文字数、分章、diff、token 预算、JSON 容错 | `npm run verify` |
 | `verify-zip.mjs` | 自研 ZIP 写入器校验：对照 Python `zipfile` 检查 CRC、中央目录、UTF-8 文件名、mimetype 位置 | `npm run verify:zip` |
 | `verify-ebook.mjs` | EPUB 3 与 DOCX 格式校验：zip 完整性、XML 良构、OPF spine/manifest 一致、OOXML 必需部件 | `npm run verify:ebook` |
+| `proxy.mjs` | **本地代理**：给不支持浏览器跨域（CORS）的模型服务做转发。数据只经本机，Key 不写盘 | `npm run proxy` |
 | `mock-llm.mjs` | 本地假模型（OpenAI 兼容），无 API Key 也能跑通 AI 链路 | `npm run mock-llm` |
+| `verify-proxy.mjs` | 回归：代理探测、经代理真实请求、未启动时代理路径被跳过、本地模型永不走代理、设置页卡片 | 先起 `npm run proxy`，再 `node scripts/verify-proxy.mjs` |
 | `ai-e2e.mjs` | AI 链路端到端：配置模型 → 续写 → 流式 → 插入正文 → 落库校验 | `npm run e2e:ai` |
 | `shot.mjs` | 任意页面截图 + 控制台错误收集（持久 profile，数据跨次保留） | `npm run shot -- <url> <png>` |
 | `verify-settings-entry.mjs` | 回归：全部「设置」入口（首页按钮 / 侧栏 / AI 面板模型名 / ⌘, / 命令面板 / 引导按钮）都能真正进入设置 | `node scripts/verify-settings-entry.mjs` |
