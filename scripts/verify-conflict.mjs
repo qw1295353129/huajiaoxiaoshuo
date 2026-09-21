@@ -1,5 +1,12 @@
 /** 规则冲突自检：分批、进度、中断保留、超时归类。 */
 import { chromium } from "playwright";
+
+const KEY_GUARD = process.env.DEEPSEEK_KEY;
+if (!KEY_GUARD) {
+  console.log("缺少 DEEPSEEK_KEY 环境变量 —— 跳过需要真实模型的用例。");
+  console.log("用法：DEEPSEEK_KEY=sk-xxx node " + process.argv[1]);
+  process.exit(0);
+}
 const KEY = process.env.DEEPSEEK_KEY;
 const context = await chromium.launchPersistentContext("/tmp/nf-conflict-profile", { channel: "msedge", headless: true, viewport: { width: 1512, height: 945 } });
 const page = context.pages()[0] ?? (await context.newPage());

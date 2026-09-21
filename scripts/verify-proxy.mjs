@@ -1,6 +1,13 @@
 /** 验证本地代理：检测、经代理发起真实请求、错误路径。 */
 import { chromium } from "playwright";
+
+// 真实请求那一段需要 Key；没有就明确跳过，而不是把"空回复"当成失败（曾因此误判 2 项）
 const KEY = process.env.DEEPSEEK_KEY;
+if (!KEY) {
+  console.log("缺少 DEEPSEEK_KEY 环境变量 —— 跳过需要真实模型的用例。");
+  console.log("用法：DEEPSEEK_KEY=sk-xxx node scripts/verify-proxy.mjs");
+  process.exit(0);
+}
 const context = await chromium.launchPersistentContext("/tmp/nf-proxy-profile", { channel: "msedge", headless: true });
 const page = context.pages()[0] ?? (await context.newPage());
 const errs = [];
