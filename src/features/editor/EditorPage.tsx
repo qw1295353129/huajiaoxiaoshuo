@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, Chip, Tooltip } from "@heroui/react";
 import {
-  ArrowLeft, Clock, Eye, History, Keyboard, Maximize2, Minimize2, PanelLeftClose,
+  Clock, Eye, History, Keyboard, Maximize2, Minimize2, PanelLeftClose,
   PanelLeftOpen, PanelRightClose, PanelRightOpen, Save, ScanEye, Settings2, Type, Zap,
 } from "lucide-react";
 import type { Chapter, ID } from "@/core";
@@ -465,14 +465,11 @@ export function EditorPage() {
   const toolbar = (
     <div className="flex shrink-0 items-center justify-between gap-2 border-b border-black/5 px-3 py-2 dark:border-white/5">
       <div className="flex min-w-0 items-center gap-1.5">
-        <Tooltip>
-          <Tooltip.Trigger>
-            <Button isIconOnly size="sm" variant="ghost" aria-label="返回总览" onPress={() => navigate(ROUTES.overview(projectId))}>
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>返回总览</Tooltip.Content>
-        </Tooltip>
+        {/*
+          这里原来有个「返回总览」的箭头按钮。
+          加入左侧项目导航（ProjectNav）之后它就成了冗余 —— 导航里本来就有「总览」，
+          而且左上角的书名可以回到书库。工具栏本来就挤，去掉一个重复入口更清爽。
+        */}
         <Tooltip>
           <Tooltip.Trigger>
             <Button
