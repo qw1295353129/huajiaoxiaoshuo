@@ -1,5 +1,39 @@
 import type { AiTaskKind, PovStyle, Project } from "@/core";
 
+/** 创作者档案（来自全局设置），会拼进所有任务的 system prompt */
+export interface AuthorProfile {
+  penName?: string;
+  defaultGenres?: string[];
+  defaultPov?: string;
+  writingPrinciples?: string[];
+  globalForbidden?: string[];
+  globalInstructions?: string;
+}
+
+let authorProfile: AuthorProfile = {};
+
+/** 由 app 启动时注入，避免 ai 层反向依赖 UI store */
+export function setAuthorProfile(profile: AuthorProfile): void {
+  authorProfile = profile ?? {};
+}
+
+export function getAuthorProfile(): AuthorProfile {
+  return authorProfile;
+}
+
+function authorBlock(): string {
+  const p = authorProfile;
+  const lines: string[] = [];
+  if (p.penName) lines.push(`作者笔名：${p.penName}`);
+  if (p.writingPrinciples?.length) {
+    lines.push("作者写作原则（必须遵守）：");
+    for (const r of p.writingPrinciples) lines.push("- " + r);
+  }
+  if (p.globalForbidden?.length) lines.push(`全局禁用表达：${p.globalForbidden.join("、")}`);
+  if (p.globalInstructions) lines.push(`长期要求：${p.globalInstructions}`);
+  return lines.length ? "【创作者档案】\n" + lines.join("\n") : "";
+}
+
 /** 全任务共享的"作者人设 + 铁律"，是所有生成质量的底座 */
 export function baseSystem(project?: Project): string {
   const lines: string[] = [
@@ -24,6 +58,8 @@ export function baseSystem(project?: Project): string {
     if (project.forbidden.length) lines.push(`禁止出现：${project.forbidden.join("、")}`);
     if (project.customInstructions) lines.push(`作者补充要求：${project.customInstructions}`);
   }
+  const author = authorBlock();
+  if (author) lines.push("", author);
   return lines.join("\n");
 }
 

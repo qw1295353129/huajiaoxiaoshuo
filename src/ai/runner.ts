@@ -65,6 +65,10 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
   let model = target.model;
   let stream = settings.stream && Boolean(opts.onDelta);
   let lastError: unknown;
+  // 推理模型（DeepSeek V4 / o 系列等）会先花 token 思考，预算不足时正文为空。
+  // 命中这种情况就在同一模型上加大预算重试，而不是把空结果当成成功返回。
+  let params = target.params;
+  let starvedRetries = 0;
 
   for (let round = 0; round < maxRounds; round++) {
     const attemptStarted = performance.now();
@@ -72,16 +76,46 @@ export async function runText(opts: RunTextOptions): Promise<TextRunResult> {
       provider,
       model,
       messages,
-      params: target.params,
+      params,
       stream,
       signal: opts.signal,
       onDelta: opts.onDelta,
     };
     try {
       const res = stream ? await chatStream(req, callOpts()) : await chat(req, callOpts());
+
+      // 空正文 + 有思考内容 = 推理把预算吃光了
+      const starved = !res.text.trim() && Boolean(res.reasoning?.trim());
+      if (starved && starvedRetries < 2) {
+        starvedRetries += 1;
+        const bumped = Math.min(32000, Math.max(Math.round(params.maxTokens * 2.5), params.maxTokens + 4000));
+        attempts.push({
+          model,
+          ok: false,
+          error: `推理占满预算（${res.usage.completion} tokens 全为思考），已提升到 ${bumped} 重试`,
+          ms: performance.now() - attemptStarted,
+        });
+        if (opts.recordUsage !== false) {
+          await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, false, "推理占满 token 预算，自动提高上限重试");
+        }
+        params = { ...params, maxTokens: bumped };
+        round -= 1; // 这次不算在模型降级轮次里
+        continue;
+      }
+
       attempts.push({ model, ok: true, ms: performance.now() - attemptStarted });
       if (opts.recordUsage !== false) {
-        await record(opts, provider.id, model, target.params, messages, contextSources, res.usage, performance.now() - started, true);
+        await record(opts, provider.id, model, params, messages, contextSources, res.usage, performance.now() - started, true);
+      }
+      if (starved) {
+        // 重试后仍然为空：明确报错，不要让用户面对空白
+        const e = new ProviderError(
+          "bad-request",
+          `模型把 ${res.usage.completion} 个 token 全部用在思考上，没有产出正文。请在「设置 → 任务路由」把该任务的 max tokens 调大（建议 8000 以上），或换用非推理模型。`,
+          { providerId: provider.id },
+        );
+        const failed = fail(e, started);
+        return { ...failed, attempts, contextSources, contextTokens };
       }
       return {
         ok: true,

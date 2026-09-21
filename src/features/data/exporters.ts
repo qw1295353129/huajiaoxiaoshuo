@@ -5,7 +5,7 @@ import { stripHtml } from "@/utils/text";
 
 /** 导出与备份：全部在浏览器内完成，数据不经过任何服务器。 */
 
-export type ExportFormat = "txt" | "md" | "html" | "json";
+export type ExportFormat = "txt" | "md" | "html" | "epub" | "docx" | "json";
 
 export interface ExportOptions {
   projectId: ID;
@@ -21,7 +21,10 @@ export interface ExportOptions {
 export interface ExportBundle {
   filename: string;
   mime: string;
-  content: string;
+  /** 文本型导出（txt/md/html/json）用这个 */
+  content?: string;
+  /** 二进制型导出（epub/docx）用这个 */
+  blob?: Blob;
   words: number;
 }
 
@@ -48,6 +51,23 @@ export async function exportProject(opts: ExportOptions): Promise<ExportBundle> 
   }
   if (opts.format === "html") {
     return { filename: baseName + ".html", mime: "text/html;charset=utf-8", content: buildHtml(project, arcs, chapters, contents, opts), words };
+  }
+  if (opts.format === "epub" || opts.format === "docx") {
+    // 电子书：交给专用生成器（EPUB 3 / 真 OOXML）
+    const { buildEpub, buildDocx } = await import("./ebook");
+    const arcNames: Record<ID, string> = {};
+    for (const a of arcs) arcNames[a.id] = a.title;
+    const ebookChapters = chapters.map((c) => ({ chapter: c, text: contents.get(c.id) ?? "" }));
+    const blob =
+      opts.format === "epub"
+        ? await buildEpub({ project, chapters: ebookChapters, arcNames, pageBreakPerChapter: opts.pageBreak, includeArcPages: opts.includeArcTitles })
+        : await buildDocx({ project, chapters: ebookChapters, arcNames, pageBreakPerChapter: opts.pageBreak, includeArcPages: opts.includeArcTitles });
+    return {
+      filename: baseName + (opts.format === "epub" ? ".epub" : ".docx"),
+      mime: opts.format === "epub" ? "application/epub+zip" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      blob,
+      words,
+    };
   }
   return {
     filename: baseName + ".json",

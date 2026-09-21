@@ -77,7 +77,8 @@ function ExportTab({ projectId }: { projectId: string }) {
         pageBreak,
         chapterIds: selected.length ? selected : undefined,
       });
-      downloadText(bundle.content, bundle.filename, bundle.mime);
+      if (bundle.blob) downloadBlob(bundle.blob, bundle.filename);
+      else downloadText(bundle.content ?? "", bundle.filename, bundle.mime);
       notify("success", "已导出 " + bundle.filename, formatWords(bundle.words));
     } catch (e) {
       notify("danger", "导出失败", e instanceof Error ? e.message : String(e));
@@ -96,12 +97,16 @@ function ExportTab({ projectId }: { projectId: string }) {
       </div>
 
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
-        <SectionTitle hint="txt 适合投稿；md 适合 Obsidian/Notion；html 适合打印成 PDF；json 是完整结构化备份">导出格式</SectionTitle>
+        <SectionTitle hint="epub 适合阅读器与自出版；docx 适合投稿给编辑；txt 最通用；md 适合 Obsidian/Notion；html 可打印成 PDF；json 是完整结构化备份">
+          导出格式
+        </SectionTitle>
         <div className="flex flex-wrap gap-2">
           {([
             ["txt", "纯文本 .txt", FileText],
             ["md", "Markdown .md", FileText],
             ["html", "网页 .html", FileText],
+            ["epub", "电子书 .epub", BookMarked],
+            ["docx", "Word .docx", FileText],
             ["json", "结构化 .json", FileJson],
           ] as [ExportFormat, string, typeof FileText][]).map(([key, label, Icon]) => (
             <button

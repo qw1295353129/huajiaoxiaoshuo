@@ -64,6 +64,20 @@ res.reload();
 - 入库用 `textToDoc`（文本 → HTML），出库用 `docToText`（HTML → 文本）。
 - 段首缩进交给 CSS `text-indent`，正文里不要写全角空格，否则会叠加。
 
+## 推理模型会"吃掉"全部 token 预算（真实踩坑）
+
+DeepSeek V4 系列（`deepseek-flash` / `deepseek-v4-pro`）是**推理模型**：先输出 `reasoning_content`，
+思考完才写正文。如果 `max_tokens` 给小了，思考就把预算吃光，`content` 会是**空字符串**，
+而 `finish_reason` 是 `length` —— 调用方看起来"成功"，实际什么都没生成。
+
+实测：`max_tokens=400` 时 100% 返回空正文；`max_tokens=1200` 时正常输出。
+
+项目里的三层防护（缺一不可）：
+1. `runner.ts`：检测到「正文为空 + 有 reasoning_content」时，把 max_tokens 提升到 2.5 倍自动重试
+   （最多 2 次）；仍为空则**明确报错**提示用户调大预算或换非推理模型，绝不把空结果当成功。
+2. `defaults.ts`：结构化大任务（genesis / outline）默认 16000 tokens，而不是 4096。
+3. UI：流式生成时把 reasoning 与正文分开显示，用户能看到"它在想"而不是"它卡住了"。
+
 ## 工具链
 - ego-browser 运行时是 Linux 构建，在 macOS 上会报 `no X display`；本项目的浏览器验证统一用
   `node scripts/shot.mjs <url> <png>`（Playwright + 系统 Edge 通道）。

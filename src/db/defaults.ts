@@ -10,8 +10,10 @@ export const DEFAULT_PARAMS: ModelParams = {
 
 /** 各任务默认参数：创作类高温、分析类低温 */
 const TASK_PARAMS: Record<AiTaskKind, Partial<ModelParams>> = {
-  genesis: { temperature: 0.95, maxTokens: 8000 },
-  outline: { temperature: 0.85, maxTokens: 8000 },
+  // 注意：DeepSeek V4 等推理模型会先花 token 思考，预算给小了正文会是空的。
+  // 这里给结构化大任务预留充足额度（runner 里还有"思考吃光预算就自动加倍重试"的护栏）。
+  genesis: { temperature: 0.95, maxTokens: 16000 },
+  outline: { temperature: 0.85, maxTokens: 16000 },
   'chapter-outline': { temperature: 0.8, maxTokens: 4000 },
   continue: { temperature: 0.92, maxTokens: 3000, frequencyPenalty: 0.45 },
   expand: { temperature: 0.88, maxTokens: 2500 },
@@ -55,6 +57,7 @@ export const PROVIDER_PRESETS: Omit<ProviderConfig, 'createdAt' | 'updatedAt'>[]
     name: 'DeepSeek 深度求索',
     kind: 'deepseek',
     baseUrl: 'https://api.deepseek.com/v1',
+    // DeepSeek V4 系列是推理模型：会先思考再输出，max tokens 要给足
     models: ['deepseek-flash', 'deepseek-v4-pro'],
     corsBlocked: true,
     enabled: false,

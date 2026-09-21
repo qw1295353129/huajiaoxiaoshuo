@@ -19,6 +19,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   telemetry: false,
   locale: 'zh-CN',
   keymap: 'default',
+  penName: undefined,
+  defaultGenres: [],
+  defaultPov: undefined,
+  writingPrinciples: [],
+  globalForbidden: [],
+  globalInstructions: undefined,
 };
 
 const SETTINGS_KEY = 'novelforge:settings';

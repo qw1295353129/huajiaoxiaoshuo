@@ -34,6 +34,20 @@ export interface AppSettings {
   locale: 'zh-CN' | 'en';
   /** 键盘方案 */
   keymap: 'default' | 'vim';
+
+  // ---------- 创作者档案：会进入所有 AI 调用的 system prompt ----------
+  /** 笔名，生成时用于署名与自称 */
+  penName?: string;
+  /** 惯用体裁，影响 AI 的题材要点提示 */
+  defaultGenres: string[];
+  /** 惯用视角 */
+  defaultPov?: 'first' | 'third-limited' | 'third-omniscient' | 'second' | 'mixed';
+  /** 一以贯之的写作原则，逐条进入 system prompt */
+  writingPrinciples: string[];
+  /** 全局禁用词/表达（比单本书的 forbidden 优先级更高） */
+  globalForbidden: string[];
+  /** 给 AI 的长期补充指令 */
+  globalInstructions?: string;
 }
 
 export interface ModelPricing {

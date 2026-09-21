@@ -47,7 +47,23 @@ docs/          GOTCHAS（陷阱与约定）
 | `npm run dev` | 开发服务器 |
 | `npm run build` | 类型检查 + 生产构建 |
 | `npx tsc -b --force` | 全量类型检查 |
+| `npm run verify` | 纯函数测试（28 项） |
+| `npm run verify:zip` | ZIP 写入器校验（对照 Python zipfile） |
+| `npm run verify:ebook` | EPUB / DOCX 格式校验 |
+| `npm run mock-llm` | 启动本地假模型（无需 API Key） |
+| `npm run e2e:ai` | AI 链路端到端 |
 | `npm run lint` | oxlint |
+
+## 支持的导出格式
+
+| 格式 | 用途 |
+|---|---|
+| **EPUB 3** | 阅读器、自出版（规范级：mimetype 首位不压缩、nav + NCX、OPF 元数据） |
+| **DOCX** | 投稿给编辑（真 OOXML，A4 页面、中文首行缩进、章节分页） |
+| TXT / Markdown / HTML | 通用投稿、Obsidian/Notion、打印成 PDF |
+| JSON | 全量结构化备份，可原样恢复 |
+
+ZIP 与 EPUB/DOCX 都是自研实现（`src/features/data/zip.ts`、`ebook.ts`），零第三方依赖，校验方式见 `scripts/verify-zip.mjs` / `verify-ebook.mjs`。
 
 ## 数据安全
 

@@ -3,6 +3,7 @@ import type { AppSettings, AppState, ID, Project } from "@/core";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "@/db/repo/settings";
 import { db, ensureAppState } from "@/db/database";
 import { setLastOpened } from "@/db/repo/projects";
+import { setAuthorProfile } from "@/ai/prompts";
 
 type Theme = AppSettings["theme"];
 
@@ -49,6 +50,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const appState = await ensureAppState();
       const settings = loadSettings();
       applyTheme(settings.theme);
+      syncAuthorProfile(settings);
       set({ appState, settings, ready: true });
       if (appState.lastProjectId) {
         const project = await db.projects.get(appState.lastProjectId);
@@ -63,6 +65,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const next = { ...get().settings, ...patch };
     saveSettings(next);
     applyTheme(next.theme);
+    syncAuthorProfile(next);
     set({ settings: next });
   },
 
@@ -99,6 +102,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ notice: undefined });
   },
 }));
+
+/** 把创作者档案同步给 AI 层（所有 system prompt 都会带上） */
+function syncAuthorProfile(settings: AppSettings) {
+  setAuthorProfile({
+    penName: settings.penName,
+    defaultGenres: settings.defaultGenres,
+    defaultPov: settings.defaultPov,
+    writingPrinciples: settings.writingPrinciples,
+    globalForbidden: settings.globalForbidden,
+    globalInstructions: settings.globalInstructions,
+  });
+}
 
 export function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;

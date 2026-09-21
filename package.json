@@ -1,5 +1,5 @@
 {
-  "name": "novelforge",
+  "name": "huajiao-writer",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,13 @@
     "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false || tsc -b",
     "lint": "oxlint",
     "preview": "vite preview",
-    "check": "tsc -b"
+    "check": "tsc -b",
+    "verify": "node scripts/verify-utils.mjs",
+    "verify:zip": "node scripts/verify-zip.mjs",
+    "verify:ebook": "node scripts/verify-ebook.mjs",
+    "mock-llm": "node scripts/mock-llm.mjs 8765",
+    "e2e:ai": "node scripts/ai-e2e.mjs",
+    "shot": "node scripts/shot.mjs"
   },
   "dependencies": {
     "@heroui/react": "^3.2.6",
@@ -44,5 +50,5 @@
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   },
-  "description": "花椒写作平台 — 本地优先的 AI 长篇小说创作工作台"
+  "description": "花椒写作平台 —— 本地优先的 AI 长篇小说创作工作台"
 }

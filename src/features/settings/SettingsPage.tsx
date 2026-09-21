@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
-import { ArrowLeft, Check, Eye, EyeOff, Gauge, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { ArrowLeft, Check, Eye, EyeOff, Gauge, KeyRound, Keyboard, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
 import type { AiTaskKind, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
 import { useAppStore } from "@/app/store";
 import { ROUTES } from "@/app/routes";
@@ -17,10 +17,12 @@ import { databaseStats, isPersisted, requestPersistence, wipeDatabase } from "@/
 import { estimateTokens } from "@/utils/tokens";
 import { formatBytes } from "@/utils/format-bytes";
 import { EditorPreferences } from "./EditorPreferences";
+import { AuthorProfileSettings } from "./AuthorProfileSettings";
 
-type Tab = "models" | "routing" | "editor" | "privacy" | "data" | "about";
+type Tab = "profile" | "models" | "routing" | "editor" | "privacy" | "data" | "about";
 
 const TABS: { key: Tab; label: string; icon: typeof Zap }[] = [
+  { key: "profile", label: "创作者档案", icon: UserRound },
   { key: "models", label: "模型与 AI", icon: Zap },
   { key: "routing", label: "任务路由", icon: Gauge },
   { key: "editor", label: "写作偏好", icon: Palette },
@@ -62,6 +64,7 @@ export function SettingsPage() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-5 py-6">
+            {tab === "profile" && <AuthorProfileSettings />}
             {tab === "models" && <ModelsTab />}
             {tab === "routing" && <RoutingTab />}
             {tab === "editor" && <EditorPreferences />}

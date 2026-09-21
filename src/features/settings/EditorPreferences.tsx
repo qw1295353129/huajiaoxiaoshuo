@@ -163,6 +163,27 @@ export function EditorPreferences() {
         </div>
       </section>
 
+      <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
+        <h2 className="text-sm font-semibold">快捷键</h2>
+        <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+          {[
+            ["⌘ / Ctrl + K", "命令面板"],
+            ["⌘ / Ctrl + S", "立即保存"],
+            ["⌘ / Ctrl + J", "AI 续写当前章节"],
+            ["⌘ / Ctrl + ⇧ + F", "进入 / 退出心流模式"],
+            ["⌘ / Ctrl + ⌥ + ↑ ↓", "上一章 / 下一章"],
+            ["⌘ / Ctrl + ,", "打开设置"],
+            ["Esc", "退出心流模式 / 关闭弹层"],
+            ["Shift + ?", "写作台内显示快捷键"],
+          ].map(([k, v]) => (
+            <li key={k} className="flex items-center justify-between gap-3 rounded-lg bg-black/[0.03] px-2.5 py-1.5 text-[11px] dark:bg-white/[0.05]">
+              <kbd className="font-mono opacity-80">{k}</kbd>
+              <span className="opacity-60">{v}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <div className="flex items-center gap-3">
         <Button
           variant="outline"
