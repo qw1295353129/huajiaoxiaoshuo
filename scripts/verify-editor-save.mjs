@@ -72,6 +72,25 @@ const type = async (s) => {
 };
 
 /**
+ * 等自动保存落定（dirty 变回 false）。
+ *
+ * 不要用固定 sleep：批量跑回归时机器负载高，固定等待会偶发失败
+ * （这条测试就曾经在批量里挂过一次，单独跑却总是通过）。
+ */
+const waitSaved = async (timeoutMs = 15000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const dirty = await page.evaluate(async () => {
+      const store = (await import("/src/features/editor/editorStore.ts")).useEditorStore;
+      return store.getState().dirty;
+    });
+    if (!dirty) return true;
+    await page.waitForTimeout(300);
+  }
+  return false;
+};
+
+/**
  * 点章节列表里的某一章。
  *
  * 必须限定在章节列表容器内 —— 项目导航里也有「第二章」这样的项目吗？没有，
@@ -100,7 +119,7 @@ const loaded = await snap();
 check("加载后内容正确显示", loaded.shown === "起点", JSON.stringify(loaded));
 // 逐字输入：这正是当初丢字最多的场景
 await type("甲乙丙丁");
-await page.waitForTimeout(4200);
+await waitSaved();
 const s1 = await snap();
 check("正文显示完整", s1.shown?.endsWith("甲乙丙丁") === true, String(s1.shown));
 check(
@@ -114,20 +133,20 @@ console.log("【不等自动保存就切章】");
 await type("戊己");
 await page.waitForTimeout(200); // 远小于自动保存间隔
 await clickChapterInList("第二章");
-await page.waitForTimeout(2600);
+await waitSaved();
 const s2 = await snap();
 check("切章前的内容被保住", s2.saved?.includes("戊己") === true, JSON.stringify(s2));
 check("切章后内容完整（含刚输入的最后一个字）", s2.saved?.endsWith("戊己") === true, String(s2.saved));
 
 console.log("【切回来 / 刷新后都还在】");
 await clickChapterInList("第一章");
-await page.waitForTimeout(2400);
+await waitSaved();
 const s3 = await snap();
 check("切回来显示正确", s3.shown?.includes("戊己") === true, String(s3.shown));
 check("切回来后库内也一致", s3.saved === s3.shown, JSON.stringify({ shown: s3.shown, saved: s3.saved }));
 
 await page.reload({ waitUntil: "domcontentloaded" });
-await page.waitForTimeout(3200);
+await waitSaved();
 const s4 = await page.evaluate(async () => {
   const o = await import("/src/db/repo/outline.ts");
   const p = await import("/src/db/repo/projects.ts");
@@ -145,7 +164,7 @@ console.log("【改动确实会写出去（不是靠缓存）】");
 await openFirst();
 const before = (await snap()).saved;
 await type("！");
-await page.waitForTimeout(4000);
+await waitSaved();
 const after = (await snap()).saved;
 check("新输入被写入数据库", after !== before && after?.endsWith("！") === true, JSON.stringify({ before, after }));
 
