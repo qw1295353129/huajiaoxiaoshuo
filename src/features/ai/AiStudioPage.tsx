@@ -8,6 +8,7 @@ import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading } from "@/components/common/ui";
 import { useChapter, useHotkey } from "@/app/hooks";
 import { useAppStore } from "@/app/store";
+import { useOpenSettings } from "@/app/useOpenSettings";
 import { appendMessage, createAiSession, deleteAiSession, listAiSessions, updateAiSession } from "@/db/repo/ai";
 import { getProvider, listProviders, resolveModel } from "@/db/repo/settings";
 import { runText, systemWithProject } from "@/ai/runner";
@@ -40,7 +41,7 @@ export function AiStudioPage() {
   const project = useAppStore((s) => s.project);
   const chapterId = useAppStore((s) => s.chapterId);
   const settings = useAppStore((s) => s.settings);
-  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
+  const openSettings = useOpenSettings();
   const notify = useAppStore((s) => s.notify);
   const chapter = useChapter(chapterId);
 
@@ -378,7 +379,7 @@ export function AiStudioPage() {
                 </label>
               )}
               {!modelReady && (
-                <Button size="sm" variant="outline" onPress={() => setSettingsOpen(true)}>
+                <Button size="sm" variant="outline" onPress={() => openSettings("models")}>
                   <Settings2 className="size-3.5" />
                   去设置
                 </Button>
@@ -442,7 +443,7 @@ export function AiStudioPage() {
                         LM Studio 无需 Key）。
                       </p>
                     </div>
-                    <Button size="sm" variant="outline" onPress={() => setSettingsOpen(true)}>
+                    <Button size="sm" variant="outline" onPress={() => openSettings("models")}>
                       去设置
                     </Button>
                   </div>

@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Card, Chip } from "@heroui/react";
-import { BookOpen, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Button, Card, Chip, Tooltip } from "@heroui/react";
+import { BookOpen, MoreHorizontal, Plus, Settings, Trash2 } from "lucide-react";
+import { useOpenSettings } from "@/app/useOpenSettings";
 import { ROUTES } from "@/app/routes";
 import { useProjects } from "@/app/hooks";
 import { deleteProject } from "@/db/repo/projects";
@@ -21,6 +22,7 @@ export function Dashboard() {
   const projects = useProjects();
   const navigate = useNavigate();
   const setProject = useAppStore((s) => s.setProject);
+  const openSettings = useOpenSettings();
 
   if (projectId) return <ProjectOverview projectId={projectId} />;
 
@@ -33,10 +35,25 @@ export function Dashboard() {
             <h1 className="text-2xl font-semibold tracking-tight">我的书库</h1>
             <p className="mt-1 text-sm opacity-60">{list.length} 部作品 · 全部保存在本机</p>
           </div>
-          <Button variant="primary" onPress={() => navigate(ROUTES.newProject)}>
-            <Plus className="size-4" />
-            新建作品
-          </Button>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <Tooltip.Trigger>
+                <Button
+                  isIconOnly
+                  variant="ghost"
+                  aria-label="设置"
+                  onPress={() => openSettings()}
+                >
+                  <Settings className="size-4" />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content>设置（⌘,）</Tooltip.Content>
+            </Tooltip>
+            <Button variant="primary" onPress={() => navigate(ROUTES.newProject)}>
+              <Plus className="size-4" />
+              新建作品
+            </Button>
+          </div>
         </div>
 
         {list.length === 0 ? (

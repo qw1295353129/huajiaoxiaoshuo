@@ -5,6 +5,7 @@ import { Button, Tooltip } from "@heroui/react";
 import { useAppStore } from "@/app/store";
 import { NAV_GROUPS, ROUTE_PAGES } from "@/app/nav";
 import { ROUTES } from "@/app/routes";
+import { useOpenSettings } from "@/app/useOpenSettings";
 
 interface Props {
   title: string;
@@ -24,7 +25,7 @@ export function PageScaffold({ title, description, actions, children, withNav = 
   const project = useAppStore((s) => s.project);
   const { projectId = "" } = useParams<{ projectId: string }>();
   const id = project?.id ?? projectId;
-  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
+  const openSettings = useOpenSettings();
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-neutral-50 dark:bg-neutral-950">
@@ -71,7 +72,7 @@ export function PageScaffold({ title, description, actions, children, withNav = 
                 size="sm"
                 fullWidth
                 className="mt-2 justify-start"
-                onPress={() => setSettingsOpen(true)}
+                onPress={() => openSettings()}
               >
                 <SettingsIcon className="size-4" />
                 设置

@@ -6,6 +6,8 @@ import { db } from "@/db/database";
 import { seedProviders, seedRouting } from "@/db/repo/settings";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Notice } from "@/components/common/Notice";
+import { GlobalHotkeys } from "@/components/layout/GlobalHotkeys";
+import { CommandPalette } from "@/components/common/CommandPalette";
 import { Welcome } from "@/features/onboarding/Welcome";
 import { NewProject } from "@/features/onboarding/NewProject";
 import { Dashboard } from "@/features/dashboard/Dashboard";
@@ -82,6 +84,8 @@ export default function App() {
 
   return (
     <>
+      <GlobalHotkeys />
+      <CommandPalette />
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/welcome" element={<Welcome />} />

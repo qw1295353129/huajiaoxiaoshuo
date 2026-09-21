@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
 import { ArrowLeft, Check, Eye, EyeOff, Gauge, KeyRound, Keyboard, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
 import type { AiTaskKind, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
@@ -18,8 +18,9 @@ import { estimateTokens } from "@/utils/tokens";
 import { formatBytes } from "@/utils/format-bytes";
 import { EditorPreferences } from "./EditorPreferences";
 import { AuthorProfileSettings } from "./AuthorProfileSettings";
+import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
 
-type Tab = "profile" | "models" | "routing" | "editor" | "privacy" | "data" | "about";
+type Tab = SettingsSection;
 
 const TABS: { key: Tab; label: string; icon: typeof Zap }[] = [
   { key: "profile", label: "创作者档案", icon: UserRound },
@@ -33,7 +34,25 @@ const TABS: { key: Tab; label: string; icon: typeof Zap }[] = [
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("models");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initial = searchParams.get("tab");
+  const [tab, setTab] = useState<Tab>(
+    initial && SETTINGS_SECTIONS.includes(initial as SettingsSection) ? (initial as SettingsSection) : "profile",
+  );
+
+  // 支持从别处深链（例如 AI 面板点模型名 → /settings?tab=models）
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && SETTINGS_SECTIONS.includes(t as SettingsSection) && t !== tab) setTab(t as SettingsSection);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const switchTab = (next: Tab) => {
+    setTab(next);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
 
   return (
     <div className="flex h-dvh flex-col bg-neutral-50 dark:bg-neutral-950">
@@ -50,7 +69,7 @@ export function SettingsPage() {
             <button
               key={t.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => switchTab(t.key)}
               className={
                 "flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition " +
                 (tab === t.key ? "bg-black/[0.06] font-medium dark:bg-white/10" : "opacity-65 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5")

@@ -6,6 +6,7 @@ import type { ModelPricing } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, Loading, SectionTitle, StatCard } from "@/components/common/ui";
 import { useAppStore } from "@/app/store";
+import { useOpenSettings } from "@/app/useOpenSettings";
 import { ROUTES } from "@/app/routes";
 import { listGenerations, usageSummary } from "@/db/repo/ai";
 import { listPricing, listProviders } from "@/db/repo/settings";
@@ -68,7 +69,7 @@ export function UsagePage() {
   const navigate = useNavigate();
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
-  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
+  const openSettings = useOpenSettings();
   const notify = useAppStore((s) => s.notify);
 
   const summary = useLiveQuery(() => (projectId ? usageSummary(projectId) : undefined), [projectId], undefined);
@@ -130,7 +131,7 @@ export function UsagePage() {
               updateSettings({ activeProviderId: providerId, activeModel: model });
               notify("success", "已切换当前模型", model);
             }}
-            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSettings={() => openSettings("models")}
           />
 
           {calls === 0 ? (
@@ -161,7 +162,7 @@ export function UsagePage() {
             </>
           )}
 
-          <PricingNote rows={pricing ?? []} onOpenSettings={() => setSettingsOpen(true)} />
+          <PricingNote rows={pricing ?? []} onOpenSettings={() => openSettings("models")} />
         </div>
       )}
     </PageScaffold>

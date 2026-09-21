@@ -11,6 +11,7 @@ import {
 } from "@/ai/writing";
 import { useEditorStore, resultFromOutput, type AiResultView } from "./editorStore";
 import { useAppStore } from "@/app/store";
+import { useOpenSettings } from "@/app/useOpenSettings";
 import { formatTokens } from "@/utils/tokens";
 
 interface Props {
@@ -42,8 +43,8 @@ export function AiPanel({ projectId, chapterId, onInsert, injectedInstruction, i
   const selection = useEditorStore((s) => s.selection);
   const activeResultId = useEditorStore((s) => s.activeResultId);
   const settings = useAppStore((s) => s.settings);
+  const openSettings = useOpenSettings();
   const notify = useAppStore((s) => s.notify);
-  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
 
   const [instruction, setInstruction] = useState("");
   const [targetWords, setTargetWords] = useState(800);
@@ -69,7 +70,7 @@ export function AiPanel({ projectId, chapterId, onInsert, injectedInstruction, i
   const runAction = async (key: ActionKey) => {
     if (!settings.activeProviderId || !settings.activeModel) {
       notify("warning", "还没有选择模型", "请先到设置里添加供应商并选择模型。");
-      setSettingsOpen(true);
+      openSettings("models");
       return;
     }
     if (ACTIONS.find((a) => a.key === key)?.needsSelection && !selection.trim()) {
@@ -161,7 +162,7 @@ export function AiPanel({ projectId, chapterId, onInsert, injectedInstruction, i
           </div>
           <button
             type="button"
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => openSettings("models")}
             className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] opacity-60 transition hover:opacity-100"
             title="切换模型"
           >

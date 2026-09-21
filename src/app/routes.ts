@@ -19,4 +19,25 @@ export const ROUTES = {
   usage: (id: string) => `/p/${id}/usage`,
   data: (id: string) => `/p/${id}/data`,
   settings: "/settings",
+  /** 深链到设置的某个分区 */
+  settingsSection: (section: SettingsSection) => `/settings?tab=${section}`,
 } as const;
+
+export type SettingsSection =
+  | "profile"
+  | "models"
+  | "routing"
+  | "editor"
+  | "privacy"
+  | "data"
+  | "about";
+
+export const SETTINGS_SECTIONS: SettingsSection[] = [
+  "profile",
+  "models",
+  "routing",
+  "editor",
+  "privacy",
+  "data",
+  "about",
+];

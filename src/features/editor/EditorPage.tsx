@@ -44,7 +44,7 @@ export function EditorPage() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const notify = useAppStore((s) => s.notify);
-  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
+
 
   const chapters = useChapters(projectId);
   const arcs = useArcs(projectId);

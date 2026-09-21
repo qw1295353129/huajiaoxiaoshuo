@@ -13,6 +13,7 @@ import { upsertIssue } from "@/db/repo/story";
 import { EmptyHint, Loading, Progress, SectionTitle, SeverityChip } from "@/components/common/ui";
 import { ROUTES } from "@/app/routes";
 import { useAppStore } from "@/app/store";
+import { useOpenSettings } from "@/app/useOpenSettings";
 import { KIND_LABELS, fmtInt } from "./helpers";
 
 /** 单章检查时轮换的进度文案（模型调用没有真实分片进度，用阶段感替代） */
@@ -22,13 +23,13 @@ const STEP_STYLE = "rounded-lg border border-black/5 px-3 py-2 text-xs dark:bord
 
 /** AI 未配置等错误提示：错误信息里已带「设置 → 模型与 AI」引导 */
 function ErrorNote({ text }: { text: string }) {
-  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
+  const openSettings = useOpenSettings();
   return (
     <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/[0.07] px-3 py-2.5 text-xs leading-relaxed">
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-rose-500" />
       <div className="min-w-0 flex-1">
         <p>{text}</p>
-        <Button className="mt-2" variant="outline" size="sm" onPress={() => setSettingsOpen(true)}>
+        <Button className="mt-2" variant="outline" size="sm" onPress={() => openSettings("models")}>
           <Settings2 className="size-3.5" />
           打开设置
         </Button>
@@ -67,6 +68,7 @@ function CreatedList({ projectId, issues, chapters }: { projectId: ID; issues: I
 /** 运行检查：单章 / 整本 / 本地体检 / 口吻 / 一键全流程 */
 export function RunChecks({ projectId, chapters }: { projectId: ID; chapters: Chapter[] }) {
   const navigate = useNavigate();
+  const openSettings = useOpenSettings();
   const notify = useAppStore((s) => s.notify);
   const ordered = useMemo(() => chapters.slice().sort((a, b) => a.order - b.order), [chapters]);
   const [chapterId, setChapterId] = useState<ID>("");

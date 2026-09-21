@@ -8,6 +8,7 @@ import { PageScaffold } from "@/components/common/PageScaffold";
 import { SectionTitle } from "@/components/common/ui";
 import { useInterval } from "@/app/hooks";
 import { useAppStore } from "@/app/store";
+import { useOpenSettings } from "@/app/useOpenSettings";
 import { ROUTES } from "@/app/routes";
 import { listGenesisRuns } from "@/db/repo/genesis";
 import { getProvider, listProviders, resolveModel } from "@/db/repo/settings";
@@ -32,7 +33,7 @@ export function GenesisPage() {
   const { projectId = "" } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const project = useAppStore((s) => s.project);
-  const setSettingsOpen = useAppStore((s) => s.setSettingsOpen);
+  const openSettings = useOpenSettings();
   const notify = useAppStore((s) => s.notify);
 
   const settings = useAppStore((s) => s.settings);
@@ -277,7 +278,7 @@ export function GenesisPage() {
           until={until}
           onUntilChange={setUntil}
           modelReady={modelReady}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSettings={() => openSettings("models")}
           busy={busy}
           onStart={() => void start()}
           onCancel={cancel}

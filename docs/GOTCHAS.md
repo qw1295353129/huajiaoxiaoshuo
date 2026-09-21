@@ -78,6 +78,26 @@ DeepSeek V4 系列（`deepseek-flash` / `deepseek-v4-pro`）是**推理模型**�
 2. `defaults.ts`：结构化大任务（genesis / outline）默认 16000 tokens，而不是 4096。
 3. UI：流式生成时把 reasoning 与正文分开显示，用户能看到"它在想"而不是"它卡住了"。
 
+## 全局浮层与快捷键必须挂在应用根部（真实用户 bug）
+
+**症状**：点「设置」没任何反应。
+
+**根因**：设置原本是全局弹层，各处调用 `setSettingsOpen(true)`；后来设置改成了独立页面 `/settings`，
+但这 9 处调用没跟着改，而且**没有任何组件渲染那个弹层** —— 于是 `settingsOpen` 变成了只写不读的死状态，
+点击静默失效。同类问题还有：
+
+- 命令面板（⌘K）与全局快捷键原本渲染在 `AppLayout` 里，而 `AppLayout` 只在 `/p/:projectId/*` 下挂载，
+  所以**在书库首页、新建页、设置页里 ⌘K 和 ⌘, 全部失效**。
+
+**规则**：
+1. 全局性的东西（快捷键、命令面板、全局提示）放在 `<App />` 根部，不要放在路由布局组件里。
+   本项目现在由 `src/components/layout/GlobalHotkeys.tsx` + `<CommandPalette />` 承担。
+2. 状态要么有消费者，要么不要留。改架构（弹层 → 独立页面）时，必须全局搜索旧的 setter 并清理。
+3. 设置类跳转统一用 `useOpenSettings()`，支持深链到分区：`/settings?tab=models`。
+
+**教训**：`tsc` 与构建都不会报"这个状态没人用"，只有**真实点击测试**才能发现这类静默失效。
+所以每个入口都要有 e2e 断言（见 `scripts/verify-settings-entry.mjs`，12 项覆盖全部入口）。
+
 ## 工具链
 - ego-browser 运行时是 Linux 构建，在 macOS 上会报 `no X display`；本项目的浏览器验证统一用
   `node scripts/shot.mjs <url> <png>`（Playwright + 系统 Edge 通道）。

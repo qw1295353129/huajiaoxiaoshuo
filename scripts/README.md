@@ -10,6 +10,7 @@
 | `mock-llm.mjs` | 本地假模型（OpenAI 兼容），无 API Key 也能跑通 AI 链路 | `npm run mock-llm` |
 | `ai-e2e.mjs` | AI 链路端到端：配置模型 → 续写 → 流式 → 插入正文 → 落库校验 | `npm run e2e:ai` |
 | `shot.mjs` | 任意页面截图 + 控制台错误收集（持久 profile，数据跨次保留） | `npm run shot -- <url> <png>` |
+| `verify-settings-entry.mjs` | 回归：全部「设置」入口（首页按钮 / 侧栏 / AI 面板模型名 / ⌘, / 命令面板 / 引导按钮）都能真正进入设置 | `node scripts/verify-settings-entry.mjs` |
 
 ## 真模型验证
 
