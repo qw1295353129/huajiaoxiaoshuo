@@ -115,7 +115,7 @@ export async function deleteProject(id: ID): Promise<void> {
       db.entities, db.entityMentions, db.plotThreads, db.timelineEvents, db.glossary, db.rules,
       db.issues, db.metrics, db.styles, db.goals, db.sessions, db.pomodoros, db.aiSessions,
       db.generations, db.suggestions, db.embeddings, db.feedback, db.genesis, db.appState,
-      db.memory, db.memoryUsage,
+      db.memory, db.memoryUsage, db.blueprints,
     ],
     async () => {
       const byProject = [
@@ -123,7 +123,7 @@ export async function deleteProject(id: ID): Promise<void> {
         db.worldEntries, db.factions, db.entities, db.entityMentions, db.plotThreads,
         db.timelineEvents, db.glossary, db.rules, db.issues, db.metrics, db.styles, db.goals,
         db.sessions, db.pomodoros, db.aiSessions, db.generations, db.suggestions, db.embeddings,
-        db.feedback, db.genesis, db.memory, db.memoryUsage,
+        db.feedback, db.genesis, db.memory, db.memoryUsage, db.blueprints,
       ];
       for (const table of byProject) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

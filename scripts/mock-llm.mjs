@@ -45,6 +45,73 @@ function pickReply(body) {
     }
     // 注意：text 是 JSON.stringify 之后的，引号都成了 \" —— 所以判断只能用
     // 不含引号的特征词（我第一版写了 /"characters"/ 永远匹配不上，白查一轮）。
+    // 拆书：分析参考书（blueprint 任务）。注意判断只能用不含引号的特征词，
+    // 因为 text 是 JSON.stringify 之后的（引号都成了 \"）。
+    if (/signatureMove/.test(text) && /informationRelease/.test(text)) {
+      return JSON.stringify({
+        technique: {
+          pov: '第三人称限知，镜头紧贴主角，几乎不进他人内心',
+          timeHandling: '顺叙为主，关键背景用回忆片段插入，每次不超过 200 字',
+          proseStyle: '短句为主，平均句长 14 字；用具体动作代替情绪形容词',
+          paragraphing: '一段一个动作或一个信息，长段极少；场景切换直接空行',
+          informationRelease: '每章结尾抛一个新疑问，答案隔两章才给；主角始终比读者多知道一件事',
+          hooks: '开篇用一具无名尸起手；章末固定留一句未解释的对话',
+          dialogueRatio: '对话约占四成，主要承担试探与隐瞒，极少用来交代信息',
+          emotionalCurve: '每三章一次小高潮，卷末一次大反转；低谷章节夹一个黑色幽默',
+          ensembleHandling: '配角各有一次独立视角的小片段，用来交叉印证主角的判断',
+          signatureMove: '把最关键的线索藏在一句最平常的寒暄里，回看才发现',
+        },
+        content: {
+          genre: '悬疑推理，卖点是"能力设定 + 单元案件 + 主线阴谋"',
+          worldRulesShape: '三类规则：主角的特殊感知能力（有代价）、组织内部的禁令、以及一条贯穿全书的旧案',
+          relationshipShape: '主角与官方对立又被需要；一个旧友是隐藏的背叛者；一个长辈欠主角一条命',
+          plotEngine: '每卷一具无名尸牵出一段旧事，旧事逐步指向主角自己',
+          actStructure: [
+            { act: '第一幕', function: '建立能力与代价，抛出第一具无名尸' },
+            { act: '第二幕', function: '单元案件串联，反派逐步显形' },
+            { act: '第三幕', function: '主角自身成为案件的一部分，被迫自证' },
+          ],
+          turningPoints: ['发现死者的遗言指向自己', '最信任的人交出关键物证', '真相反转：加害者另有其人'],
+          endingType: '半开放：主线真相揭开，主角付出不可逆的代价',
+          readerExperience: '面向喜欢智力游戏的读者，追求"回头看处处是伏笔"的爽感',
+        },
+        chapterTemplate: [
+          { role: '铺垫', function: '引入本章的案件与一个反常细节', tension: 2 },
+          { role: '升级', function: '调查受阻，主角动用能力并付出代价', tension: 3 },
+          { role: '回收', function: '解开本章谜题，同时抛出一个更大的疑问', tension: 4 },
+        ],
+      });
+    }
+    // 按蓝图生成新故事（imitate 任务）
+    if (/logline/.test(text) && /arcs/.test(text) && /chapters/.test(text)) {
+      return JSON.stringify({
+        title: '潮汐证人',
+        logline: '一个出租记忆的人，发现自己的记忆被反复租过三十七次。',
+        premise: '在雾港，记忆可以像房产一样出租。沈砚靠出租自己的记忆维生，直到他在地铁上听见一段本该只属于别人的对话——那是他自己的声音。',
+        characters: [
+          { name: '沈砚', role: 'protagonist', tagline: '靠出租记忆维生的人', want: '付清母亲的医药费', flaw: '从不追问租客拿他的记忆做了什么' },
+          { name: '温晚', role: 'deuteragonist', tagline: '记忆银行的审计员', want: '查清账目漏洞', flaw: '把规则看得比人重' },
+          { name: '陆断', role: 'antagonist', tagline: '记忆租赁行的老板', want: '垄断雾港的记忆市场', flaw: '不相信任何人会自愿忘记' },
+        ],
+        world: [
+          { title: '记忆租赁', category: 'magic', body: '记忆可被提取并出租，租期以天计。每出租一次，原主对该段记忆的清晰度下降一成；租满十次即永久失去。', importance: 5 },
+          { title: '雾港记忆银行', category: 'organization', body: '全城唯一的记忆托管机构，所有租赁合同须在此登记。审计员有权调取任何一笔租赁记录，但无权查看记忆内容。', importance: 4 },
+        ],
+        rules: [
+          { title: '租满即失', statement: '同一段记忆被出租十次后，原主永久失去它。', severity: 'error' },
+          { title: '不可查看', statement: '审计员只能看到租赁记录，不能查看记忆内容。', severity: 'warn' },
+        ],
+        arcs: [
+          { title: '第一卷 三十七次', summary: '沈砚发现自己的记忆被租了三十七次', goal: '查清是谁在租', conflict: '银行拒绝提供租客信息', outcome: '他失去了母亲的脸' },
+          { title: '第二卷 审计员', summary: '与审计员温晚结成临时同盟', goal: '拿到原始合同', conflict: '陆断抢先销毁记录', outcome: '真相指向沈砚自己' },
+        ],
+        chapters: [
+          { title: '第一章 地铁里的声音', summary: '沈砚在通勤时听见自己的声音说出从未说过的话', tension: 4, hook: '那段记忆的租客登记名是他自己的名字' },
+          { title: '第二章 三十七笔', summary: '他查到三十七笔租赁记录，最早一笔在他十六岁', tension: 4, hook: '第十六次租赁的日期是他母亲去世那天' },
+          { title: '第三章 审计员', summary: '温晚找上门，要求他解释一笔异常账目', tension: 3, hook: '温晚拿出的是他十六岁的签名' },
+        ],
+      });
+    }
     // 人物页的「AI 生成人物」（cast-gen 任务）
     if (/verbalTics/.test(text) && /characters/.test(text) && !/entities/.test(text)) {
       return JSON.stringify({

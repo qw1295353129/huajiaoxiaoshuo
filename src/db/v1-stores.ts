@@ -65,3 +65,16 @@ export const V3_STORES = {
   ...V2_STORES,
   memory: 'id, scope, projectId, kind, paused, dedupeKey, [scope+kind], [projectId+kind]',
 } as const;
+
+/**
+ * Dexie v4 的表结构快照（新增 memoryUsage）。
+ *
+ * 之前这里缺了一份：版本声明直接从 v3 跳到"最新"，中间没有 v4。
+ * Dexie 做 diff 时用的是"已声明版本"的链条，缺一环就意味着老库（v3）升级时
+ * 少一个基准点 —— memoryUsage 能不能被正确建出来全看运气。
+ * 现在补齐 v4，链条完整：v1 → v2 → v3 → v4 → v5。
+ */
+export const V4_STORES = {
+  ...V3_STORES,
+  memoryUsage: 'id, projectId, generationId, factId, createdAt',
+} as const;

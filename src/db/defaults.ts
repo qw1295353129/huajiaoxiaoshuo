@@ -25,6 +25,10 @@ const TASK_PARAMS: Record<AiTaskKind, Partial<ModelParams>> = {
   // 人物/世界观生成要输出结构化 JSON，温度略低于纯创意任务，避免字段漂移
   'cast-gen': { temperature: 0.85, maxTokens: 8000 },
   'world-gen': { temperature: 0.8, maxTokens: 8000 },
+  // 拆书要读长文本、输出结构化分析，预算给足；温度压低，避免分析变成创作
+  blueprint: { temperature: 0.4, maxTokens: 12000 },
+  // 仿书是完整故事设计，需要较大的输出预算
+  imitate: { temperature: 0.9, maxTokens: 16000 },
   consistency: { temperature: 0.1, maxTokens: 4000 },
   'style-check': { temperature: 0.1, maxTokens: 3000 },
   'voice-check': { temperature: 0.15, maxTokens: 3000 },
@@ -156,6 +160,7 @@ export const TASK_LABELS: Record<AiTaskKind, string> = {
   genesis: '一句话成书', outline: '生成大纲', 'chapter-outline': '章节细纲', continue: '续写正文',
   expand: '扩写', rewrite: '改写', polish: '润色', describe: '描写生成', dialogue: '对话生成',
   brainstorm: '头脑风暴', 'cast-gen': '生成人物', 'world-gen': '生成世界观',
+  blueprint: '拆书分析', imitate: '按蓝图生成',
   consistency: '一致性检查', 'style-check': '文风检查', 'voice-check': '人物口吻检查',
   pacing: '节奏分析', 'character-arc': '人物弧光分析', 'foreshadow-audit': '伏笔审计', 'reader-sim': '读者模拟',
   critique: '毒舌评审', 'extract-entities': '实体抽取', 'extract-characters': '人物抽取',

@@ -5,7 +5,7 @@ import type {
   GlossaryTerm, Issue, PlotThread, PomodoroRecord, Project, PromptTemplate, ProviderConfig,
   Relationship, Snapshot, StyleFingerprint, TaskRouting, TimelineEvent, WritingGoal, WritingSession,
   WorldEntry, OutlineNode, GenesisRun, ModelPricing, ChapterComment, ReviewSuggestion, MemoryFact,
-  MemoryUsage,
+  MemoryUsage, BlueprintRecord,
 } from '@/core';
 
 /** 每个 projectId 开头的表都带上项目隔离，便于级联删除 */
@@ -19,6 +19,7 @@ export interface HuaJiaoDB {
   comments: EntityTable<ChapterComment, 'id'>;
   reviewSuggestions: EntityTable<ReviewSuggestion, 'id'>;
   memory: EntityTable<MemoryFact, 'id'>;
+  blueprints: EntityTable<BlueprintRecord, 'id'>;
   /** 记忆效果追踪：哪次生成用了哪些记忆（v4 新增） */
   memoryUsage: EntityTable<MemoryUsage, 'id'>;
   characters: EntityTable<Character, 'id'>;
@@ -54,7 +55,7 @@ export interface HuaJiaoDB {
 /** Dexie 版本定义。加表/加索引时 append 新版本，不要改旧版本。 */
 export const DB_NAME = 'huajiao-writer';
 
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 export const DB_STORES = {
   projects: 'id, title, status, updatedAt, createdAt',
@@ -66,6 +67,8 @@ export const DB_STORES = {
   comments: 'id, projectId, chapterId, [chapterId+resolved], resolved, createdAt',
   reviewSuggestions: 'id, projectId, chapterId, [chapterId+status], status, createdAt',
   memory: 'id, scope, projectId, kind, paused, dedupeKey, [scope+kind], [projectId+kind]',
+  // 拆书产物：原始文本与蓝图一起存，原创性自检要用原文比对
+  blueprints: 'id, projectId, sourceTitle, createdAt',
   memoryUsage: 'id, projectId, generationId, factId, createdAt',
   characters: 'id, projectId, role, status, name',
   relationships: 'id, projectId, fromId, toId',

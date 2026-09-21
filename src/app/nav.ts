@@ -1,6 +1,6 @@
 import {
   BookOpen, Boxes, Compass, Gauge, GitBranch, Layers, LayoutDashboard, Network,
-  ScrollText, Sparkles, Settings, Upload, Users, Wand2, Clock, ScanEye,
+  ScrollText, Sparkles, Settings, Upload, Users, Wand2, Clock, ScanEye, BookMarked,
 } from "lucide-react";
 import { ROUTES } from "./routes";
 
@@ -27,6 +27,7 @@ export const ROUTE_PAGES: NavItem[] = [
   { key: "review", label: "审稿台", icon: ScanEye, to: ROUTES.review, group: "ai", shortcut: "G R" },
   { key: "ai", label: "AI 工作室", icon: Sparkles, to: ROUTES.ai, group: "ai", shortcut: "G A" },
   { key: "genesis", label: "一句话成书", icon: Wand2, to: ROUTES.genesis, group: "ai" },
+  { key: "blueprint", label: "拆书仿写", icon: BookMarked, to: ROUTES.blueprint, group: "ai" },
   { key: "usage", label: "AI 用量", icon: Boxes, to: ROUTES.usage, group: "system" },
   { key: "data", label: "数据与导出", icon: Upload, to: ROUTES.data, group: "system" },
 ];

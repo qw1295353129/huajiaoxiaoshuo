@@ -31,6 +31,10 @@ export type AiTaskKind =
   | 'cast-gen'
   /** 按需补世界观条目（世界观页的 AI 生成） */
   | 'world-gen'
+  /** 拆书：分析参考书，提取技法与结构 */
+  | 'blueprint'
+  /** 仿书：按拆解出的技法生成全新故事 */
+  | 'imitate'
   // 分析类
   | 'consistency' | 'style-check' | 'voice-check' | 'pacing'
   | 'character-arc' | 'foreshadow-audit' | 'reader-sim' | 'critique'

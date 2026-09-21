@@ -17,6 +17,7 @@ export const ROUTES = {
   review: (id: string) => `/p/${id}/review`,
   ai: (id: string) => `/p/${id}/ai`,
   genesis: (id: string) => `/p/${id}/genesis`,
+  blueprint: (id: string) => `/p/${id}/blueprint`,
   usage: (id: string) => `/p/${id}/usage`,
   data: (id: string) => `/p/${id}/data`,
   settings: "/settings",

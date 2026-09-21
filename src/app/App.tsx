@@ -24,6 +24,7 @@ import { InsightsPage } from "@/features/insights/InsightsPage";
 import { ConsistencyPage } from "@/features/consistency/ConsistencyPage";
 import { AiStudioPage } from "@/features/ai/AiStudioPage";
 import { GenesisPage } from "@/features/genesis/GenesisPage";
+import { BlueprintPage } from "@/features/blueprint/BlueprintPage";
 import { UsagePage } from "@/features/usage/UsagePage";
 import { DataPage } from "@/features/data/DataPage";
 import { ReviewPage } from "@/features/review/ReviewPage";
@@ -116,6 +117,7 @@ export default function App() {
           <Route path="review" element={<ReviewPage />} />
           <Route path="ai" element={<AiStudioPage />} />
           <Route path="genesis" element={<GenesisPage />} />
+          <Route path="blueprint" element={<BlueprintPage />} />
           <Route path="usage" element={<UsagePage />} />
           <Route path="data" element={<DataPage />} />
           <Route path="*" element={<NotFound />} />
