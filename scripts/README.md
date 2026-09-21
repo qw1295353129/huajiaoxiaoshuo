@@ -1,0 +1,26 @@
+# 验证与辅助脚本
+
+所有脚本都不依赖外部服务，可离线复跑。
+
+| 脚本 | 作用 | 命令 |
+|---|---|---|
+| `verify-utils.mjs` | 纯函数测试：变体扫描（2/3/4 字名）、中文字数、分章、diff、token 预算、JSON 容错 | `npm run verify` |
+| `verify-zip.mjs` | 自研 ZIP 写入器校验：对照 Python `zipfile` 检查 CRC、中央目录、UTF-8 文件名、mimetype 位置 | `npm run verify:zip` |
+| `verify-ebook.mjs` | EPUB 3 与 DOCX 格式校验：zip 完整性、XML 良构、OPF spine/manifest 一致、OOXML 必需部件 | `npm run verify:ebook` |
+| `mock-llm.mjs` | 本地假模型（OpenAI 兼容），无 API Key 也能跑通 AI 链路 | `npm run mock-llm` |
+| `ai-e2e.mjs` | AI 链路端到端：配置模型 → 续写 → 流式 → 插入正文 → 落库校验 | `npm run e2e:ai` |
+| `shot.mjs` | 任意页面截图 + 控制台错误收集（持久 profile，数据跨次保留） | `npm run shot -- <url> <png>` |
+
+## 真模型验证
+
+需要一次性 Key，脚本内不保存任何凭据：
+
+```bash
+DEEPSEEK_KEY=sk-xxx node -e "/* 见 git 历史里的 real-model-e2e 脚本，或直接用界面跑 */"
+```
+
+已验证过的真模型行为（DeepSeek V4 系列）：
+- 连接自检、流式输出、JSON 结构化输出均正常
+- 一句话成书单阶段：6 人物 + 12 世界观条目 + 6 硬规则，81 秒 / 15.6k tokens
+- 创作者档案（笔名、写作原则、全局禁用词、长期指令）确实进入 system prompt
+- **推理模型会先花 token 思考**：max_tokens 给小了正文会为空，见 `docs/GOTCHAS.md`
