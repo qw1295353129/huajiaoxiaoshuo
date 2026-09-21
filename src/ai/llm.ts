@@ -1,5 +1,6 @@
 import type { ChatMessage, ModelParams } from '@/core';
-import { isLocalProvider, classifyFetchError, classifyResponseError, resolveEndpoint } from './providers';
+import { classifyFetchError, classifyResponseError, resolveEndpoint } from './providers';
+import { shouldUseProxy } from './proxy';
 import { ProviderError, type ChatRequest, type ChatResult } from './types';
 
 /** 上下文超长时给用户的可读提示 */
@@ -170,7 +171,9 @@ export async function chatStream(req: ChatRequest, opts: CallOptions = {}): Prom
 
 async function requestWithRetry(req: ChatRequest, body: unknown, opts: CallOptions): Promise<Response> {
   const retries = opts.retries ?? 2;
-  const useProxy = opts.useProxy ?? (req.provider.corsBlocked && !isLocalProvider(req.provider));
+  // 先探测本地代理再决定路径：能用就走代理，不能用就直接连。
+  // 不做"先直连、失败再代理"的反向回退 —— 那会让每次生成都白等一轮。
+  const useProxy = opts.useProxy ?? (await shouldUseProxy(req.provider));
   let lastError: ProviderError | undefined;
 
   for (let attempt = 0; attempt <= retries; attempt++) {

@@ -1,7 +1,9 @@
 import type { ProviderConfig } from '@/core';
 import { ProviderError } from './types';
+import { DEFAULT_PROXY_BASE, wrapWithProxy } from './proxy';
 
-export const LOCAL_PROXY_BASE = 'http://127.0.0.1:8788/proxy';
+/** 兼容旧引用：完整的转发端点（含 /proxy 路径） */
+export const LOCAL_PROXY_BASE = DEFAULT_PROXY_BASE + '/proxy';
 
 /** 判断一个供应商配置是否"已可用"（有 baseUrl，云端还需要 key） */
 export function isProviderUsable(p: ProviderConfig): boolean {
@@ -46,8 +48,9 @@ export function resolveEndpoint(
   }
 
   if (opts.useProxy) {
-    const proxyBase = (opts.proxyBase ?? LOCAL_PROXY_BASE).replace(/\/+$/, '');
-    return { url: `${proxyBase}?url=${encodeURIComponent(target)}`, headers, viaProxy: true };
+    // 注意：走代理时是 <base>/proxy?url=<encoded>，路径拼接统一由 wrapWithProxy 负责，
+    // 避免这里和 proxy.ts 各写一份导致少拼 /proxy（曾因此 404）。
+    return { url: wrapWithProxy(opts.proxyBase ?? DEFAULT_PROXY_BASE, target), headers, viaProxy: true };
   }
   return { url: target, headers, viaProxy: false };
 }

@@ -98,6 +98,29 @@ DeepSeek V4 系列（`deepseek-flash` / `deepseek-v4-pro`）是**推理模型**�
 **教训**：`tsc` 与构建都不会报"这个状态没人用"，只有**真实点击测试**才能发现这类静默失效。
 所以每个入口都要有 e2e 断言（见 `scripts/verify-settings-entry.mjs`，12 项覆盖全部入口）。
 
+## 跨域（CORS）：错误文案曾经指向一个不存在的东西
+
+**用户看到的**：「浏览器直连被跨域策略拦截。请在「设置 → 模型与 AI」中开启本地代理……」
+
+**真实情况**：
+1. 项目给大多数云端供应商预设了 `corsBlocked: true`，于是 `resolveEndpoint` 会把请求发到
+   `http://127.0.0.1:8788/proxy?url=…` —— 但**那个代理服务从来没写过**，也没有任何开关。
+2. 请求必然打到空气上，失败后回退直连，再失败就被归类成 `cors`，弹出上面那句提示。
+3. 用户按提示去设置里找开关，找不到；就算找到了也没有服务可开。
+
+**修复**（三个都要有，缺一个都会再次误导用户）：
+- `scripts/proxy.mjs`：真正的本地转发服务（`npm run proxy`），
+  提供 `/health` 供探测、`/proxy?url=` 供转发，并返回 CORS 头。
+- `src/ai/proxy.ts`：启动时探测代理是否在运行；**在运行才走代理，没运行就直接连**，
+  不做"先失败再回退"（那会让每次生成都白等一轮）。地址可在设置里改。
+- 错误文案：改成可执行的两条路（启动本地代理 / 换支持直连的服务），并列出实测支持直连的供应商。
+
+**另外一个容易踩的点**：代理返回的自定义响应头默认对 JS 不可见，必须显式声明
+`Access-Control-Expose-Headers`，否则前端读不到耗时之类的信息。
+
+**实测结论**：DeepSeek 支持浏览器直连（GET 与 POST 都返回 `Access-Control-Allow-Origin`），
+所以它的预设是 `corsBlocked: false`，根本不需要代理。真正需要代理的是智谱、通义、硅基流动这类。
+
 ## 工具链
 - ego-browser 运行时是 Linux 构建，在 macOS 上会报 `no X display`；本项目的浏览器验证统一用
   `node scripts/shot.mjs <url> <png>`（Playwright + 系统 Edge 通道）。

@@ -19,6 +19,7 @@ import { formatBytes } from "@/utils/format-bytes";
 import { EditorPreferences } from "./EditorPreferences";
 import { AuthorProfileSettings } from "./AuthorProfileSettings";
 import { ChangelogPanel } from "./ChangelogPanel";
+import { ProxyCard } from "./ProxyCard";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
 import { APP_VERSION } from "@/core";
 
@@ -454,6 +455,8 @@ function ModelsTab() {
           }}
         />
       )}
+
+      <ProxyCard />
 
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
         <h2 className="text-sm font-semibold">生成参数默认值</h2>

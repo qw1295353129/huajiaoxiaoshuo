@@ -72,7 +72,12 @@ export class ProviderError extends Error {
   get hint(): string {
     switch (this.kind) {
       case 'cors':
-        return '浏览器直连被跨域策略拦截。请在「设置 → 模型与 AI」中开启本地代理，或改用支持跨域的供应商（OpenRouter / Ollama / LM Studio）。';
+        return [
+          '浏览器直连被跨域策略拦截（该服务没有返回 Access-Control-Allow-Origin 响应头）。',
+          '两个解决办法：',
+          '① 启动本地代理后在设置里点「检测本地代理」：终端执行 npm run proxy；',
+          '② 换用支持浏览器直连的服务：DeepSeek、OpenRouter、Ollama、LM Studio。',
+        ].join(' ');
       case 'auth':
         return 'API Key 无效或未填写。请到「设置 → 模型与 AI」检查密钥。';
       case 'rate-limit':
@@ -80,7 +85,7 @@ export class ProviderError extends Error {
       case 'no-provider':
         return '还没有配置可用的模型。请到「设置 → 模型与 AI」添加供应商并填写 API Key。';
       case 'network':
-        return '网络不可达。若使用本地模型，请确认 Ollama / LM Studio 已启动。';
+        return '网络不可达。若使用本地模型，请确认 Ollama / LM Studio 已启动；若是云端服务，请检查网络与地址是否正确。';
       default:
         return this.message;
     }
