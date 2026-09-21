@@ -13,7 +13,7 @@ import { formatWords } from "@/utils/format";
 import { countWords } from "@/utils/text";
 import {
   buildBackup, buildBibleMarkdown, downloadBlob, downloadText, exportProject,
-  gzipText, previewTextImport, readTextFile, restoreBackup,
+  gzipText, previewTextImport, readTextFile, restoreBackup, BACKUP_FORMAT,
   type BackupFile, type ExportFormat, type ImportPreview,
 } from "./exporters";
 
@@ -323,9 +323,9 @@ function BackupTab({ projectId }: { projectId: string }) {
       const stamp = new Date().toISOString().slice(0, 10);
       if (compress) {
         const blob = await gzipText(json);
-        downloadBlob(blob, "novelforge-backup-" + stamp + ".json.gz");
+        downloadBlob(blob, "huajiao-backup-" + stamp + ".json.gz");
       } else {
-        downloadText(JSON.stringify(backup, null, 2), "novelforge-backup-" + stamp + ".json", "application/json");
+        downloadText(JSON.stringify(backup, null, 2), "huajiao-backup-" + stamp + ".json", "application/json");
       }
       notify("success", "备份已生成", Object.values(backup.counts).reduce((a, b) => a + b, 0) + " 条记录");
     } catch (e) {
@@ -371,7 +371,9 @@ function BackupTab({ projectId }: { projectId: string }) {
               try {
                 const raw = await readTextFile(f);
                 const parsed = JSON.parse(raw) as BackupFile;
-                if (parsed.format !== "novelforge-backup") throw new Error("这不是花椒的备份文件");
+                if (parsed.format !== BACKUP_FORMAT && parsed.format !== "novelforge-backup") {
+                  throw new Error("这不是花椒写作平台的备份文件");
+                }
                 setInspect(parsed);
               } catch (err) {
                 notify("danger", "无法读取备份", err instanceof Error ? err.message : String(err));

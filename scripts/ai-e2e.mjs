@@ -46,10 +46,10 @@ const setup = await page.evaluate(async () => {
   });
   const probe = await (await import('/src/ai/providers.ts')).probeProvider(prov);
 
-  const raw = localStorage.getItem('novelforge:settings');
+  const raw = localStorage.getItem('huajiao:settings');
   const cur = raw ? JSON.parse(raw) : {};
   localStorage.setItem(
-    'novelforge:settings',
+    'huajiao:settings',
     JSON.stringify({ ...cur, activeProviderId: prov.id, activeModel: 'mock-story-model', stream: true, contextBudget: 12000 }),
   );
   return { providerId: prov.id, probe };

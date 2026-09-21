@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8b5cf6"/>
-      <stop offset="1" stop-color="#6366f1"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#g)"/>
-  <text x="32" y="45" font-family="PingFang SC, Hiragino Sans GB, sans-serif" font-size="34"
-        font-weight="600" fill="#fff" text-anchor="middle">墨</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="花椒写作平台">
+  <rect width="64" height="64" rx="14" fill="#0b0b0c"/>
+  <!-- 花椒果壳 -->
+  <circle cx="32" cy="32" r="22" fill="#d94f2b"/>
+  <circle cx="32" cy="32" r="22" fill="none" stroke="#b03d1e" stroke-width="1.6"/>
+  <!-- 成熟的花椒从腹缝裂开，露出里面的黑籽 —— 它最好认的特征 -->
+  <path d="M32 10c2.2 12.4-.6 30-7.8 44.6" stroke="#0b0b0c" stroke-width="6.4" stroke-linecap="round" fill="none"/>
+  <circle cx="25.4" cy="47.6" r="4.6" fill="#141416"/>
+  <!-- 高光，给果壳体积 -->
+  <ellipse cx="41.4" cy="23.4" rx="5.6" ry="3.6" fill="#fff" opacity="0.32" transform="rotate(-30 41.4 23.4)"/>
 </svg>

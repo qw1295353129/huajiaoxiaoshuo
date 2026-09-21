@@ -16,9 +16,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   candidateCount: 3,
   stream: true,
   allowCloud: true,
-  telemetry: false,
-  locale: 'zh-CN',
-  keymap: 'default',
   penName: undefined,
   defaultGenres: [],
   defaultPov: undefined,
@@ -27,11 +24,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   globalInstructions: undefined,
 };
 
-const SETTINGS_KEY = 'novelforge:settings';
+/** 设置存 localStorage（非作品数据，不需要进 IndexedDB） */
+const SETTINGS_KEY = 'huajiao:settings';
+/** 早期版本用过这个键；读不到新键时回落到它，避免升级后设置被清空 */
+const LEGACY_SETTINGS_KEY = 'novelforge:settings';
 
 export function loadSettings(): AppSettings {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
+    const raw = localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem(LEGACY_SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) };
   } catch {

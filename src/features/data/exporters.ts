@@ -203,8 +203,12 @@ export function sanitizeFilename(name: string): string {
 
 // ==================== 备份 / 恢复 ====================
 
+/** 新旧两种备份标识都接受，老用户手里的备份仍然能导入 */
+export const BACKUP_FORMAT = "huajiao-backup" as const;
+const LEGACY_BACKUP_FORMAT = "novelforge-backup";
+
 export interface BackupFile {
-  format: "novelforge-backup";
+  format: typeof BACKUP_FORMAT | typeof LEGACY_BACKUP_FORMAT;
   version: number;
   createdAt: string;
   app: string;
@@ -229,10 +233,10 @@ export async function buildBackup(projectIds?: ID[]): Promise<BackupFile> {
     counts[table.name] = rows.length;
   }
   return {
-    format: "novelforge-backup",
+    format: BACKUP_FORMAT,
     version: db.verno,
     createdAt: new Date().toISOString(),
-    app: "novelforge",
+    app: "huajiao-writer",
     counts,
     data,
   };
@@ -262,7 +266,9 @@ export interface RestoreResult {
 }
 
 export async function restoreBackup(backup: BackupFile, opts: RestoreOptions): Promise<RestoreResult> {
-  if (backup.format !== "novelforge-backup") throw new Error("这不是花椒的备份文件");
+  if (backup.format !== BACKUP_FORMAT && backup.format !== LEGACY_BACKUP_FORMAT) {
+    throw new Error("这不是花椒写作平台的备份文件");
+  }
   const restored: Record<string, number> = {};
   const skipped: string[] = [];
 

@@ -28,12 +28,6 @@ export interface AppSettings {
   stream: boolean;
   /** 隐私：是否允许把正文发给云模型（关闭后仅本地模型） */
   allowCloud: boolean;
-  /** 遥测（默认全关，纯本地） */
-  telemetry: false;
-  /** 语言 */
-  locale: 'zh-CN' | 'en';
-  /** 键盘方案 */
-  keymap: 'default' | 'vim';
 
   // ---------- 创作者档案：会进入所有 AI 调用的 system prompt ----------
   /** 笔名，生成时用于署名与自称 */

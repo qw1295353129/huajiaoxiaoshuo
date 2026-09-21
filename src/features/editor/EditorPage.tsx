@@ -52,6 +52,7 @@ export function EditorPage() {
   const content = useChapterContent(routeChapterId);
 
   const editorStore = useEditorStore();
+  const flowApplied = useRef(false);
   const [handle, setHandle] = useState<EditorCanvasHandle | null>(null);
   const [draftHtml, setDraftHtml] = useState<string>("");
   const [draftWords, setDraftWords] = useState(0);
@@ -88,6 +89,13 @@ export function EditorPage() {
     initialWords.current = chapter.wordCount || 0;
     void listSnapshots(chapter.id).then((s) => editorStore.setSnapshots(s));
   }, [chapter, content, loadedFor, editorStore, projectId]);
+
+  // 设置里开了「默认进入心流模式」时，进入写作页自动隐藏面板（只生效一次）
+  useEffect(() => {
+    if (flowApplied.current || !chapter) return;
+    flowApplied.current = true;
+    if (settings.flowByDefault) useEditorStore.getState().setFlow(true);
+  }, [chapter, settings.flowByDefault]);
 
   // ---------- 写作会话 ----------
   useEffect(() => {

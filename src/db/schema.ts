@@ -46,7 +46,7 @@ export interface HuaJiaoDB {
 }
 
 /** Dexie 版本定义。加表/加索引时 append 新版本，不要改旧版本。 */
-export const DB_NAME = 'novelforge';
+export const DB_NAME = 'huajiao-writer';
 
 export const DB_VERSION = 1;
 

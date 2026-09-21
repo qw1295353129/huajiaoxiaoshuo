@@ -57,7 +57,7 @@ const CONFLICT_SCHEMA = [
 
 /** 单次自检的设定文本上限（字符），超出部分按重要度截断 */
 const MAX_PAYLOAD = 60000;
-const ACK_PREFIX = "novelforge.world.conflicts.";
+const ACK_PREFIX = "huajiao.world.conflicts.";
 
 /** 规则冲突自检：把所有启用规则 + 世界观条目正文交给模型找矛盾 */
 export function ConflictModal({ projectId, open, onOpenChange, entries, projectRules, onOpenEntry }: Props) {
