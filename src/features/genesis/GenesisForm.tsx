@@ -2,17 +2,19 @@ import { useState } from "react";
 import { Button, Card, Chip, Input, Label, TextArea, TextField } from "@heroui/react";
 import { AlertTriangle, Check, Plus, Settings2, Sparkles, X } from "lucide-react";
 import type { GenesisConstraints, LengthClass, PovStyle } from "@/core";
+import { lengthProfile } from "@/core";
 import type { GenesisOptions } from "@/ai/genesis";
 import { GENRES } from "@/db/defaults";
 
 export type UntilStage = NonNullable<GenesisOptions["until"]>;
 
+// 篇幅的说明文字统一从 LENGTH_PROFILES 取，避免两处各写一份而慢慢对不上
 const LENGTH_OPTIONS: { value: LengthClass; label: string; hint: string }[] = [
-  { value: "short", label: "短篇", hint: "1 万字以内" },
-  { value: "novella", label: "中篇", hint: "3~8 万字" },
-  { value: "novel", label: "长篇", hint: "20~40 万字" },
-  { value: "epic", label: "超长篇", hint: "80 万字以上" },
-  { value: "webnovel", label: "网文连载", hint: "百万字以上" },
+  { value: "short", label: "短篇", hint: lengthProfile("short").hint },
+  { value: "novella", label: "中篇", hint: lengthProfile("novella").hint },
+  { value: "novel", label: "长篇", hint: lengthProfile("novel").hint },
+  { value: "epic", label: "超长篇", hint: lengthProfile("epic").hint },
+  { value: "webnovel", label: "网文连载", hint: lengthProfile("webnovel").hint },
 ];
 
 const POV_OPTIONS: { value: PovStyle; label: string }[] = [
@@ -258,10 +260,18 @@ export function GenesisForm({
             type="number"
             value={String(chaptersPerVolume)}
             onChange={(e) => {
-              const next = Number(e.target.value.replace(/\D/g, ""));
-              onChaptersPerVolumeChange(Number.isFinite(next) && next > 0 ? Math.min(60, next) : 12);
+              const next = Number(e.target.value.replace(/[^0-9]/g, ""));
+              // 兜底给当前篇幅的建议值，而不是写死 12
+              onChaptersPerVolumeChange(
+                Number.isFinite(next) && next > 0 ? Math.min(80, next) : lengthProfile(constraints.lengthClass).chaptersPerVolume,
+              );
             }}
           />
+          <p className="mt-1.5 text-[11px] leading-relaxed opacity-50">
+            换篇幅会自动带出对应建议值（{LENGTH_OPTIONS.find((o) => o.value === constraints.lengthClass)?.label}：
+            {lengthProfile(constraints.lengthClass).chaptersPerVolume} 章 / 卷，共 {lengthProfile(constraints.lengthClass).volumes} 卷，
+            单章约 {lengthProfile(constraints.lengthClass).chapterWords} 字）。手动改过之后就不再自动覆盖。
+          </p>
         </div>
       </div>
 

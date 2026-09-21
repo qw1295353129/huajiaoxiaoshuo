@@ -7,6 +7,7 @@ import { GENRES } from "@/db/defaults";
 import { createProject } from "@/db/repo/projects";
 import { useAppStore } from "@/app/store";
 import type { LengthClass, PovStyle } from "@/core";
+import { lengthProfile } from "@/core";
 
 const POV_OPTIONS: { value: PovStyle; label: string; hint: string }[] = [
   { value: "third-limited", label: "第三人称限知", hint: "最常见，读者跟着主角的认知走" },
@@ -16,12 +17,15 @@ const POV_OPTIONS: { value: PovStyle; label: string; hint: string }[] = [
   { value: "mixed", label: "多视角切换", hint: "按章节/分卷切换视角人物" },
 ];
 
-const LENGTH_OPTIONS: { value: LengthClass; label: string; words: number }[] = [
-  { value: "short", label: "短篇", words: 10000 },
-  { value: "novella", label: "中篇", words: 60000 },
-  { value: "novel", label: "长篇", words: 250000 },
-  { value: "epic", label: "超长篇", words: 800000 },
-  { value: "webnovel", label: "网文连载", words: 2000000 },
+// 篇幅的字数与说明统一从 LENGTH_PROFILES 取。
+// 之前这里自己维护了一份（长篇 25 万 vs 档案里的 30 万），
+// 和一句话成书对不上 —— 同一件事有两份真相，迟早不一致。
+const LENGTH_OPTIONS: { value: LengthClass; label: string; words: number; hint: string }[] = [
+  { value: "short", label: "短篇", words: lengthProfile("short").targetWords, hint: lengthProfile("short").hint },
+  { value: "novella", label: "中篇", words: lengthProfile("novella").targetWords, hint: lengthProfile("novella").hint },
+  { value: "novel", label: "长篇", words: lengthProfile("novel").targetWords, hint: lengthProfile("novel").hint },
+  { value: "epic", label: "超长篇", words: lengthProfile("epic").targetWords, hint: lengthProfile("epic").hint },
+  { value: "webnovel", label: "网文连载", words: lengthProfile("webnovel").targetWords, hint: lengthProfile("webnovel").hint },
 ];
 
 export function NewProject() {
@@ -43,7 +47,7 @@ export function NewProject() {
     if (!title.trim()) return;
     setBusy(true);
     try {
-      const target = LENGTH_OPTIONS.find((l) => l.value === lengthClass)?.words ?? 250000;
+      const target = lengthProfile(lengthClass).targetWords;
       const project = await createProject({ title, logline, genres, pov, lengthClass, targetWords: target, author });
       await setProject(project);
       navigate(goGenesis ? ROUTES.genesis(project.id) : ROUTES.overview(project.id));

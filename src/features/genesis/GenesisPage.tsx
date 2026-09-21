@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button, Card, Chip } from "@heroui/react";
 import { ArrowRight, Check, ClipboardList, LayoutList } from "lucide-react";
-import type { GenesisConstraints, GenesisRun } from "@/core";
+import type { GenesisConstraints, GenesisRun, LengthClass } from "@/core";
+import { lengthProfile } from "@/core";
 import { PageScaffold } from "@/components/common/PageScaffold";
 import { SectionTitle } from "@/components/common/ui";
 import { useInterval } from "@/app/hooks";
@@ -68,7 +69,14 @@ export function GenesisPage() {
     references: [],
     avoid: [],
   });
-  const [chaptersPerVolume, setChaptersPerVolume] = useState(12);
+  // 每卷章节数跟着篇幅走（短篇 3 章、网文 40 章，差别很大）
+  const [chaptersPerVolume, setChaptersPerVolume] = useState(() => lengthProfile("novel").chaptersPerVolume);
+  /**
+   * 作者是否亲手改过每卷章节数。
+   * 改过之后就不再跟着篇幅自动变 —— 否则调好的数字会被悄悄覆盖掉，
+   * 这是"聪明的自动行为"最容易惹人烦的地方。
+   */
+  const chaptersTouchedRef = useRef(false);
   const [until, setUntil] = useState<UntilStage>("outline");
 
   const [run, setRun] = useState<GenesisRun>();
@@ -102,7 +110,22 @@ export function GenesisPage() {
       references: [],
       avoid: project.forbidden.slice(0, 4),
     });
+    // 预填时也要把每卷章节数对齐到该项目的篇幅
+    setChaptersPerVolume(lengthProfile(project.lengthClass).chaptersPerVolume);
   }, [project]);
+
+  /** 换篇幅：同时调整每卷章节数（除非作者已经手动改过） */
+  const changeLengthClass = (next: LengthClass) => {
+    setConstraints((c) => ({ ...c, lengthClass: next }));
+    if (!chaptersTouchedRef.current) {
+      setChaptersPerVolume(lengthProfile(next).chaptersPerVolume);
+    }
+  };
+
+  const changeChaptersPerVolume = (value: number) => {
+    chaptersTouchedRef.current = true;
+    setChaptersPerVolume(value);
+  };
 
   const bible = bibleOf(run);
   const charCount = bible?.characters?.length ?? 0;
@@ -272,9 +295,18 @@ export function GenesisPage() {
           seed={seed}
           onSeedChange={setSeed}
           constraints={constraints}
-          onConstraintsChange={(patch) => setConstraints((prev) => ({ ...prev, ...patch }))}
+          onConstraintsChange={(patch) => {
+            // 篇幅单独走一条路径：它要连带调整每卷章节数
+            if (patch.lengthClass) {
+              changeLengthClass(patch.lengthClass);
+              const { lengthClass: _ignored, ...rest } = patch;
+              if (Object.keys(rest).length) setConstraints((prev) => ({ ...prev, ...rest }));
+              return;
+            }
+            setConstraints((prev) => ({ ...prev, ...patch }));
+          }}
           chaptersPerVolume={chaptersPerVolume}
-          onChaptersPerVolumeChange={setChaptersPerVolume}
+          onChaptersPerVolumeChange={changeChaptersPerVolume}
           until={until}
           onUntilChange={setUntil}
           modelReady={modelReady}

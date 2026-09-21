@@ -1,4 +1,5 @@
 import type { Arc, Chapter, Character, GenesisConstraints, GenesisRun, GenesisStage, ID, PovStyle, WorldCategory } from "@/core";
+import { lengthProfile } from "@/core";
 import { db } from "@/db/database";
 import {
   createChapter, createArc, listArcs, listChapters, saveChapterContent, updateArc, updateChapter,
@@ -195,7 +196,10 @@ async function generateStructure(
 ): Promise<{ ok: boolean; arcs: Arc[]; error?: string; model: string }> {
   const system = await systemWithProject(opts.projectId, "你是长篇结构设计师，擅长把故事拆成张力递进的多卷结构。");
   const perVolume = opts.chaptersPerVolume ?? 12;
-  const volumeCount = opts.constraints.lengthClass === "epic" || opts.constraints.lengthClass === "webnovel" ? 5 : opts.constraints.lengthClass === "novel" ? 3 : 1;
+  // 卷数来自篇幅档案，不要在这里另写一套判断 ——
+  // 之前是写死的 1/3/5，与界面上的「每卷章节数」各算各的，短篇和中篇都被当成 1 卷。
+  const profile = lengthProfile(opts.constraints.lengthClass);
+  const volumeCount = profile.volumes;
 
   const res = await runJson({
     taskKind: "outline",
@@ -325,14 +329,15 @@ async function generateChapterOutline(
 }
 
 function lengthLabel(k: GenesisConstraints["lengthClass"]): string {
-  const map: Record<string, string> = {
-    short: "短篇（1 万字以内）",
-    novella: "中篇（3~8 万字）",
-    novel: "长篇（20~40 万字）",
-    epic: "超长篇（80 万字以上）",
-    webnovel: "网文连载（百万字以上）",
+  // 统一从篇幅档案取，附带卷数/章数/单章字数的建议，让模型知道该按什么粒度切分
+  const p = lengthProfile(k);
+  const name: Record<string, string> = {
+    short: "短篇", novella: "中篇", novel: "长篇", epic: "超长篇", webnovel: "网文连载",
   };
-  return map[k] ?? "长篇";
+  return (
+    (name[k] ?? "长篇") + "（" + p.hint + "；建议 " + p.volumes + " 卷、每卷约 " +
+    p.chaptersPerVolume + " 章、单章约 " + p.chapterWords + " 字）"
+  );
 }
 
 function povLabel(p: PovStyle): string {

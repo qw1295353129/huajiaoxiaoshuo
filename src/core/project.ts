@@ -13,6 +13,54 @@ export type ProjectStatus = 'planning' | 'drafting' | 'revising' | 'completed' |
 
 export type LengthClass = 'short' | 'novella' | 'novel' | 'epic' | 'webnovel';
 
+/**
+ * 篇幅档案：篇幅是"这本书有多大"的唯一真相来源。
+ *
+ * 之前项目里只有「篇幅 → 目标字数」的映射（还散落在 onboarding 里），
+ * 而「每卷章节数」写死 12、不随篇幅变化 —— 短篇和中篇会得到同样的 12 章，
+ * 生成出来的结构当然不对（短篇 1 万字被拆成 12 章，每章不到 1000 字）。
+ *
+ * 这里把三者绑在一起：一遍篇幅确定，字数、卷数、每卷章节数、单章字数都跟着定。
+ * 数值取自各类篇幅的常见做法，都可在界面上改。
+ */
+export interface LengthProfile {
+  /** 目标总字数 */
+  targetWords: number;
+  /** 建议卷数 */
+  volumes: number;
+  /** 每卷章节数（默认值） */
+  chaptersPerVolume: number;
+  /** 单章目标字数 */
+  chapterWords: number;
+  /** 界面上的说明 */
+  hint: string;
+}
+
+/**
+ * 各篇幅的默认值。
+ *
+ * 这些数字必须**自洽**：卷数 × 每卷章数 × 单章字数 ≈ 目标字数。
+ * 第一版就是按直觉写的，结果网文 5×40×2500 = 50 万字，而目标是 150 万字，
+ * 差了整整三倍 —— 生成出来的结构必然和篇幅对不上。测试里专门有一条自洽性检查。
+ *
+ * 数值取中文长篇小说与网文的常见做法，都可在界面上改。
+ */
+export const LENGTH_PROFILES: Record<LengthClass, LengthProfile> = {
+  // 短篇一次写完，不分卷，重点在"一口气读完"
+  short: { targetWords: 10000, volumes: 1, chaptersPerVolume: 5, chapterWords: 2000, hint: '1 万字以内' },
+  // 中篇有章节节奏，通常仍是一卷
+  novella: { targetWords: 60000, volumes: 1, chaptersPerVolume: 15, chapterWords: 4000, hint: '3~8 万字' },
+  // 传统长篇：每卷 40 章属于常见规模
+  novel: { targetWords: 360000, volumes: 4, chaptersPerVolume: 45, chapterWords: 2000, hint: '20~40 万字' },
+  epic: { targetWords: 900000, volumes: 6, chaptersPerVolume: 60, chapterWords: 2500, hint: '80 万字以上' },
+  // 网文连载：章节短、更新快，卷与章的数量都远多于传统长篇
+  webnovel: { targetWords: 1500000, volumes: 10, chaptersPerVolume: 75, chapterWords: 2000, hint: '百万字以上' },
+};
+
+export function lengthProfile(k: LengthClass): LengthProfile {
+  return LENGTH_PROFILES[k] ?? LENGTH_PROFILES.novel;
+}
+
 /** 作品核心元数据 */
 export interface Project extends Timestamped {
   id: ID;
