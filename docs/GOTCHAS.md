@@ -553,3 +553,51 @@ if (COLOR_THEMES.includes(theme)) root.setAttribute("data-theme", theme);
 始终铺满视口、与内容长度无关，也不参与命中测试。
 
 回归里专门断言"切回浅色后氛围层消失"，防它残留。
+
+## 编辑器「内容自己变空」的真身：挂载时先报了一次"内容变了"
+
+**用户症状**："切换章节的时候，内容突然跑到其他章节，再切换就消失了，切回又没了，过一会又突然出现"。
+
+实际是**两个独立的 bug** 叠在一起：
+
+### 一、编辑器带空文档挂载，那次自动保存把整章写成了空
+
+编辑器的初始内容是 `"<p></p>"`（7 个字符，**truthy**），而 `stripHtml` 之后是空字符串。
+于是首屏挂载时它会立刻触发一次 `onChange` → 标记 dirty → 自动保存 → **整章正文变成空**。
+
+实测：库里 `textLen=0`、`rev` 递增，而编辑器里还显示着随后装载进来的正文 ——
+用户看到的正是"内容过一会自己没了"。
+
+**修法**：**装载完成前不挂载编辑器**。等 `loadedFor.id === routeChapterId` 再挂载，
+它出生的第一份内容就是对的，不会先报一次空。
+
+### 二、内容归属靠外部记账，切章时必然错位
+
+`contentRef` / `store.chapterId` 与编辑器之间在切章时有一段窗口：
+ref 已指向新章，编辑器里还是旧章。此时到达的 `onChange` 会把**旧章内容认成新章的**，
+于是"甲的正文写进乙"。
+
+**修法**：归属由**编辑器随回调一起给出**（`onChange(html, words, chapterId)`），
+内容与归属同时到达，不存在错位的窗口。
+
+### 关键发现：setContent 的 emitUpdate:false 拦不住 onUpdate
+
+```ts
+editor.commands.setContent(html, { emitUpdate: false })  // 仍然会触发 onUpdate
+```
+
+这一点让我绕了很久：每次装载都会触发一次 `onChange`，把 dirty 置真、排一次自动保存。
+所以装载期间到达的回调必须**显式忽略**（`loadingRef` 互斥标记）。
+
+### 结论：不是编辑器（TipTap）的问题
+
+三个 bug 全部在 `EditorPage.tsx` / `EditorCanvas.tsx` 的**内容生命周期管理**里，
+与 TipTap 无关。换 Slate / Lexical / CodeMirror **不会解决** ——
+要处理的仍是"异步取内容 → 换编辑器内容 → 保存归属正确"这套时序，
+只是把同样的坑换个地方再踩一遍，还要重写 AI 面板、审稿锚点、快照等集成。
+
+### 顺带：白屏检测（verify-app-boots）当场抓到一次回归
+
+我在更新日志里又写了嵌套双引号（`"…"内容过一会自己变空"…"`），
+`tsc` 与 `vite build` 都不报错，但 dev server 编译该模块返回 500 → **整个应用白屏**。
+`verify-app-boots` 立刻报了出来。这条冒烟测试值得留着。
