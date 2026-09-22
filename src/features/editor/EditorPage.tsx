@@ -83,6 +83,34 @@ export function EditorPage() {
   const sessionRef = useRef<ID | undefined>(undefined);
   const lastActivity = useRef<number>(Date.now());
   const initialWords = useRef<number>(0);
+  /**
+   * 编辑器里当前这份内容**属于哪一章**。
+   *
+   * ## 为什么需要（这是一个真实的数据损坏 bug）
+   *
+   * 切章时新章节的数据是异步取回来的，中间有一小段空窗：
+   * store 里的 chapterId 还是旧的，而编辑器已经换了内容。
+   * 那段时间任何一次保存都会**把新章的正文写进旧章**。
+   * 实测症状：切到第二章，第一章的正文里出现了第二章的内容；再切几下又串回来。
+   *
+   * ## 为什么不能只记"当前章"
+   *
+   * 只记"编辑器里是哪一章"，切章时就无法再保存旧章 —— 旧章的未保存内容会被丢掉。
+   * 所以这里记的是**「编辑器里这份内容属于哪一章」**，一次只装一份：
+   *
+   *   { chapterId: "A", html: "<p>A 的正文</p>" }
+   *
+   * 保存时拿它去写它自己的 chapterId，**永远不会写错对象**；
+   * 而挂载新章时先把上一份**冲出去**，未保存的内容也不会丢。
+   */
+  const loadedRef = useRef<{ chapterId: ID; html: string } | undefined>(undefined);
+  /**
+   * 编辑器里的内容被作者**真的改过**（不是装载、不是切章带来的）。
+   *
+   * 只有它为 true 时才值得往数据库写：
+   * 否则切一次章就会把没动过的正文原样写回去一遍，白白产生快照与版本号。
+   */
+  const userEdited = useRef(false);
 
   const flow = editorStore.flowMode;
   const rightPanel = editorStore.rightPanel;
@@ -99,15 +127,41 @@ export function EditorPage() {
     void openChapter(routeChapterId);
   }, [routeChapterId, chapters, navigate, openChapter, projectId]);
 
+  /**
+   * 装载某一章的内容到编辑器。
+   *
+   * 关键顺序：**先把上一份冲出去，再装新的**。
+   * 冲刷必须在覆盖状态之前完成 —— 一旦 userEdited 被标记成新章的内容，
+   * 旧章的未保存编辑就再也写不回去了。
+   */
+  const loadChapterInto = useCallback(
+    async (target: Chapter, html: string, text: string) => {
+      const prev = loadedRef.current;
+      if (prev && prev.chapterId !== target.id && userEdited.current) {
+        // 上一章有未保存的编辑，先落库（用上一章自己的 id，不可能写错对象）
+        await saveChapterContent(prev.chapterId, prev.html);
+        userEdited.current = false;
+      }
+      loadedRef.current = { chapterId: target.id, html };
+      userEdited.current = false;
+      setDraftHtml(html);
+      setDraftWords(target.wordCount || countWords(text));
+      setLoadedFor(target.id);
+      editorStore.setChapter(target.id, projectId);
+      // 新章的脏标记清零：它是上一章遗留下来的，
+      // 留着会让切章后的第一次保存把新章内容写回去（即使内容没变）
+      useEditorStore.getState().setDirty(false);
+      initialWords.current = target.wordCount || 0;
+      void listSnapshots(target.id).then((s) => editorStore.setSnapshots(s));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   useEffect(() => {
     if (!chapter || !content || loadedFor === chapter.id) return;
-    setDraftHtml(content.html ?? "<p></p>");
-    setDraftWords(chapter.wordCount || countWords(content.text));
-    setLoadedFor(chapter.id);
-    editorStore.setChapter(chapter.id, projectId);
-    initialWords.current = chapter.wordCount || 0;
-    void listSnapshots(chapter.id).then((s) => editorStore.setSnapshots(s));
-  }, [chapter, content, loadedFor, editorStore, projectId]);
+    void loadChapterInto(chapter, content.html ?? "<p></p>", content.text ?? "");
+  }, [chapter, content, loadedFor, loadChapterInto]);
 
   // 设置里开了「默认进入心流模式」时，进入写作页自动隐藏面板（只生效一次）
   useEffect(() => {
@@ -142,22 +196,35 @@ export function EditorPage() {
 
   // ---------- 保存 ----------
   const doSave = useCallback(
-    async (reason: "auto" | "manual" | "switch") => {
+    async (reason: "auto" | "manual" | "switch", targetChapterId?: ID) => {
       const state = useEditorStore.getState();
-      const cid = state.chapterId;
-      if (!cid || !state.dirty) return;
+      const loaded = loadedRef.current;
+      if (!loaded) return;
+      // 要写的是**编辑器里这份内容自己的章节**，不是 store 里的当前章 ——
+      // 两者在切章空窗期会不一致，按 store 写就会串章。
+      const cid = targetChapterId ?? loaded.chapterId;
+      if (userEdited.current && cid !== loaded.chapterId) {
+        /*
+          用户改的是 A 章，却要求保存到 B 章 —— 说明切章空窗期里发生了保存请求。
+          这时**写回 A**（内容是 A 的），而不是写进 B。
+        */
+        const res = await saveChapterContent(loaded.chapterId, loaded.html);
+        if (targetChapterId === undefined) state.markSaved(res.words);
+        userEdited.current = false;
+        return;
+      }
+      if (!userEdited.current) return;
       /*
-        内容直接从编辑器读，不要用 draftHtml。
-        draftHtml 是渲染闭包里的值，永远比编辑器晚一拍 —— 实测：
-        正文里是「起点甲乙丙丁」，存进去的却是「起点甲乙丙」（少最后一个字），
-        而且之后没有新的输入就不会再触发保存，所以永远补不上。
-        报错现象就是"写完一切换就没了"。
+        内容以 loadedRef 里的 html 为准（它由 onChange 持续更新，和编辑器同步），
+        绝不用 draftHtml —— 它是渲染闭包里的值，永远晚一拍
+        （实测：正文「起点甲乙丙丁」，库里「起点甲乙丙」，少最后一个字）。
       */
       const current = handleRef.current?.getContent();
-      const html = current?.html ?? draftHtml;
+      const html = current?.html ?? loaded.html;
       if (!html) return;
       state.setSaving(true);
       const res = await saveChapterContent(cid, html);
+      userEdited.current = false;
       state.markSaved(res.words);
       if (reason === "manual") notify("success", "已保存", formatWords(res.words));
       if (state.session) {
@@ -181,6 +248,15 @@ export function EditorPage() {
       setDraftHtml(html);
       setDraftWords(words);
       lastActivity.current = Date.now();
+      /*
+        把内容写回 loadedRef：它保存的是"这份内容属于哪一章 + 内容本身"。
+        保存时以它为准，就不会出现"内容属于 A、却写进了 B"。
+        （装载章节时也走 onChange，所以这里要用 userEdited 区分"人改的"和"装载的"。）
+      */
+      if (loadedRef.current) {
+        loadedRef.current = { chapterId: loadedRef.current.chapterId, html };
+        userEdited.current = true;
+      }
       const state = useEditorStore.getState();
       state.setDirty(true);
       state.setWordCount(words);
@@ -254,10 +330,12 @@ export function EditorPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [doSave, chapters, routeChapterId, navigate, projectId, editorStore]);
 
-  // 切章时先保存
+  // 切章时把正在离开的那一章冲刷落库
   useEffect(() => {
+    const leaving = routeChapterId;
     return () => {
-      void doSave("switch");
+      // 明确指定"写回我正要离开的那一章"，而不是让它去猜当前章（会猜错）
+      void doSave("switch", leaving);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeChapterId]);
