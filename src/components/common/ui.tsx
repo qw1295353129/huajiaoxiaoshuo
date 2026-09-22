@@ -27,11 +27,17 @@ export function StatCard({
   value: ReactNode;
   hint?: string;
   icon?: ReactNode;
-  tone?: "default" | "accent" | "success" | "warning" | "danger";
+  /**
+   * 色调。
+   * `info` 是补上的 —— 之前代码里有 4 处 `tone: "info"`，
+   * 但类型里没有它，TypeScript 会把它们当默认色处理（静默退化，不报错）。
+   */
+  tone?: "default" | "accent" | "info" | "success" | "warning" | "danger";
 }) {
   const toneClass: Record<string, string> = {
     default: "text-neutral-500",
     accent: "text-neutral-700",
+    info: "text-sky-500",
     success: "text-emerald-500",
     warning: "text-amber-500",
     danger: "text-rose-500",

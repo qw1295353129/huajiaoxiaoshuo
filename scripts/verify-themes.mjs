@@ -159,6 +159,45 @@ check("柔彩的卡片底比页面底更亮", soft.cardBg !== soft.pageBg, JSON.
 check("柔彩不是深色模式", soft.isDark === false, String(soft.isDark));
 check("柔彩有氛围渐变层", soft.hasAtmosphere === true, String(soft.hasAtmosphere));
 
+console.log("【仪表盘（vivid）】");
+await useTheme("vivid");
+const vivid = await probe();
+console.log("  " + JSON.stringify(vivid));
+check("仪表盘带 data-theme=vivid", vivid.dataTheme === "vivid", String(vivid.dataTheme));
+check("仪表盘的强调色偏暖（珊瑚橙）", isWarm(vivid.accent), vivid.accent);
+check("仪表盘的卡片底是纯白（让彩色卡片跳出来）", isNeutral(vivid.cardBg), vivid.cardBg);
+check("仪表盘不是深色模式", vivid.isDark === false, String(vivid.isDark));
+check("仪表盘有氛围层", vivid.hasAtmosphere === true, String(vivid.hasAtmosphere));
+
+// 卡片渐变强度与色调必须是"每个主题各自"的
+const tones = await page.evaluate(async () => {
+  const s = await import("/src/db/repo/settings.ts");
+  const { applyTheme } = await import("/src/app/store.ts");
+  const out = {};
+  for (const theme of ["light", "warm", "soft", "vivid"]) {
+    s.saveSettings(Object.assign({}, s.loadSettings(), { theme }));
+    applyTheme(theme);
+    const cs = getComputedStyle(document.documentElement);
+    out[theme] = {
+      strength: cs.getPropertyValue("--tone-strength").trim() || "(默认 12%)",
+      info: cs.getPropertyValue("--tone-info").trim(),
+      warning: cs.getPropertyValue("--tone-warning").trim(),
+    };
+  }
+  return out;
+});
+console.log("  " + JSON.stringify(tones));
+check(
+  "仪表盘的渐变强度明显高于其他主题",
+  tones.vivid.strength === "42%" && tones.light.strength === "(默认 12%)",
+  JSON.stringify(tones),
+);
+check(
+  "每个主题的色调颜色各不相同（各有各的个性）",
+  new Set(Object.values(tones).map((t) => t.info + "|" + t.warning)).size === 4,
+  JSON.stringify(tones),
+);
+
 console.log("【切回浅色必须清掉暖色/柔彩（否则会粘住）】");
 await useTheme("light");
 const backToLight = await probe();

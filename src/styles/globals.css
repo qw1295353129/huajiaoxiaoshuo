@@ -126,6 +126,14 @@
   --surface: oklch(0.995 0.006 90);
   --default: oklch(0.945 0.02 82);
   --segment: oklch(0.995 0.006 90);
+
+  /* 卡片色调也走暖色系：暖阳主题下不该出现冷蓝的卡片 */
+  --tone-info: oklch(0.72 0.12 70);
+  --tone-success: oklch(0.76 0.13 145);
+  --tone-warning: oklch(0.8 0.15 80);
+  --tone-danger: oklch(0.66 0.16 30);
+  /* 渐变比中性主题略明显一点，但仍远低于仪表盘那张 */
+  --tone-strength: 22%;
 }
 
 /**
@@ -158,6 +166,13 @@
   --surface: oklch(0.996 0.004 250);
   --default: oklch(0.952 0.014 248);
   --segment: oklch(0.996 0.004 250);
+
+  /* 柔彩的卡片色调偏冷、偏粉，与它整体的"通透"观感一致 */
+  --tone-info: oklch(0.74 0.11 240);
+  --tone-success: oklch(0.79 0.11 170);
+  --tone-warning: oklch(0.83 0.11 85);
+  --tone-danger: oklch(0.7 0.13 10);
+  --tone-strength: 20%;
 }
 
 /**
@@ -210,14 +225,89 @@
 .tone-gradient {
   background-image: linear-gradient(
     135deg,
-    color-mix(in oklab, var(--tone-a) 12%, transparent),
-    color-mix(in oklab, var(--tone-b) 5%, transparent)
+    color-mix(in oklab, var(--tone-a) var(--tone-strength, 12%), transparent),
+    color-mix(in oklab, var(--tone-b) calc(var(--tone-strength, 12%) / 2.4), transparent)
   );
 }
-.tone-gradient-accent { --tone-a: var(--accent); --tone-b: var(--accent); }
-.tone-gradient-success { --tone-a: var(--success); --tone-b: var(--success); }
-.tone-gradient-warning { --tone-a: var(--warning); --tone-b: var(--warning); }
-.tone-gradient-danger { --tone-a: var(--danger); --tone-b: var(--danger); }
+
+/**
+ * 每种色调取**自己那一族的颜色**，而不是都从 --accent 派生。
+ *
+ * 参考图（Kinetiq 那种仪表盘）里几张卡是**不同色相**的：
+ * 蓝（容量）、黄（压缩）、橙（阵列）、绿（在线）。
+ * 如果全部由主色派生，无论主色是什么，卡片都会是同一个色相的深浅 ——
+ * 看起来就像"没上色的线框图"，正是参考图想避免的那种观感。
+ *
+ * 所以这里给每种色调一个独立变量，主题可以各自决定它是什么颜色。
+ */
+:root {
+  --tone-info: var(--accent);
+  --tone-success: var(--success);
+  --tone-warning: var(--warning);
+  --tone-danger: var(--danger);
+}
+.tone-gradient-info { --tone-a: var(--tone-info); --tone-b: var(--tone-info); }
+.tone-gradient-success { --tone-a: var(--tone-success); --tone-b: var(--tone-success); }
+.tone-gradient-warning { --tone-a: var(--tone-warning); --tone-b: var(--tone-warning); }
+.tone-gradient-danger { --tone-a: var(--tone-danger); --tone-b: var(--tone-danger); }
+
+/**
+ * 「仪表盘」主题：贴近参考图那种现代 SaaS 的观感。
+ *
+ * 三处与中性主题的关键差别：
+ *  1. **卡片渐变明显**（--tone-strength 提到 42%）：参考图里的卡是有颜色的，不是白底；
+ *  2. **每种色调是不同色相**（蓝 / 绿 / 琥珀 / 玫红），而不是同一主色的深浅；
+ *  3. **页面带一层柔和的彩色氛围**，但正文区域仍是近白 —— 数据归数据，阅读归阅读。
+ *
+ * 强调色用珊瑚橙（参考图里的主色相），实心强调卡就是那种深色块。
+ */
+:root[data-theme="vivid"] {
+  --accent: oklch(0.68 0.17 42);
+  --accent-foreground: oklch(0.99 0 0);
+  --accent-soft-foreground: var(--foreground);
+  --focus: oklch(0.68 0.17 42);
+
+  /* 卡片底色与页面底：干净的白 + 一点点冷灰，让彩色卡片跳出来 */
+  --color-neutral-50: oklch(0.985 0.002 250);
+  --color-neutral-100: oklch(0.965 0.004 250);
+  --color-neutral-950: oklch(0.21 0.012 265);
+  --color-white: oklch(1 0 0);
+  --surface: oklch(1 0 0);
+  --default: oklch(0.955 0.005 250);
+  --segment: oklch(1 0 0);
+
+  /* 卡片渐变的强度 —— 这是与中性主题最大的视觉差别 */
+  --tone-strength: 42%;
+
+  /* 四种色调各自一个色相（参考图那张仪表盘的配色） */
+  --tone-info: oklch(0.72 0.13 235);      /* 蓝 */
+  --tone-success: oklch(0.78 0.14 155);   /* 绿 */
+  --tone-warning: oklch(0.84 0.15 88);    /* 琥珀 */
+  --tone-danger: oklch(0.7 0.16 20);      /* 珊瑚红 */
+}
+
+/* 仪表盘主题的氛围层：顶部一抹淡彩，其余近白 */
+:root[data-theme="vivid"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(1200px 520px at 8% -10%, oklch(0.95 0.05 235 / 0.55), transparent 60%),
+    radial-gradient(1000px 480px at 96% -6%, oklch(0.95 0.055 60 / 0.5), transparent 58%);
+}
+
+/* 仪表盘主题是浅色系，深色模式下让位给深色 */
+:root[data-theme="vivid"].dark {
+  --color-neutral-50: oklch(0.17 0.012 265);
+  --color-white: oklch(0.22 0.014 265);
+  --default: oklch(0.27 0.014 265);
+  --segment: oklch(0.25 0.014 265);
+  --surface: oklch(0.22 0.014 265);
+  /* 深色底上同样的透明度会显得过艳，压低一档 */
+  --tone-strength: 26%;
+}
 
 /**
  * 中性主题下的"强调卡"：参考图里那种**深色实心块**（如 Total Generation 124.8 MW）。
@@ -226,6 +316,23 @@
 .tone-solid {
   background-image: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 82%, var(--foreground)));
   color: var(--accent-foreground);
+}
+
+/**
+ * 仪表盘主题下，实心强调卡改用**深色块**而不是主色块。
+ *
+ * 参考图里"Total Generation 124.8 MW"那一张是近黑的，
+ * 它的作用是**在一堆彩色卡里当锚点** —— 如果它也变成珊瑚橙，
+ * 整屏就都是暖色，反而没有了主次。深色块与彩色块并置，
+ * 才是参考图那种"一张深、几张彩、其余白"的层次。
+ */
+:root[data-theme="vivid"] .tone-solid {
+  background-image: linear-gradient(135deg, oklch(0.25 0.015 265), oklch(0.31 0.018 265));
+  color: oklch(0.99 0 0);
+}
+:root[data-theme="vivid"].dark .tone-solid {
+  background-image: linear-gradient(135deg, oklch(0.95 0.01 265), oklch(0.88 0.015 265));
+  color: oklch(0.2 0.01 265);
 }
 
 html, body, #root { height: 100%; margin: 0; }

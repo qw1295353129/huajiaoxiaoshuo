@@ -116,7 +116,7 @@ function syncAuthorProfile(settings: AppSettings) {
  * 抽成常量而不是在 applyTheme 里写条件：加主题时只需改这一处，
  * 不会出现"CSS 里加了、applyTheme 里忘了"的静默失效。
  */
-export const COLOR_THEMES: readonly string[] = ["warm", "soft"];
+export const COLOR_THEMES: readonly string[] = ["warm", "soft", "vivid"];
 
 export function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
