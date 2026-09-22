@@ -136,8 +136,11 @@ for (const theme of ["light", "warm", "soft"]) {
       gradBg: grad ? getComputedStyle(grad).backgroundImage : "",
     };
   });
-  // 实心强调卡在所有主题下都有（它是主次层次，不是装饰）
-  check(theme + " 主题有实心强调卡", g.solidBg.includes("linear-gradient"), g.solidBg.slice(0, 50));
+  /*
+    不再有"实心反色卡"（用户反馈：深色主题里有张白卡、浅色主题里有张黑卡）。
+    accent 现在与其它色调一视同仁，只保留主色图标。
+  */
+  check(theme + " 主题不该出现实心反色卡", g.solidBg === "", g.solidBg.slice(0, 50));
   /*
     卡片着色**按主题开关**（用户反馈"浅色主题出现这几个颜色不搭配"）：
     中性主题完全不着色，只有有配色性格的主题才有彩色卡。

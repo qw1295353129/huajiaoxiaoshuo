@@ -36,28 +36,38 @@ export function StatCard({
 }) {
   const toneClass: Record<string, string> = {
     default: "text-neutral-500",
-    accent: "text-neutral-700",
+    /*
+      accent 的图标用主题色（而不是中性灰）。
+      这是"强调"唯一保留的表达方式 —— 只体现在一个小图标上，
+      既看得出哪张卡是主角，又不会在两种主题下都变成一块反色板。
+    */
+    accent: "text-[var(--accent)]",
     info: "text-sky-500",
     success: "text-emerald-500",
     warning: "text-amber-500",
     danger: "text-rose-500",
   };
   /*
-    "强调卡"用深色实心块，其余色调各配一层极淡的同色渐变。
-    颜色的实际取值由主题变量决定（见 globals.css 的 .tone-gradient-*），
-    所以暖阳主题下是暖色渐变、柔彩主题下是冷色渐变 —— 每个主题有自己的个性。
+    ## 为什么没有"实心强调卡"了
+    accent 原先会渲染成一块**实心反色卡**：浅色主题下是纯黑、深色主题下是纯白。
+    用户指出两个方向都别扭 —— 深色主题里冒出一张白卡、浅色主题里冒出一张黑卡，
+    它跟周围所有卡片都是"反着"的，看起来像渲染错误而不是强调。
+    参考图里确实有深色块，但那要求**整页所有卡片都按同一套配色语言排布**；
+    我们这里 accent 散落在十几处（"本章字数""全书字数""角色"…），
+    语义上并不都是"最该突出的那一个"，所以那种实心块只会显得随机。
+    现在 accent 与其它色调一视同仁：一层同色淡渐变 + 主色图标。
+    主题若仍想要实心块，覆盖 --tone-solid-bg / --tone-solid-fg 即可（.tone-solid 仍保留）。
   */
-  const gradient =
-    tone === "accent" ? "tone-solid" : tone === "default" ? "" : "tone-gradient tone-gradient-" + tone;
+  const gradient = tone === "default" ? "" : "tone-gradient tone-gradient-" + tone;
 
   return (
     <Card className={"p-4 " + gradient}>
       <div className="flex items-start justify-between gap-2">
-        <p className={"text-xs " + (tone === "accent" ? "opacity-70" : "opacity-55")}>{label}</p>
-        {icon && <span className={tone === "accent" ? "opacity-80" : toneClass[tone]}>{icon}</span>}
+        <p className="text-xs opacity-55">{label}</p>
+        {icon && <span className={toneClass[tone]}>{icon}</span>}
       </div>
       <p className="tabular mt-2 text-xl font-semibold tracking-tight">{value}</p>
-      {hint && <p className={"mt-1 text-[11px] " + (tone === "accent" ? "opacity-70" : "opacity-45")}>{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] opacity-45">{hint}</p>}
     </Card>
   );
 }

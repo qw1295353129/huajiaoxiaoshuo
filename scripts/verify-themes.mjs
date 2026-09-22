@@ -236,14 +236,22 @@ for (const theme of ["light", "vivid"]) {
     return {
       grad: grad ? getComputedStyle(grad).backgroundImage : "",
       solid: solid ? getComputedStyle(solid).backgroundImage : "",
+      solidCount: document.querySelectorAll(".tone-solid").length,
     };
   });
   const transparent = g.grad.includes("oklab(0 0 0 / 0)");
   if (theme === "light") {
     check("中性主题的卡片底完全透明（不被着色）", transparent === true, g.grad.slice(0, 70));
-    check("中性主题的实心强调卡仍然存在（主次层次）", g.solid.includes("linear-gradient"), g.solid.slice(0, 60));
+    /*
+      不再有"实心反色卡"。
+      accent 原先渲染成实心块：浅色下纯黑、深色下纯白，两种主题里都跟周围反着
+      （用户反馈"深色主题这怎么有个白色卡片，浅色主题有个黑色卡片"）。
+      现在 accent 与其它色调一视同仁。
+    */
+    check("不存在实心反色卡（两种主题下都不该出现）", g.solidCount === 0, String(g.solidCount));
   } else {
     check("仪表盘的卡片底确实着上了颜色", transparent === false, g.grad.slice(0, 70));
+    check("仪表盘也不该有实心反色卡", g.solidCount === 0, String(g.solidCount));
   }
 }
 

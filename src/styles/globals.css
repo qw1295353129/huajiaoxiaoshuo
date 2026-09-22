@@ -280,6 +280,7 @@
   */
   --tone-strength: 0%;
 }
+.tone-gradient-accent { --tone-a: var(--accent); --tone-b: var(--accent); }
 .tone-gradient-info { --tone-a: var(--tone-info); --tone-b: var(--tone-info); }
 .tone-gradient-success { --tone-a: var(--tone-success); --tone-b: var(--tone-success); }
 .tone-gradient-warning { --tone-a: var(--tone-warning); --tone-b: var(--tone-warning); }
