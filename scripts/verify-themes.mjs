@@ -89,6 +89,7 @@ const probe = () =>
       accent: rgb(cs.getPropertyValue("--accent").trim()),
       pageBg: rgb(cs.getPropertyValue("--color-neutral-50").trim()),
       cardBg: rgb(cs.getPropertyValue("--color-white").trim()),
+      hasAtmosphere: getComputedStyle(document.body, "::before").position === "fixed",
     };
     el.remove();
     return out;
@@ -116,6 +117,18 @@ const isNeutral = (color) => {
   if (!v) return false;
   return Math.max(...v) - Math.min(...v) <= 12;
 };
+/** 颜色是否偏冷（蓝分量最高） */
+const isCool = (color) => {
+  const v = toRgb(color);
+  if (!v) return false;
+  return v[2] >= v[0] && v[2] >= v[1] && v[2] - v[0] >= 2;
+};
+/** 是否是"玫粉"这类强调色（红分量最高、绿最低，即有彩度且偏红） */
+const isCoolAccent = (color) => {
+  const v = toRgb(color);
+  if (!v) return false;
+  return v[0] > v[1] && v[0] - v[1] >= 20;
+};
 
 console.log("【浅色（默认）必须是中性】");
 await useTheme("light");
@@ -135,7 +148,18 @@ check("暖阳的页面底偏暖（奶油）", isWarm(warm.pageBg), warm.pageBg);
 check("暖阳的卡片底比页面底更亮", warm.cardBg !== warm.pageBg, JSON.stringify({ card: warm.cardBg, page: warm.pageBg }));
 check("暖阳不是深色模式", warm.isDark === false, String(warm.isDark));
 
-console.log("【切回浅色必须清掉暖色（否则会粘住）】");
+console.log("【柔彩】");
+await useTheme("soft");
+const soft = await probe();
+console.log("  " + JSON.stringify(soft));
+check("柔彩带 data-theme=soft", soft.dataTheme === "soft", String(soft.dataTheme));
+check("柔彩的强调色偏冷（玫粉：红高、绿低）", isCoolAccent(soft.accent), soft.accent);
+check("柔彩的页面底是冷调（蓝分量最高）", isCool(soft.pageBg), soft.pageBg);
+check("柔彩的卡片底比页面底更亮", soft.cardBg !== soft.pageBg, JSON.stringify({ card: soft.cardBg, page: soft.pageBg }));
+check("柔彩不是深色模式", soft.isDark === false, String(soft.isDark));
+check("柔彩有氛围渐变层", soft.hasAtmosphere === true, String(soft.hasAtmosphere));
+
+console.log("【切回浅色必须清掉暖色/柔彩（否则会粘住）】");
 await useTheme("light");
 const backToLight = await probe();
 console.log("  " + JSON.stringify(backToLight));

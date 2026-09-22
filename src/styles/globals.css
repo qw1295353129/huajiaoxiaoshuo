@@ -128,6 +128,68 @@
   --segment: oklch(0.995 0.006 90);
 }
 
+/**
+ * 柔彩主题（可选）。
+ *
+ * 淡蓝白底 + 莓粉强调 + 一层极淡的氛围渐变，对应参考图那种"轻盈、通透"的观感。
+ * 与「暖阳」正好是冷暖两极，两者都**不影响默认的中性主题**。
+ *
+ * ## 与暖阳的关键差别：强调色只用在"选中的那一个"
+ *
+ * 参考图里彩色只出现在少数几处（主行动、选中态、导航激活），大面积仍是近白底。
+ * 所以这里刻意**不碰正文与表格的文字色、不碰边框灰** ——
+ * 一旦把灰都染上色，界面会立刻显得脏、也失去层次。
+ * 底色、卡片、强调，这三处足以定调。
+ */
+:root[data-theme="soft"] {
+  /* 强调色：莓粉。饱和度压到 0.13 —— 参考图是柔和的粉，不是荧光粉 */
+  --accent: oklch(0.62 0.13 5);
+  --accent-foreground: oklch(0.99 0 0);
+  --accent-soft-foreground: var(--foreground);
+  --focus: oklch(0.62 0.13 5);
+
+  /* 底色与表面：极淡的冷蓝白 */
+  --color-neutral-50: oklch(0.982 0.008 250);
+  --color-neutral-100: oklch(0.962 0.012 248);
+  --color-neutral-950: oklch(0.22 0.015 255);
+  --color-white: oklch(0.996 0.004 250);
+
+  /* HeroUI 的表面与"默认"底 */
+  --surface: oklch(0.996 0.004 250);
+  --default: oklch(0.952 0.014 248);
+  --segment: oklch(0.996 0.004 250);
+}
+
+/**
+ * 柔彩的大气层：一层几乎看不见的淡蓝 → 淡粉渐变。
+ *
+ * 只做一层、极低饱和度（约 0.03）。参考图的"通透感"来自大面积近白 +
+ * 边缘一点点色，渐变一旦明显就会变成廉价的"彩色海报"。
+ *
+ * 用 fixed 而不是给 body 背景：body 会跟随内容高度，长页面下滑时渐变被拉长变色；
+ * fixed 让它始终铺满视口，与内容长度无关。
+ * 放在 z-index: -1，不参与任何交互与命中测试。
+ */
+:root[data-theme="soft"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 700px at 12% -6%, oklch(0.94 0.035 235 / 0.55), transparent 62%),
+    radial-gradient(900px 620px at 92% 4%, oklch(0.95 0.032 350 / 0.5), transparent 58%);
+}
+
+/* 柔彩是浅色系主题，深色模式下让位给深色（避免"米白底 + 深色文字组件"打架） */
+:root[data-theme="soft"].dark {
+  --color-neutral-50: oklch(0.18 0.012 255);
+  --color-white: oklch(0.23 0.014 255);
+  --default: oklch(0.28 0.014 255);
+  --segment: oklch(0.26 0.014 255);
+  --surface: oklch(0.23 0.014 255);
+}
+
 html, body, #root { height: 100%; margin: 0; }
 body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 

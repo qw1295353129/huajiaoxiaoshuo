@@ -514,3 +514,42 @@ HeroUI 的选中态、焦点环、滑块、主按钮**全都跟随 accent**，�
 **两条修正**：① 判定函数遇到无法解析的颜色必须**判失败**而不是默认通过；
 ② 自己算 oklch → sRGB（就是 OKLab 矩阵 + sRGB gamma，二十行）。
 `scripts/verify-themes.mjs` 里有可直接复用的实现。
+
+## 加第二个主题时，"彩色主题清单"必须只有一个来源
+
+加「柔彩」时我把 `applyTheme` 里的判断从
+
+```ts
+if (theme === "warm") root.setAttribute("data-theme", "warm");
+```
+
+改成了查一张清单：
+
+```ts
+export const COLOR_THEMES = ["warm", "soft"] as const;
+if (COLOR_THEMES.includes(theme)) root.setAttribute("data-theme", theme);
+```
+
+**原因**：如果继续写 `if (theme === "warm" || theme === "soft")`，
+下次加主题很容易只改 CSS、忘了改这里 —— 而漏掉的症状是**"选了没反应"**，
+不报错、不崩溃，只是静默失效。集中成一张清单，加主题只需改一处。
+
+## 彩色主题的"面积纪律"
+
+参考图那种轻盈感来自**大面积近白 + 少数几处彩色**。所以两套彩色主题都只覆盖三类变量：
+
+| 覆盖 | 不覆盖 |
+|---|---|
+| 底色（`--color-neutral-50/100`） | 正文与表格文字色 |
+| 卡片面（`--color-white`） | 边框灰 |
+| 强调色（`--accent`/`--focus`） | hover / 分割线等中性层次 |
+
+一旦把中性灰也染色，界面立刻显脏、也失去层次 —— 暖色主题尤其明显。
+
+## 氛围渐变用 fixed 而不是 body 背景
+
+柔彩的渐变若挂在 `body` 上，会随内容高度被拉长，长页面下滑时颜色逐渐变味。
+用 `position: fixed; inset: 0; z-index: -1; pointer-events: none` ——
+始终铺满视口、与内容长度无关，也不参与命中测试。
+
+回归里专门断言"切回浅色后氛围层消失"，防它残留。

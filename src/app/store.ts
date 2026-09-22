@@ -110,6 +110,14 @@ function syncAuthorProfile(settings: AppSettings) {
   });
 }
 
+/**
+ * 所有"彩色主题"。它们靠 `data-theme` 属性生效，与 dark 正交。
+ *
+ * 抽成常量而不是在 applyTheme 里写条件：加主题时只需改这一处，
+ * 不会出现"CSS 里加了、applyTheme 里忘了"的静默失效。
+ */
+export const COLOR_THEMES: readonly string[] = ["warm", "soft"];
+
 export function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -117,11 +125,15 @@ export function applyTheme(theme: Theme) {
   const dark = theme === "dark" || (theme === "system" && prefersDark);
   root.classList.toggle("dark", dark);
   /**
-   * 暖阳主题用 data-theme 标记，**与 dark 正交**（它本身是浅色系）。
-   * 用属性而不是再加一个类：类名会和 Tailwind 的 dark 变体混在一起难分辨，
-   * 属性在 CSS 里写成 [data-theme="warm"] 一眼能看出是"主题"而不是"模式"。
+   * 彩色主题用 data-theme 标记，**与 dark 正交**（它们本身是浅色系）。
+   *
+   * 用属性而不是再加一个 class：类名会与 Tailwind 的 dark 变体混在一起难分辨，
+   * 属性在 CSS 里写成 [data-theme="warm"] 一眼能看出是"主题"而不是"明暗模式"。
+   *
+   * 这里列的是**所有**彩色主题 —— 加主题时忘了同步这张表，
+   * 表现就是"选了没反应"，所以它与 COLOR_THEMES 用同一个来源。
    */
-  if (theme === "warm") root.setAttribute("data-theme", "warm");
+  if (COLOR_THEMES.includes(theme)) root.setAttribute("data-theme", theme);
   else root.removeAttribute("data-theme");
   root.style.colorScheme = dark ? "dark" : "light";
 }

@@ -11,8 +11,9 @@ export interface AppSettings {
    * 界面主题。
    * - light/dark/system：中性配色（白 / 黑 / 浅灰），默认
    * - warm：暖阳 —— 奶油底 + 近黑字 + 琥珀/橙强调
+   * - soft：柔彩 —— 淡蓝白底 + 莓粉强调 + 极淡氛围渐变
    */
-  theme: 'light' | 'dark' | 'system' | 'warm';
+  theme: 'light' | 'dark' | 'system' | 'warm' | 'soft';
   /** 编辑器字号 */
   editorFontSize: number;
   /** 编辑器宽度 px，0 = 自适应 */
