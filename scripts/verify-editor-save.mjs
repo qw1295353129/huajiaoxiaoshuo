@@ -91,6 +91,26 @@ const waitSaved = async (timeoutMs = 15000) => {
 };
 
 /**
+ * 等编辑器里出现预期内容。
+ *
+ * 切章后只等"保存完成"是不够的 —— 那时新章可能还没装载进编辑器，
+ * 断言就会读到上一章的内容。批量跑回归时机器负载高尤其容易踩到
+ * （这条测试因此在批量里从 11/11 掉到 9/11，单独跑却全过）。
+ */
+const waitEditorHas = (needle, timeoutMs = 20000) =>
+  page
+    .waitForFunction(
+      (n) => {
+        const pm = document.querySelector(".ProseMirror");
+        return Boolean(pm && (pm.innerText ?? "").includes(n));
+      },
+      needle,
+      { timeout: timeoutMs },
+    )
+    .then(() => true)
+    .catch(() => false);
+
+/**
  * 点章节列表里的某一章。
  *
  * 必须限定在章节列表容器内 —— 项目导航里也有「第二章」这样的项目吗？没有，
@@ -111,7 +131,10 @@ const clickChapterInList = (title) =>
     return false;
   }, title);
 
-const openFirst = () => gotoApp(page, BASE + "/p/" + ids.pid + "/write/" + ids.c1, { settle: 3000 });
+const openFirst = async () => {
+  await gotoApp(page, BASE + "/p/" + ids.pid + "/write/" + ids.c1, { settle: 1200 });
+  await waitEditorHas("起点");
+};
 
 console.log("【逐字输入的最后一个字必须落库】");
 await openFirst();
@@ -133,6 +156,7 @@ console.log("【不等自动保存就切章】");
 await type("戊己");
 await page.waitForTimeout(200); // 远小于自动保存间隔
 await clickChapterInList("第二章");
+await waitEditorHas("起点二");
 await waitSaved();
 const s2 = await snap();
 check("切章前的内容被保住", s2.saved?.includes("戊己") === true, JSON.stringify(s2));
@@ -140,6 +164,7 @@ check("切章后内容完整（含刚输入的最后一个字）", s2.saved?.end
 
 console.log("【切回来 / 刷新后都还在】");
 await clickChapterInList("第一章");
+await waitEditorHas("起点");
 await waitSaved();
 const s3 = await snap();
 check("切回来显示正确", s3.shown?.includes("戊己") === true, String(s3.shown));
