@@ -44,6 +44,38 @@ const gears = await page.evaluate(() => {
 });
 check("章节列表里每章都有齿轮", gears.count === 3, JSON.stringify(gears));
 
+console.log("【齿轮必须在删除按钮左边】");
+// 用真实渲染坐标判断顺序，而不是看源码 —— 布局变了源码顺序不代表视觉顺序
+const rowOrder = await page.evaluate(() => {
+  const list = [...document.querySelectorAll("div")].find(
+    (d) => (d.className || "").toString().includes("w-72") && /border-r/.test((d.className || "").toString()),
+  );
+  const row = [...(list?.querySelectorAll("li") ?? [])].find((li) => (li.textContent ?? "").includes("第二章"));
+  if (!row) return null;
+  const at = (sel) => {
+    const el = row.querySelector(sel);
+    return el ? Math.round(el.getBoundingClientRect().left) : null;
+  };
+  const title = row.querySelector("button");
+  return {
+    titleX: title ? Math.round(title.getBoundingClientRect().left) : null,
+    settingsX: at('button[aria-label="章节属性"]'),
+    deleteX: at('button[aria-label="删除章节"]'),
+  };
+});
+console.log("  " + JSON.stringify(rowOrder));
+check("能定位到两个按钮", rowOrder?.settingsX != null && rowOrder?.deleteX != null, JSON.stringify(rowOrder));
+check(
+  "齿轮在删除按钮的左边",
+  (rowOrder?.settingsX ?? 9999) < (rowOrder?.deleteX ?? 0),
+  JSON.stringify(rowOrder),
+);
+check(
+  "标题在齿轮左边（不再被齿轮挤到右边）",
+  (rowOrder?.titleX ?? 9999) < (rowOrder?.settingsX ?? 0),
+  JSON.stringify(rowOrder),
+);
+
 console.log("【点第三章的齿轮，必须打开第三章】");
 const opened = await page.evaluate(() => {
   const list = [...document.querySelectorAll("div")].find((d) => (d.className || "").toString().includes("w-72") && /border-r/.test((d.className || "").toString()));

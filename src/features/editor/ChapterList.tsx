@@ -146,29 +146,6 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
         }
       >
         <GripVertical className="size-3 shrink-0 cursor-grab opacity-0 transition group-hover:opacity-40" />
-        {onOpenSettings && (
-          <Tooltip>
-            <Tooltip.Trigger>
-              <button
-                type="button"
-                aria-label="章节属性"
-                // 默认不显示，hover 或当前章才出现 —— 列表里不该有一排常驻图标
-                className={
-                  "shrink-0 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/15 " +
-                  (c.id === activeChapterId ? "opacity-50" : "opacity-0 group-hover:opacity-50") +
-                  " hover:!opacity-100"
-                }
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenSettings(c);
-                }}
-              >
-                <Settings2 className="size-3.5" />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content>章节属性</Tooltip.Content>
-          </Tooltip>
-        )}
         <button
           type="button"
           className="min-w-0 flex-1 truncate text-left"
@@ -198,6 +175,35 @@ export function ChapterList({ projectId, arcs, chapters, activeChapterId, collap
           )}
         </button>
         <span className="tabular shrink-0 text-[10px] opacity-40">{c.wordCount > 0 ? formatWords(c.wordCount) : ""}</span>
+        {/*
+          「章节属性」放在删除左边。
+          它以前在最左侧（标题之前），把标题挤得靠右，而且"打开设置"和"这一章叫什么"
+          是两个层次的东西，中间隔着标题很难形成"这是在操作这一章"的联想。
+          放到行尾与删除并列，两个"对本章的操作"就聚在一起了。
+        */}
+        {onOpenSettings && (
+          <Tooltip>
+            <Tooltip.Trigger>
+              <button
+                type="button"
+                aria-label="章节属性"
+                // 默认不显示，hover 或当前章才出现 —— 列表里不该有一排常驻图标
+                className={
+                  "shrink-0 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/15 " +
+                  (c.id === activeChapterId ? "opacity-50" : "opacity-0 group-hover:opacity-50") +
+                  " hover:!opacity-100"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenSettings(c);
+                }}
+              >
+                <Settings2 className="size-3.5" />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Content>章节属性</Tooltip.Content>
+          </Tooltip>
+        )}
         <button
           type="button"
           aria-label="删除章节"
