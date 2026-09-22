@@ -190,6 +190,44 @@
   --surface: oklch(0.23 0.014 255);
 }
 
+/**
+ * 统计卡的彩色渐变底。
+ *
+ * ## 为什么不直接写死颜色
+ *
+ * 参考图里那种"卡片带一层柔和渐变"的观感，颜色必须**跟着主题走**，
+ * 否则暖阳主题里冒出一块粉蓝卡片会很突兀。
+ * 所以这里只定义"渐变的形状"，颜色交给各主题的变量。
+ *
+ * ## 为什么用 CSS 类而不是 Tailwind 工具类
+ *
+ * 渐变需要两个颜色停靠点 + 方向，写在工具类里会变成一长串 arbitrary value，
+ * 既难读也没法随主题切换。集中成几个类，StatCard 按 tone 选一个即可。
+ *
+ * 透明度刻意压得很低（0.1 上下）：卡片是**承载数据**的，不是装饰画。
+ * 渐变一旦明显，数字的可读性会立刻下降。
+ */
+.tone-gradient {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--tone-a) 12%, transparent),
+    color-mix(in oklab, var(--tone-b) 5%, transparent)
+  );
+}
+.tone-gradient-accent { --tone-a: var(--accent); --tone-b: var(--accent); }
+.tone-gradient-success { --tone-a: var(--success); --tone-b: var(--success); }
+.tone-gradient-warning { --tone-a: var(--warning); --tone-b: var(--warning); }
+.tone-gradient-danger { --tone-a: var(--danger); --tone-b: var(--danger); }
+
+/**
+ * 中性主题下的"强调卡"：参考图里那种**深色实心块**（如 Total Generation 124.8 MW）。
+ * 浅色模式是近黑底白字，深色模式反过来 —— 与主按钮同一套反差逻辑。
+ */
+.tone-solid {
+  background-image: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 82%, var(--foreground)));
+  color: var(--accent-foreground);
+}
+
 html, body, #root { height: 100%; margin: 0; }
 body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 

@@ -17,6 +17,7 @@ import {
 import { listProviders } from "@/db/repo/settings";
 import { lastEmbeddingError, probeEmbedding } from "@/ai/embedding";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
+import { ModelSelect, looksLikeEmbeddingModel } from "@/components/common/ModelSelect";
 import { extractRuleBasedMemory, suggestPreferences, type PreferenceCandidate } from "@/ai/memory-extract";
 import { EmptyHint, Loading, SectionTitle } from "@/components/common/ui";
 import { formatRelative } from "@/utils/format";
@@ -738,14 +739,26 @@ function SemanticRecallSection({
                   </option>
                 ))}
               </select>
-              <input
+              <ModelSelect
+                className="min-w-56 flex-1"
                 value={recall.model}
-                onChange={(e) => patch({ model: e.target.value })}
-                placeholder="text-embedding-3-small"
-                className="w-52 rounded-lg border border-black/10 bg-transparent px-2 py-1 text-xs dark:border-white/15"
+                options={currentProvider?.models ?? []}
+                onChange={(m) => patch({ model: m })}
+                placeholder="选择向量模型"
+                title="选择向量模型"
+                /*
+                  只列向量模型：这里要的是 embedding 模型，
+                  把 chat 模型混在一起很容易选错（选错了召回会不准，但不会报错）。
+                  过滤只作用于**列表默认显示** —— 底部仍可手填，
+                  因为总有名字里不带 embed 字样的向量模型。
+                */
+                filter={looksLikeEmbeddingModel}
+                filterHint="只显示向量模型"
               />
-              {currentProvider && currentProvider.models.length > 0 && (
-                <span className="text-[10px] opacity-50">该供应商可用的模型：{currentProvider.models.slice(0, 3).join("、")}</span>
+              {currentProvider && currentProvider.models.length > 0 && currentProvider.models.every((m) => !looksLikeEmbeddingModel(m)) && (
+                <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                  该供应商的模型名里没有向量模型的特征，可能不支持 embedding
+                </span>
               )}
             </>
           )}

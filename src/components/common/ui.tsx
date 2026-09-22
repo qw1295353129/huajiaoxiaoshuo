@@ -36,14 +36,22 @@ export function StatCard({
     warning: "text-amber-500",
     danger: "text-rose-500",
   };
+  /*
+    "强调卡"用深色实心块，其余色调各配一层极淡的同色渐变。
+    颜色的实际取值由主题变量决定（见 globals.css 的 .tone-gradient-*），
+    所以暖阳主题下是暖色渐变、柔彩主题下是冷色渐变 —— 每个主题有自己的个性。
+  */
+  const gradient =
+    tone === "accent" ? "tone-solid" : tone === "default" ? "" : "tone-gradient tone-gradient-" + tone;
+
   return (
-    <Card className="p-4">
+    <Card className={"p-4 " + gradient}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs opacity-55">{label}</p>
-        {icon && <span className={toneClass[tone]}>{icon}</span>}
+        <p className={"text-xs " + (tone === "accent" ? "opacity-70" : "opacity-55")}>{label}</p>
+        {icon && <span className={tone === "accent" ? "opacity-80" : toneClass[tone]}>{icon}</span>}
       </div>
       <p className="tabular mt-2 text-xl font-semibold tracking-tight">{value}</p>
-      {hint && <p className="mt-1 text-[11px] opacity-45">{hint}</p>}
+      {hint && <p className={"mt-1 text-[11px] " + (tone === "accent" ? "opacity-70" : "opacity-45")}>{hint}</p>}
     </Card>
   );
 }

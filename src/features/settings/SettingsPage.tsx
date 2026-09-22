@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button, Chip, Input, Label, Switch, TextArea, TextField } from "@heroui/react";
-import { ArrowLeft, Brain, Check, Eye, EyeOff, Gauge, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
+import { ArrowLeft, Brain, Check, Eraser, Eye, EyeOff, Gauge, KeyRound, Palette, Plus, RefreshCw, ShieldCheck, Trash2, UserRound, Zap } from "lucide-react";
 import type { AiTaskKind, ProviderConfig, ProviderKind, TaskRouting } from "@/core";
 import { useAppStore } from "@/app/store";
 import { ROUTES } from "@/app/routes";
@@ -23,6 +23,7 @@ import { MemoryPanel } from "./MemoryPanel";
 import { ProxyCard } from "./ProxyCard";
 import { PricingPanel } from "./PricingPanel";
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/app/routes";
+import { ModelSelect } from "@/components/common/ModelSelect";
 import { APP_VERSION } from "@/core";
 
 type Tab = SettingsSection | "memory";
@@ -295,18 +296,19 @@ function ModelsTab() {
                 </option>
               ))}
           </select>
-          <select
+          {/*
+            模型用带搜索的弹窗选择，而不是原生 select ——
+            select 的展开宽度受控件宽度限制，长模型名（deepseek-ai/DeepSeek-V3、
+            Qwen/Qwen2.5-72B-Instruct）会被截断，用户反馈"模型显示不全"。
+          */}
+          <ModelSelect
+            className="min-w-40 flex-1"
             value={settings.activeModel ?? ""}
-            onChange={(e) => updateSettings({ activeModel: e.target.value || undefined })}
-            className="min-w-40 flex-1 rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-sm dark:border-white/15"
-          >
-            <option value="">— 选择模型 —</option>
-            {(providers.find((p) => p.id === settings.activeProviderId)?.models ?? []).map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+            options={providers.find((p) => p.id === settings.activeProviderId)?.models ?? []}
+            onChange={(m) => updateSettings({ activeModel: m || undefined })}
+            placeholder="— 选择模型 —"
+            title="选择默认模型"
+          />
           {settings.activeModel ? (
             <Chip size="sm" color="success">
               已就绪
@@ -379,9 +381,32 @@ function ModelsTab() {
                     placeholder={p.kind === "ollama" || p.kind === "lmstudio" ? "本地模型通常不需要 Key" : "粘贴 API Key"}
                     className="w-full bg-transparent text-xs outline-none placeholder:opacity-40"
                   />
-                  <button type="button" onClick={() => setShowKey((s) => ({ ...s, [p.id]: !s[p.id] }))}>
+                  <button type="button" aria-label="显示或隐藏密钥" onClick={() => setShowKey((s) => ({ ...s, [p.id]: !s[p.id] }))}>
                     {showKey[p.id] ? <EyeOff className="size-3.5 opacity-40" /> : <Eye className="size-3.5 opacity-40" />}
                   </button>
+                  {/*
+                    清空密钥。
+                    以前只有"删除供应商"（连同配置一起没），想换一把 Key 或临时停用
+                    就必须把整个供应商删掉重建 —— 用户反馈缺这个操作。
+                    这里只清空 apiKey，供应商与模型列表都保留。
+                  */}
+                  {Boolean(keyDraft[p.id] ?? p.apiKey) && (
+                    <button
+                      type="button"
+                      aria-label="清空密钥"
+                      title="清空密钥"
+                      className="shrink-0 rounded p-0.5 transition hover:bg-black/10 dark:hover:bg-white/15"
+                      onClick={async () => {
+                        if (!confirm("清空 " + p.name + " 的 API Key？供应商配置与模型列表会保留。")) return;
+                        setKeyDraft((s) => ({ ...s, [p.id]: "" }));
+                        await setProviderKey(p.id, "");
+                        reload();
+                        notify("success", "已清空密钥", p.name);
+                      }}
+                    >
+                      <Eraser className="size-3.5 opacity-50" />
+                    </button>
+                  )}
                 </div>
                 <Button size="sm" variant="outline" isPending={checking === p.id} onPress={() => void check(p)}>
                   测试连接

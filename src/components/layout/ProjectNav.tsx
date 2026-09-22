@@ -40,23 +40,33 @@ export function ProjectNav({ className }: { className?: string }) {
         <span className="truncate">{project?.title ?? "书库"}</span>
       </NavLink>
 
-      <div className="flex-1 space-y-4 overflow-y-auto">
+      <div className="flex-1 space-y-5 overflow-y-auto">
         {NAV_GROUPS.map((g) => (
           <div key={g.key}>
-            <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider opacity-40">{g.label}</p>
-            <ul className="space-y-0.5">
+            <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider opacity-40">{g.label}</p>
+            <ul className="space-y-1">
               {ROUTE_PAGES.filter((p) => p.group === g.key).map((p) => (
                 <li key={p.key}>
+                  {/*
+                    圆角胶囊式导航项（参考图那种观感）：
+                    - 独立的圆角块 + 更大的纵向内边距，项与项之间有呼吸感；
+                    - **图标在左**，固定宽度，所以所有标签左端对齐成一条线；
+                    - 激活态是"浮起的一块"（白底 + 细边 + 阴影），而不是只换个底色 ——
+                      参考图里选中的那一个是明显凸出来的。
+                  */}
                   <NavLink
                     to={p.to(id)}
                     className={({ isActive }) =>
-                      "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition " +
+                      "group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition " +
                       (isActive
-                        ? "bg-black/[0.06] font-medium dark:bg-white/10"
-                        : "opacity-70 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5")
+                        ? "bg-white font-medium shadow-sm ring-1 ring-black/[0.06] dark:bg-white/10 dark:ring-white/10"
+                        : "opacity-70 hover:bg-black/[0.04] hover:opacity-100 dark:hover:bg-white/[0.06]")
                     }
                   >
-                    <p.icon className="size-4 shrink-0" />
+                    {/* 固定 20px 宽：图标下面的标签才会整齐对齐 */}
+                    <span className="flex w-5 shrink-0 justify-center">
+                      <p.icon className="size-4" />
+                    </span>
                     <span className="truncate">{p.label}</span>
                   </NavLink>
                 </li>
