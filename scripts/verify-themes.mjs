@@ -179,7 +179,7 @@ const tones = await page.evaluate(async () => {
     applyTheme(theme);
     const cs = getComputedStyle(document.documentElement);
     out[theme] = {
-      strength: cs.getPropertyValue("--tone-strength").trim() || "(默认 12%)",
+      strength: cs.getPropertyValue("--tone-strength").trim(),
       info: cs.getPropertyValue("--tone-info").trim(),
       warning: cs.getPropertyValue("--tone-warning").trim(),
     };
@@ -187,16 +187,65 @@ const tones = await page.evaluate(async () => {
   return out;
 });
 console.log("  " + JSON.stringify(tones));
+
+/*
+  彩色卡片底**按主题开关** —— 这是用户反馈后的修正：
+  "浅色主题出现这几个颜色不搭配"。
+  中性主题的定位是"只用白/黑/浅灰"，彩色卡片在那套体系里属于装饰性用色，
+  所以强度默认 0（完全不着色）；有配色性格的主题各自声明更高的值。
+*/
+check("仪表盘的彩色卡片最明显（42%）", tones.vivid.strength === "42%", tones.vivid.strength);
+check("中性浅色完全不给卡片着色（0%）", tones.light.strength === "0%", tones.light.strength);
 check(
-  "仪表盘的渐变强度明显高于其他主题",
-  tones.vivid.strength === "42%" && tones.light.strength === "(默认 12%)",
-  JSON.stringify(tones),
+  "暖阳 / 柔彩只有轻度着色（>0 且 <30%）",
+  parseFloat(tones.warm.strength) > 0 &&
+    parseFloat(tones.warm.strength) < 30 &&
+    parseFloat(tones.soft.strength) > 0 &&
+    parseFloat(tones.soft.strength) < 30,
+  JSON.stringify({ warm: tones.warm.strength, soft: tones.soft.strength }),
 );
 check(
   "每个主题的色调颜色各不相同（各有各的个性）",
   new Set(Object.values(tones).map((t) => t.info + "|" + t.warning)).size === 4,
   JSON.stringify(tones),
 );
+
+// 深色也必须不着色
+const darkStrength = await page.evaluate(async () => {
+  const s = await import("/src/db/repo/settings.ts");
+  const { applyTheme } = await import("/src/app/store.ts");
+  s.saveSettings(Object.assign({}, s.loadSettings(), { theme: "dark" }));
+  applyTheme("dark");
+  return getComputedStyle(document.documentElement).getPropertyValue("--tone-strength").trim();
+});
+check("深色主题同样不着色（0%）", darkStrength === "0%", darkStrength);
+
+/*
+  卡片底色的**实际渲染**也要验一遍。
+  只看变量不够 —— 变量对了但选择器覆盖错，界面照样是错的
+  （踩过：.tone-gradient 上多写了一句 --tone-strength: 0%，
+   把主题的值压掉了，仪表盘的彩色卡片全部变透明）。
+*/
+console.log("【卡片底色的实际渲染】");
+for (const theme of ["light", "vivid"]) {
+  await useTheme(theme);
+  await gotoApp(page, BASE + "/p/" + pid + "/overview", { settle: 2000 });
+  const g = await page.evaluate(() => {
+    const grad = document.querySelector(".tone-gradient");
+    const solid = document.querySelector(".tone-solid");
+    return {
+      grad: grad ? getComputedStyle(grad).backgroundImage : "",
+      solid: solid ? getComputedStyle(solid).backgroundImage : "",
+    };
+  });
+  const transparent = g.grad.includes("oklab(0 0 0 / 0)");
+  if (theme === "light") {
+    check("中性主题的卡片底完全透明（不被着色）", transparent === true, g.grad.slice(0, 70));
+    check("中性主题的实心强调卡仍然存在（主次层次）", g.solid.includes("linear-gradient"), g.solid.slice(0, 60));
+  } else {
+    check("仪表盘的卡片底确实着上了颜色", transparent === false, g.grad.slice(0, 70));
+  }
+}
 
 console.log("【切回浅色必须清掉暖色/柔彩（否则会粘住）】");
 await useTheme("light");

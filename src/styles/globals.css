@@ -132,8 +132,8 @@
   --tone-success: oklch(0.76 0.13 145);
   --tone-warning: oklch(0.8 0.15 80);
   --tone-danger: oklch(0.66 0.16 30);
-  /* 渐变比中性主题略明显一点，但仍远低于仪表盘那张 */
-  --tone-strength: 22%;
+  /* 一点点暖色就够 —— 暖阳的个性在底色与强调色上，卡片不必再喊一遍 */
+  --tone-strength: 14%;
 }
 
 /**
@@ -172,7 +172,7 @@
   --tone-success: oklch(0.79 0.11 170);
   --tone-warning: oklch(0.83 0.11 85);
   --tone-danger: oklch(0.7 0.13 10);
-  --tone-strength: 20%;
+  --tone-strength: 12%;
 }
 
 /**
@@ -222,11 +222,35 @@
  * 透明度刻意压得很低（0.1 上下）：卡片是**承载数据**的，不是装饰画。
  * 渐变一旦明显，数字的可读性会立刻下降。
  */
+/**
+ * 彩色卡片底。
+ *
+ * ## 为什么要按主题开关（用户反馈）
+ *
+ * 一开始我把这层渐变铺给了所有主题，结果在**中性浅色**下出现淡绿、淡琥珀的卡片 ——
+ * 用户直接指出"浅色主题出现这几个颜色不搭配"。
+ *
+ * 他是对的：中性主题的定位就是"只用白/黑/浅灰"，
+ * 彩色卡片在那套体系里属于**装饰性用色**，与它自身的克制原则冲突。
+ * 而色调渐变本身是有性格的设计（对应参考图那种仪表盘），
+ * 应该跟"这个主题有没有配色性格"绑定，而不是全局铺开。
+ *
+ * 所以强度改为**每个主题自己声明**，默认 0 即完全不着色：
+ *   中性（含深色）  0      —— 保持纯白/纯灰
+ *   暖阳            14%    —— 一点点暖，不喧哗
+ *   柔彩            12%    —— 一点点冷粉
+ *   仪表盘          42%    —— 参考图那种明显的彩色卡片
+ */
+/*
+  注意：**不要**在这里声明 --tone-strength。
+  它是 :root 上的主题变量，在元素上再声明一次会覆盖主题的值（踩过：
+  仪表盘的彩色卡片因此全部变成透明）。强度一律由 :root 决定。
+*/
 .tone-gradient {
   background-image: linear-gradient(
     135deg,
-    color-mix(in oklab, var(--tone-a) var(--tone-strength, 12%), transparent),
-    color-mix(in oklab, var(--tone-b) calc(var(--tone-strength, 12%) / 2.4), transparent)
+    color-mix(in oklab, var(--tone-a) var(--tone-strength, 0%), transparent),
+    color-mix(in oklab, var(--tone-b) calc(var(--tone-strength, 0%) / 2.4), transparent)
   );
 }
 
@@ -245,6 +269,16 @@
   --tone-success: var(--success);
   --tone-warning: var(--warning);
   --tone-danger: var(--danger);
+  /* 实心强调卡的底色，主题可覆盖（例如把主色块改成深色块） */
+  --tone-solid-bg: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 82%, var(--foreground)));
+  --tone-solid-fg: var(--accent-foreground);
+  /*
+    卡片渐变的默认强度：**0 即完全不着色**。
+    中性主题（含深色）保持这个默认 —— 它的定位是"只用白/黑/浅灰"，
+    彩色卡片在那套体系里属于装饰性用色（用户反馈"浅色主题出现这几个颜色不搭配"）。
+    有配色性格的主题各自声明更高的值。
+  */
+  --tone-strength: 0%;
 }
 .tone-gradient-info { --tone-a: var(--tone-info); --tone-b: var(--tone-info); }
 .tone-gradient-success { --tone-a: var(--tone-success); --tone-b: var(--tone-success); }
@@ -314,8 +348,8 @@
  * 浅色模式是近黑底白字，深色模式反过来 —— 与主按钮同一套反差逻辑。
  */
 .tone-solid {
-  background-image: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 82%, var(--foreground)));
-  color: var(--accent-foreground);
+  background-image: var(--tone-solid-bg);
+  color: var(--tone-solid-fg);
 }
 
 /**
@@ -326,13 +360,13 @@
  * 整屏就都是暖色，反而没有了主次。深色块与彩色块并置，
  * 才是参考图那种"一张深、几张彩、其余白"的层次。
  */
-:root[data-theme="vivid"] .tone-solid {
-  background-image: linear-gradient(135deg, oklch(0.25 0.015 265), oklch(0.31 0.018 265));
-  color: oklch(0.99 0 0);
+:root[data-theme="vivid"] {
+  --tone-solid-bg: linear-gradient(135deg, oklch(0.25 0.015 265), oklch(0.31 0.018 265));
+  --tone-solid-fg: oklch(0.99 0 0);
 }
-:root[data-theme="vivid"].dark .tone-solid {
-  background-image: linear-gradient(135deg, oklch(0.95 0.01 265), oklch(0.88 0.015 265));
-  color: oklch(0.2 0.01 265);
+:root[data-theme="vivid"].dark {
+  --tone-solid-bg: linear-gradient(135deg, oklch(0.95 0.01 265), oklch(0.88 0.015 265));
+  --tone-solid-fg: oklch(0.2 0.01 265);
 }
 
 html, body, #root { height: 100%; margin: 0; }

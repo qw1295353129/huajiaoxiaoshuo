@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="花椒写作平台">
+  <rect width="64" height="64" fill="#0b0b0c"/>
+  <circle cx="32" cy="32" r="22" fill="#d94f2b"/>
+  <circle cx="32" cy="32" r="22" fill="none" stroke="#b03d1e" stroke-width="1.6"/>
+  <path d="M32 10c2.2 12.4-.6 30-7.8 44.6" stroke="#0b0b0c" stroke-width="6.4" stroke-linecap="round" fill="none"/>
+  <circle cx="25.4" cy="47.6" r="4.6" fill="#141416"/>
+  <ellipse cx="41.4" cy="23.4" rx="5.6" ry="3.6" fill="#fff" opacity="0.32" transform="rotate(-30 41.4 23.4)"/>
+</svg>

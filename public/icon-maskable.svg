@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="花椒写作平台">
+  <!--
+    Maskable icon: safe zone is the inner 80% (radius 25.6 around 32,32).
+    Background must fill the entire 64x64 so launcher masks look clean.
+  -->
+  <rect width="64" height="64" fill="#0b0b0c"/>
+  <!-- Inner artwork scaled to ~80% of canvas -->
+  <circle cx="32" cy="32" r="17" fill="#d94f2b"/>
+  <circle cx="32" cy="32" r="17" fill="none" stroke="#b03d1e" stroke-width="1.2"/>
+  <path d="M32 18c1.6 7.4-.4 18-4.8 27.6" stroke="#0b0b0c" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <circle cx="28" cy="42" r="3" fill="#141416"/>
+  <ellipse cx="38" cy="26" rx="3.5" ry="2.2" fill="#fff" opacity="0.32" transform="rotate(-30 38 26)"/>
+</svg>

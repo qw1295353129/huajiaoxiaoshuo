@@ -136,8 +136,14 @@ for (const theme of ["light", "warm", "soft"]) {
       gradBg: grad ? getComputedStyle(grad).backgroundImage : "",
     };
   });
-  check(theme + " 主题有实心强调卡渐变", g.solidBg.includes("linear-gradient"), g.solidBg.slice(0, 50));
-  check(theme + " 主题有色调渐变卡", g.gradBg.includes("linear-gradient"), g.gradBg.slice(0, 50));
+  // 实心强调卡在所有主题下都有（它是主次层次，不是装饰）
+  check(theme + " 主题有实心强调卡", g.solidBg.includes("linear-gradient"), g.solidBg.slice(0, 50));
+  /*
+    卡片着色**按主题开关**（用户反馈"浅色主题出现这几个颜色不搭配"）：
+    中性主题完全不着色，只有有配色性格的主题才有彩色卡。
+  */
+  const tinted = !g.gradBg.includes("oklab(0 0 0 / 0)");
+  if (theme === "light") check("中性主题的卡片不着色", tinted === false, g.gradBg.slice(0, 60));
 }
 
 // 三个主题的强调色必须**各不相同**（用户要求"每个主题有每个主题的个性"）
