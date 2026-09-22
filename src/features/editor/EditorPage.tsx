@@ -103,14 +103,39 @@ export function EditorPage() {
    * 保存时拿它去写它自己的 chapterId，**永远不会写错对象**；
    * 而挂载新章时先把上一份**冲出去**，未保存的内容也不会丢。
    */
-  const loadedRef = useRef<{ chapterId: ID; html: string } | undefined>(undefined);
+  /**
+   * 编辑器里**这一份内容**以及它**属于哪一章**。
+   *
+   * ## 为什么必须绑在一起
+   *
+   * 分开记就一定会错位，这一点踩过两次：
+   *  ① 内容用 draftHtml（渲染闭包）→ 晚一拍 → 丢最后一个字；
+   *  ② 内容从编辑器现取、章节另用 ref 记账 → 切章时 ref 已换新章、
+   *     编辑器里还是旧章 → **把甲的正文写进乙**。
+   *
+   * 一个 ref 同时存两者，在 onChange 与装载时**一起**更新，
+   * 就不可能出现"内容属于 A、章节写着 B"。
+   *
+   * ## 为什么不直接用 handle.getContent()
+   *
+   * 那需要 EditorCanvas 也维护同样的记账（它现在只认 chapterKey），
+   * 两个组件各记一份就又是两个来源。让"内容"的真相留在 EditorPage，
+   * 由 onChange 同步写入这个 ref —— onChange 是编辑器内容变化的唯一出口。
+   */
+  const contentRef = useRef<{ chapterId: ID | ""; html: string }>({ chapterId: "", html: "" });
+  /** 上一次真正写进数据库的内容 —— 用来判断"这次有没有必要写" */
+  const lastSavedRef = useRef<{ chapterId: ID | ""; html: string }>({ chapterId: "", html: "" });
   /**
    * 编辑器里的内容被作者**真的改过**（不是装载、不是切章带来的）。
    *
    * 只有它为 true 时才值得往数据库写：
    * 否则切一次章就会把没动过的正文原样写回去一遍，白白产生快照与版本号。
    */
-  const userEdited = useRef(false);
+  /*
+    不再单独维护"人是否改过"：store 里的 dirty 就是这件事的唯一答案。
+    之前 userEdited 与 dirty 并存，等于同一件事有两个来源 —— 它们会不同步，
+    而"保存被跳过 / 内容归属判断错"都源于此。
+  */
 
   const flow = editorStore.flowMode;
   const rightPanel = editorStore.rightPanel;
@@ -131,19 +156,32 @@ export function EditorPage() {
    * 装载某一章的内容到编辑器。
    *
    * 关键顺序：**先把上一份冲出去，再装新的**。
-   * 冲刷必须在覆盖状态之前完成 —— 一旦 userEdited 被标记成新章的内容，
+   * 冲刷必须在覆盖状态之前完成 —— 一旦 contentRef 被换成新章的内容，
    * 旧章的未保存编辑就再也写不回去了。
    */
   const loadChapterInto = useCallback(
     async (target: Chapter, html: string, text: string) => {
-      const prev = loadedRef.current;
-      if (prev && prev.chapterId !== target.id && userEdited.current) {
-        // 上一章有未保存的编辑，先落库（用上一章自己的 id，不可能写错对象）
+      /*
+        先冲刷上一章：此刻 contentRef 里还是上一章的内容与它的 id，
+        两者配套，直接写回它自己的章节 —— 不会写错对象。
+      */
+      const prev = contentRef.current;
+      if (prev.chapterId && prev.chapterId !== target.id && useEditorStore.getState().dirty) {
         await saveChapterContent(prev.chapterId, prev.html);
-        userEdited.current = false;
       }
-      loadedRef.current = { chapterId: target.id, html };
-      userEdited.current = false;
+      /*
+        **先清空归属**，再放内容。
+        清空之后到达的 onChange 一律不采纳（见 onEditorChange），
+        于是不存在"内容还是旧的、归属已经是新的"这种错配 ——
+        那正是"甲的正文写进乙"的来源。
+      */
+      contentRef.current = { chapterId: "", html: "" };
+      // 让编辑器换内容（这一步会触发 onChange），然后再认领归属
+      setDraftHtml(html);
+      await Promise.resolve();
+      contentRef.current = { chapterId: target.id, html };
+      // 刚从库里读出来的内容就当作"已保存"，否则切章会把没动过的正文写回一遍
+      lastSavedRef.current = { chapterId: target.id, html };
       setDraftHtml(html);
       setDraftWords(target.wordCount || countWords(text));
       setLoadedFor(target.id);
@@ -198,33 +236,22 @@ export function EditorPage() {
   const doSave = useCallback(
     async (reason: "auto" | "manual" | "switch", targetChapterId?: ID) => {
       const state = useEditorStore.getState();
-      const loaded = loadedRef.current;
-      if (!loaded) return;
-      // 要写的是**编辑器里这份内容自己的章节**，不是 store 里的当前章 ——
-      // 两者在切章空窗期会不一致，按 store 写就会串章。
-      const cid = targetChapterId ?? loaded.chapterId;
-      if (userEdited.current && cid !== loaded.chapterId) {
-        /*
-          用户改的是 A 章，却要求保存到 B 章 —— 说明切章空窗期里发生了保存请求。
-          这时**写回 A**（内容是 A 的），而不是写进 B。
-        */
-        const res = await saveChapterContent(loaded.chapterId, loaded.html);
-        if (targetChapterId === undefined) state.markSaved(res.words);
-        userEdited.current = false;
-        return;
-      }
-      if (!userEdited.current) return;
+      const { chapterId: ownerId, html } = contentRef.current;
       /*
-        内容以 loadedRef 里的 html 为准（它由 onChange 持续更新，和编辑器同步），
-        绝不用 draftHtml —— 它是渲染闭包里的值，永远晚一拍
-        （实测：正文「起点甲乙丙丁」，库里「起点甲乙丙」，少最后一个字）。
+        要写的是**这份内容自己的章节**（ownerId），而不是 store 里的当前章 ——
+        切章空窗期里 store 可能已经指向新章。调用方若明确指定了目标章
+        （切章时的冲刷会传"我正要离开的那一章"），以它为准。
       */
-      const current = handleRef.current?.getContent();
-      const html = current?.html ?? loaded.html;
+      const cid = targetChapterId ?? ownerId;
+      if (!cid) return;
+      // 内容与所属章节对不上（切章空窗期）时，宁可这次不写，也不能写错对象
+      if (!ownerId || ownerId !== cid) return;
       if (!html) return;
+      // 内容没变就不写（避免切章时把没动过的正文原样写回一遍，白白产生版本号）
+      if (html === lastSavedRef.current.html && cid === lastSavedRef.current.chapterId) return;
       state.setSaving(true);
       const res = await saveChapterContent(cid, html);
-      userEdited.current = false;
+      lastSavedRef.current = { chapterId: cid, html };
       state.markSaved(res.words);
       if (reason === "manual") notify("success", "已保存", formatWords(res.words));
       if (state.session) {
@@ -251,12 +278,16 @@ export function EditorPage() {
       /*
         把内容写回 loadedRef：它保存的是"这份内容属于哪一章 + 内容本身"。
         保存时以它为准，就不会出现"内容属于 A、却写进了 B"。
-        （装载章节时也走 onChange，所以这里要用 userEdited 区分"人改的"和"装载的"。）
+        （装载新章时也走 onChange，但那一刻 contentRef 已经是新章的了，所以归属不会串。）
       */
-      if (loadedRef.current) {
-        loadedRef.current = { chapterId: loadedRef.current.chapterId, html };
-        userEdited.current = true;
-      }
+      /*
+        只换 html，**归属跟着原来那一份**（归属只在装载时改变）。
+        归属为空说明正处在装载新章的过程中：此刻到达的 onChange
+        是上一章编辑器的残留回调，不能采纳 —— 采纳了就会把它的内容
+        认成新章的（实测：切到乙章后输入，onChange 的 owner 仍是甲章）。
+      */
+      if (!contentRef.current.chapterId) return;
+      contentRef.current = { chapterId: contentRef.current.chapterId, html };
       const state = useEditorStore.getState();
       state.setDirty(true);
       state.setWordCount(words);

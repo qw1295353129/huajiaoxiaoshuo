@@ -26,14 +26,25 @@ export interface EditorCanvasHandle {
   /** 把一段纯文本偏移滚动到视野内并选中 */
   selectRange: (from: number, to: number) => void;
   /**
-   * 直接读编辑器**当前**的内容，不经过 React 状态。
+   * 读编辑器**当前**的内容，并带上"这份内容属于哪一章"。
    *
-   * 保存必须用它。之前保存读的是渲染闭包里的 draftHtml，
-   * 而最后一次输入触发的 onChange → setState → 重新渲染 → 新的 doSave
-   * 这条链断在最后一步：新的 doSave 建好了，但已经没有下一次输入来触发它，
-   * 于是最后一个字永远存不进去（实测：正文「起点甲乙丙丁」，库里「起点甲乙丙」）。
+   * 保存必须用它，而且**只需要用它** —— 让编辑器成为唯一真相来源。
+   *
+   * ## 为什么必须把章节一起返回
+   *
+   * 踩过两次坑，根因是同一个：**同时用了两个真相来源**。
+   *
+   * 第一次：保存读 `draftHtml`（渲染闭包），永远晚一拍 →
+   *   正文「起点甲乙丙丁」，库里「起点甲乙丙」，少最后一个字。
+   *
+   * 第二次：改成读编辑器即时内容，但"属于哪一章"另用一个 ref 记账 →
+   *   切章时 ref 已经换成新章，而编辑器里还是旧章的内容 →
+   *   **把甲的正文写进了乙**（实测：乙章库里出现「甲章的原始内容-乙1」）。
+   *
+   * 只要两件事分开存，它们在异步切换中就一定会错位。
+   * 让编辑器在**同一时刻**回答这两件事，就不可能对不上。
    */
-  getContent: () => { html: string; words: number };
+  getContent: () => { html: string; words: number; chapterId: string | undefined };
   focus: () => void;
 }
 
@@ -74,6 +85,14 @@ export function EditorCanvas({
   onStats,
 }: Props) {
   const loadedKey = useRef<string>("");
+  /**
+   * 编辑器里**这份内容**属于哪一章。
+   *
+   * 必须与 loadedKey 区分：loadedKey 是"要装哪一章"（意图），
+   * 这个 ref 是"里面**实际**装的是哪一章"（事实）。二者之间有一个 setContent 的时间差。
+   * getContent() 返回的是**事实** —— 否则会得到"新章的 id + 旧章的正文"。
+   */
+  const actualChapterRef = useRef<string>("");
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const onSelectionRef = useRef(onSelectionChange);
@@ -124,6 +143,12 @@ export function EditorCanvas({
     if (loadedKey.current === chapterKey) return;
     loadedKey.current = chapterKey;
     editor.commands.setContent(initialHtml || "<p></p>", { emitUpdate: false });
+    /*
+      顺序至关重要：**内容换完之后**才更新"实际装的是哪一章"。
+      反过来写（先记账后换内容）会留下一段窗口，此时 getContent() 返回
+      "新章的 id + 旧章的正文" —— 保存就会把旧章正文写进新章（实测过）。
+    */
+    actualChapterRef.current = chapterKey;
     const text = editor.getText();
     onStatsRef.current?.({ words: countWords(text), chars: text.replace(/\s/g, "").length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,7 +216,8 @@ export function EditorCanvas({
       },
       getContent() {
         const html = editor.getHTML();
-        return { html, words: countWords(stripHtml(html)) };
+        // chapterId 与 html 在同一时刻读取，二者必然一致
+        return { html, words: countWords(stripHtml(html)), chapterId: actualChapterRef.current || undefined };
       },
       focus() {
         editor.commands.focus();
