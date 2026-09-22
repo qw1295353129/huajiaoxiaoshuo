@@ -534,6 +534,41 @@ function ModelsTab() {
   );
 }
 
+/**
+ * 按接口地址推断供应商类型 —— 取代原先让用户手选的「协议类型」下拉。
+ *
+ * ## 为什么去掉那个下拉
+ *
+ * 它提供 openai / deepseek / moonshot / zhipu / qwen / siliconflow /
+ * openrouter / ollama / lmstudio / custom 十个选项，但代码里**没有任何分支依赖它**：
+ * 非本地供应商全部走 OpenAI 兼容的 `/chat/completions` 与 `/models`，
+ * 唯一真正用到 `kind` 的地方只是"本地 / 云端"这个徽章和 Key 输入框的占位提示。
+ * 也就是说，它让用户做一个**不影响任何结果的选择** —— 这正是它显得多余的原因。
+ *
+ * ## 推断规则
+ *
+ * 只区分"本地服务"这一件真正有意义的事（本地不需要 Key、也不走代理）：
+ * 一看主机名（localhost / 127.0.0.1），二看各家本地服务的默认端口。
+ * 云端一律记 `openai`（即 OpenAI 兼容），个别已知域名保留原名只是为了显示好看。
+ */
+function inferProviderKind(baseUrl: string, fallback: ProviderKind): ProviderKind {
+  const url = (baseUrl || "").toLowerCase();
+  if (!url) return fallback;
+  if (/11434/.test(url)) return "ollama";
+  if (/:1234\b/.test(url)) return "lmstudio";
+  if (/localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0/.test(url)) {
+    return fallback === "lmstudio" ? "lmstudio" : "ollama";
+  }
+  if (/api\.deepseek\.com/.test(url)) return "deepseek";
+  if (/api\.moonshot\.cn/.test(url)) return "moonshot";
+  if (/open\.bigmodel\.cn/.test(url)) return "zhipu";
+  if (/dashscope\.aliyuncs\.com/.test(url)) return "qwen";
+  if (/api\.siliconflow\.(cn|com)/.test(url)) return "siliconflow";
+  if (/openrouter\.ai/.test(url)) return "openrouter";
+  // 其余一律按 OpenAI 兼容处理 —— 这正是它们实际使用的协议
+  return "openai";
+}
+
 function blankProvider(): ProviderConfig {
   const now = new Date().toISOString();
   return {
@@ -559,6 +594,53 @@ function ProviderEditor({
 }) {
   const [draft, setDraft] = useState<ProviderConfig>(provider);
   const [modelsText, setModelsText] = useState(provider.models.join("\n"));
+  const [fetching, setFetching] = useState(false);
+  const [fetchNote, setFetchNote] = useState<string | null>(null);
+
+  /**
+   * 在弹窗里直接拉取模型列表。
+   *
+   * 以前只有保存到主界面之后、再往 Key 输入框里打字才会触发自动拉取 ——
+   * 而"在弹窗里填完地址和 Key 却拿不到列表"恰恰是最需要它的时刻。
+   *
+   * 探测用的是**草稿里的**地址与 Key（还没落库），所以不必先保存。
+   */
+  const fetchModels = async () => {
+    setFetching(true);
+    setFetchNote(null);
+    try {
+      const res = await probeProvider({
+        ...draft,
+        baseUrl: draft.baseUrl.trim(),
+        apiKey: (draft.apiKey ?? "").trim(),
+      });
+      if (!res.ok) {
+        setFetchNote("拉取失败：" + res.message);
+        return;
+      }
+      const found = res.models ?? [];
+      if (found.length === 0) {
+        setFetchNote("连接正常，但该服务没有返回模型列表，请手动填写");
+        return;
+      }
+      // 与已填内容合并去重，保留顺序：先已有的，再新增的
+      const existing = modelsText.split("\n").map((m) => m.trim()).filter(Boolean);
+      const merged = [...existing];
+      let added = 0;
+      for (const m of found) {
+        if (!merged.includes(m)) {
+          merged.push(m);
+          added++;
+        }
+      }
+      setModelsText(merged.join("\n"));
+      setFetchNote("拉取到 " + found.length + " 个模型" + (added > 0 ? "，新增 " + added + " 个" : "，列表已是最新"));
+    } catch (e) {
+      setFetchNote("拉取失败：" + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setFetching(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[300] grid place-items-center bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
@@ -575,29 +657,21 @@ function ProviderEditor({
           <Label>接口地址（OpenAI 兼容，到 /v1 为止）</Label>
           <Input placeholder="https://api.example.com/v1" />
         </TextField>
-        <div>
-          <Label className="mb-1.5 block text-xs">协议类型</Label>
-          <select
-            value={draft.kind}
-            onChange={(e) => setDraft({ ...draft, kind: e.target.value as ProviderKind })}
-            className="w-full rounded-lg border border-black/10 bg-transparent px-2 py-1.5 text-sm dark:border-white/15"
-          >
-            {(["openai", "deepseek", "moonshot", "zhipu", "qwen", "siliconflow", "openrouter", "ollama", "lmstudio", "custom"] as ProviderKind[]).map(
-              (k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ),
-            )}
-          </select>
-        </div>
+        {/* 「协议类型」下拉已移除 —— 见文件顶部的 inferProviderKind 说明 */}
         <TextField value={draft.apiKey ?? ""} onChange={(v) => setDraft({ ...draft, apiKey: v })}>
           <Label>API Key</Label>
           <Input placeholder="sk-…" />
         </TextField>
         <div>
-          <Label className="mb-1.5 block text-xs">模型列表（每行一个）</Label>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <Label className="block text-xs">模型列表（每行一个）</Label>
+            <Button size="sm" variant="outline" isPending={fetching} onPress={() => void fetchModels()}>
+              <RefreshCw className="size-3.5" />
+              拉取模型列表
+            </Button>
+          </div>
           <TextArea rows={4} value={modelsText} onChange={(e) => setModelsText(e.target.value)} />
+          {fetchNote && <p className="mt-1 text-[11px] opacity-65">{fetchNote}</p>}
         </div>
         <label className="flex items-center gap-2 text-xs opacity-70">
           <input
@@ -617,6 +691,8 @@ function ProviderEditor({
             onPress={async () => {
               await upsertProvider({
                 ...draft,
+                // kind 不再由用户选，保存时按接口地址推断（本地服务才需要区分）
+                kind: inferProviderKind(draft.baseUrl, draft.kind),
                 models: modelsText.split("\n").map((m) => m.trim()).filter(Boolean),
               });
               onSaved();
