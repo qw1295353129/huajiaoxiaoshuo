@@ -165,6 +165,8 @@ export async function saveChapterContent(
     }
     rev = (existing?.rev ?? 0) + 1;
     await db.chapterContents.put({ chapterId, projectId: existing?.projectId ?? '', html, text, updatedAt: now, rev });
+    // TEMP 探针：写完立刻回读，确认到底写进去了什么
+    const back = await db.chapterContents.get(chapterId);
     await db.chapters.where('id').equals(chapterId).modify((c) => {
       c.wordCount = words;
       c.updatedAt = now;

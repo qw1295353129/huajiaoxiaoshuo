@@ -51,7 +51,14 @@ export interface EditorCanvasHandle {
 interface Props {
   /** 章节切换时用于重载内容 */
   chapterKey: string;
-  initialHtml: string;
+  /**
+   * **本章**已装载好的内容。
+   *
+   * 语义与"编辑器当前内容"不同：它只在装载时变，输入时不变。
+   * 用它驱动装载，就不会在敲键时把编辑器内容重置。
+   * 为空字符串表示"本章内容尚未装载"。
+   */
+  ownedHtml: string;
   editable?: boolean;
   fontSize: number;
   maxWidth: number;
@@ -60,7 +67,15 @@ interface Props {
   /** 审稿标记（批注 + 修订建议），以装饰形式叠加在正文上，不改动文档 */
   reviewMarks?: ReviewMarkInput[];
   onReady?: (handle: EditorCanvasHandle) => void;
-  onChange: (html: string, words: number) => void;
+  /**
+   * 内容变化。
+   *
+   * `chapterKey` 是**这份内容所属的章节** —— 由编辑器在触发回调的同一时刻给出。
+   * 不要在外面另用一个 ref 记账：外部记账与编辑器之间在切章时必然有一段错位，
+   * 那段窗口里的回调会把新章内容认成旧章的（实测过：乙的正文被写进甲）。
+   * 让归属跟着内容一起到达，就不可能对不上。
+   */
+  onChange: (html: string, words: number, chapterKey: string) => void;
   onSelectionChange?: (text: string, range: { from: number; to: number }) => void;
   onStats?: (counts: { words: number; chars: number }) => void;
 }
@@ -72,7 +87,7 @@ interface Props {
  */
 export function EditorCanvas({
   chapterKey,
-  initialHtml,
+  ownedHtml,
   editable = true,
   fontSize,
   maxWidth,
@@ -93,8 +108,24 @@ export function EditorCanvas({
    * getContent() 返回的是**事实** —— 否则会得到"新章的 id + 旧章的正文"。
    */
   const actualChapterRef = useRef<string>("");
+  /** 最近一次**装载**进编辑器的内容（输入不更新它）。用于判断是否需要重新装载。 */
+  const loadedText = useRef<string>("");
+  /** 外面为本章准备好的内容；随 prop 实时更新，供 effect 读取 */
+  const ownedHtmlRef = useRef(ownedHtml);
+  ownedHtmlRef.current = ownedHtml;
+  /*
+    渲染期就把归属设成"即将装载的那一章"。
+    必须在任何 effect 之前 —— 因为编辑器可能在装载时立刻触发一次 onChange
+    （实测：切章时那次 onChange 发生在装载 effect 内部），
+    那时若 ref 还是上一章，这次回调的内容就会被认成上一章的。
+    渲染期赋值保证 onChange 读到的永远不是过期的归属。
+  */
+  actualChapterRef.current = chapterKey;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  /** chapterKey 的实时值，供 useEditor 的 onCreate 读取（那里拿不到最新 prop） */
+  const chapterKeyRef = useRef(chapterKey);
+  chapterKeyRef.current = chapterKey;
   const onSelectionRef = useRef(onSelectionChange);
   onSelectionRef.current = onSelectionChange;
   const onStatsRef = useRef(onStats);
@@ -114,7 +145,7 @@ export function EditorCanvas({
       Typography,
       ReviewMarks,
     ],
-    content: initialHtml || "<p></p>",
+    content: ownedHtml || "<p></p>",
     editorProps: {
       attributes: {
         class: "manuscript focus:outline-none",
@@ -124,7 +155,9 @@ export function EditorCanvas({
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
       const words = countWords(stripHtml(html));
-      onChangeRef.current(html, words);
+      // 归属取"编辑器里实际装的是哪一章"（actualChapterRef），
+      // 而不是"要装哪一章"（chapterKey prop）—— 后者在切换过程中会先变。
+      onChangeRef.current(html, words, actualChapterRef.current);
     },
     onSelectionUpdate: ({ editor: ed }) => {
       const { from, to } = ed.state.selection;
@@ -132,27 +165,56 @@ export function EditorCanvas({
       onSelectionRef.current?.(text, { from, to });
     },
     onCreate: ({ editor: ed }) => {
+      // 首次挂载：编辑器内容就是 chapterKey 这一章的，归属在此确立
+      actualChapterRef.current = chapterKeyRef.current;
       const text = ed.getText();
       onStatsRef.current?.({ words: countWords(text), chars: text.replace(/\s/g, "").length });
     },
   });
 
-  // 章节切换：只在 key 变化时替换内容
+  /**
+   * 内容装载。
+   *
+   * 触发条件是 **key 或内容任一变化**，不是只看 key ——
+   * 只看 key 会漏掉"key 先到、内容后到"的正常时序：
+   * 切章时 routeChapterId 立刻变（key），而章节正文要等异步取回来（内容），
+   * 那时 effect 已用空内容跑过一次，且 key 不再变化 → **编辑器再也不换内容**。
+   * 实测症状就是这个：切章后编辑器里还是上一章（或空白）。
+   *
+   * 但也不能无条件跟内容走 —— 否则每次敲键都会把编辑器内容重置。
+   * 所以用 **ownedHtml**：它只在"为本章装载内容"时变，输入时不变。
+   */
   useEffect(() => {
     if (!editor) return;
-    if (loadedKey.current === chapterKey) return;
-    loadedKey.current = chapterKey;
-    editor.commands.setContent(initialHtml || "<p></p>", { emitUpdate: false });
+
+    if (loadedKey.current === chapterKey) {
+      // key 没变：可能是"本章的内容刚装载好"，补一次
+      if (ownedHtmlRef.current && loadedText.current !== ownedHtmlRef.current) {
+        loadedText.current = ownedHtmlRef.current;
+        editor.commands.setContent(ownedHtmlRef.current, { emitUpdate: false });
+      }
+      return;
+    }
+
     /*
-      顺序至关重要：**内容换完之后**才更新"实际装的是哪一章"。
-      反过来写（先记账后换内容）会留下一段窗口，此时 getContent() 返回
-      "新章的 id + 旧章的正文" —— 保存就会把旧章正文写进新章（实测过）。
+      key 变了。若外面还没拿出本章的内容（ownedHtml 为空），
+      就先把编辑器**清空**，绝不能让上一章的正文留在里面 ——
+      否则新章的正文会从旧章内容开始改（这正是串章的根源）。
+      真正的装载等 ownedHtml 到达后再做（也就是下面那次运行，或下一次渲染）。
     */
-    actualChapterRef.current = chapterKey;
+    if (!ownedHtmlRef.current) {
+      loadedText.current = "";
+      editor.commands.setContent("<p></p>", { emitUpdate: false });
+      // 不更新 loadedKey：等真正装载时再认领，避免"空内容"被当成已装载
+      return;
+    }
+
+    loadedKey.current = chapterKey;
+    loadedText.current = ownedHtmlRef.current;
+    editor.commands.setContent(ownedHtmlRef.current, { emitUpdate: false });
     const text = editor.getText();
     onStatsRef.current?.({ words: countWords(text), chars: text.replace(/\s/g, "").length });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, chapterKey]);
+  }, [editor, chapterKey, ownedHtml]);
 
   useEffect(() => {
     editor?.setEditable(editable);
@@ -164,7 +226,7 @@ export function EditorCanvas({
     const plain = editor.state.doc.textBetween(0, editor.state.doc.content.size, "\n");
     editor.commands.setReviewMarks({ text: plain, marks: reviewMarks ?? [] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, reviewMarks, chapterKey, initialHtml]);
+  }, [editor, reviewMarks, chapterKey, ownedHtml]);
 
   // 暴露命令式接口给父组件
   useEffect(() => {

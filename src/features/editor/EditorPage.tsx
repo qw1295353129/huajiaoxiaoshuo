@@ -69,7 +69,15 @@ export function EditorPage() {
   const [handle, setHandle] = useState<EditorCanvasHandle | null>(null);
   const [draftHtml, setDraftHtml] = useState<string>("");
   const [draftWords, setDraftWords] = useState(0);
-  const [loadedFor, setLoadedFor] = useState<string>("");
+  /**
+   * 编辑器里装的是**哪一章**、以及**那一章的**内容。
+   *
+   * 两者必须放在同一个状态里一起更新。分开就会在切章时出现
+   * "key 已经是新章、内容还是旧章"的错配 —— 那正是内容串章的来源。
+   *
+   * 输入时只更新 html（id 不变）；装载新章时两者一起换。
+   */
+  const [loadedFor, setLoadedFor] = useState<{ id: string; html: string }>({ id: "", html: "" });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   /**
    * 正在编辑属性的章节。
@@ -104,27 +112,65 @@ export function EditorPage() {
    * 而挂载新章时先把上一份**冲出去**，未保存的内容也不会丢。
    */
   /**
-   * 编辑器里**这一份内容**以及它**属于哪一章**。
+   * **编辑器当前真正持有的那一份内容，以及它属于哪一章。**
    *
-   * ## 为什么必须绑在一起
+   * 这是保存的唯一依据。两条不变式：
    *
-   * 分开记就一定会错位，这一点踩过两次：
-   *  ① 内容用 draftHtml（渲染闭包）→ 晚一拍 → 丢最后一个字；
-   *  ② 内容从编辑器现取、章节另用 ref 记账 → 切章时 ref 已换新章、
-   *     编辑器里还是旧章 → **把甲的正文写进乙**。
+   * 1. `chapterId` 与 `html` **永远一起更新** —— 不存在"内容属于 A、章节写着 B"；
+   * 2. 它只在**编辑器确实换成了那一章的内容之后**才指向新章。
    *
-   * 一个 ref 同时存两者，在 onChange 与装载时**一起**更新，
-   * 就不可能出现"内容属于 A、章节写着 B"。
+   * ## 踩过的两个坑（都因为违反了上面某一条）
    *
-   * ## 为什么不直接用 handle.getContent()
+   * ① 内容用 `draftHtml`（渲染闭包）：晚一拍 → 丢最后一个字。
+   * ② 装载时**先把 ref 换成新章**、再让编辑器换内容：
+   *    中间那段窗口里编辑器还是旧章内容，而 ref 已说是新章 →
+   *    此刻到达的 onChange 把**旧章正文认成新章的** → 甲的正文写进乙。
    *
-   * 那需要 EditorCanvas 也维护同样的记账（它现在只认 chapterKey），
-   * 两个组件各记一份就又是两个来源。让"内容"的真相留在 EditorPage，
-   * 由 onChange 同步写入这个 ref —— onChange 是编辑器内容变化的唯一出口。
+   * ## 为什么用"待认领"而不是先清空
+   *
+   * ② 的第一次修法是"装载前先把 chapterId 清空，到达的 onChange 一律不采纳"。
+   * 那会**连新章自己的第一次 onChange 一起丢掉**（诊断日志里看到 owner 为空），
+   * 结果新章的输入永不保存。
+   *
+   * 改成"外部记账 + 待认领"仍然失败：认领时机依赖 effect 执行顺序，
+   * 实测 pending 常常还没设上、onChange 就已经到了。
+   *
+   * **最终做法**：归属由编辑器随 onChange 一起给出（见 onEditorChange 的第三个参数），
+   * 彻底不需要外部记账。
    */
   const contentRef = useRef<{ chapterId: ID | ""; html: string }>({ chapterId: "", html: "" });
   /** 上一次真正写进数据库的内容 —— 用来判断"这次有没有必要写" */
   const lastSavedRef = useRef<{ chapterId: ID | ""; html: string }>({ chapterId: "", html: "" });
+  /**
+   * **哪一章**的内容已经真正装进编辑器了。
+   *
+   * ## 为什么必须单独标记（这是"内容变空"的根因）
+   *
+   * 编辑器的初始内容是 `"<p></p>"`（7 个字符，truthy），而 `stripHtml` 之后是空字符串。
+   * 首次挂载时它会立刻触发一次 onChange → 标记 dirty → 自动保存，
+   * 于是**在真实内容装载完成之前就把这一章存成了空**。
+   * 实测：库里 textLen=0 且 rev 递增，而编辑器里还显示着（随后装载进来的）正文 ——
+   * 用户看到的正是"内容过一会就没了"。
+   *
+   * ## 为什么记"哪一章"而不是一个布尔值
+   *
+   * 布尔值在切章时会误伤：新章还没装载，而上一章的内容是好的、需要冲刷落库。
+   * 记下章节号就能精确判断"编辑器里现在这份内容，是不是已经装载完成的那一份"。
+   */
+  const loadedReadyRef = useRef<ID | "">("");
+  /**
+   * 正在把某一章的内容塞进编辑器。
+   *
+   * ## 为什么需要它（这是最后一块拼图）
+   *
+   * `editor.commands.setContent(html, { emitUpdate: false })` **并不能阻止 onUpdate 触发** ——
+   * 实测：每次装载都会用刚设进去的内容触发一次 onChange，把 dirty 置真、
+   * 排一次自动保存。于是刷新后装载到一半（编辑器里还是初始空文档）时，
+   * 那次自动保存就把整章写成了空。
+   *
+   * 所以装载期间到达的 onChange 一律忽略：那不是作者的编辑，是装载的副作用。
+   */
+  const loadingRef = useRef(false);
   /**
    * 编辑器里的内容被作者**真的改过**（不是装载、不是切章带来的）。
    *
@@ -165,26 +211,32 @@ export function EditorPage() {
         先冲刷上一章：此刻 contentRef 里还是上一章的内容与它的 id，
         两者配套，直接写回它自己的章节 —— 不会写错对象。
       */
-      const prev = contentRef.current;
-      if (prev.chapterId && prev.chapterId !== target.id && useEditorStore.getState().dirty) {
-        await saveChapterContent(prev.chapterId, prev.html);
-      }
       /*
-        **先清空归属**，再放内容。
-        清空之后到达的 onChange 一律不采纳（见 onEditorChange），
-        于是不存在"内容还是旧的、归属已经是新的"这种错配 ——
-        那正是"甲的正文写进乙"的来源。
+        先冲刷上一章。
+        冲刷对象取 contentRef 的章节；若它还没被认领（pendingChapter 有值），
+        说明编辑器的内容正被换走，那就冲刷 pending 指向的那一章 ——
+        它是"这份旧内容真正属于的章节"。
       */
-      contentRef.current = { chapterId: "", html: "" };
-      // 让编辑器换内容（这一步会触发 onChange），然后再认领归属
+      const prev = contentRef.current;
+      const prevOwner = prev.chapterId;
+      if (prevOwner && prevOwner !== target.id && useEditorStore.getState().dirty) {
+        await saveChapterContent(prevOwner, prev.html);
+      }
+      // 从这里开始到装载结束，编辑器产生的 onChange 都是装载副作用
+      loadingRef.current = true;
       setDraftHtml(html);
-      await Promise.resolve();
-      contentRef.current = { chapterId: target.id, html };
       // 刚从库里读出来的内容就当作"已保存"，否则切章会把没动过的正文写回一遍
       lastSavedRef.current = { chapterId: target.id, html };
-      setDraftHtml(html);
       setDraftWords(target.wordCount || countWords(text));
-      setLoadedFor(target.id);
+      setLoadedFor({ id: target.id, html });
+      /*
+        装载结束。用**微任务**而不是同步赋值：
+        setContent 触发的 onChange 是同步派发的，若在它之前就清掉标记，
+        那次回调又会被当成作者的编辑。
+      */
+      queueMicrotask(() => {
+        loadingRef.current = false;
+      });
       editorStore.setChapter(target.id, projectId);
       // 新章的脏标记清零：它是上一章遗留下来的，
       // 留着会让切章后的第一次保存把新章内容写回去（即使内容没变）
@@ -197,7 +249,13 @@ export function EditorPage() {
   );
 
   useEffect(() => {
-    if (!chapter || !content || loadedFor === chapter.id) return;
+    if (!chapter || !content || loadedFor.id === chapter.id) return;
+    /*
+      关键：**先从库里读到了内容**，才允许写入这一章。
+      放在 effect 里而不是 loadChapterInto 里 —— 后者由本 effect 调用，
+      而编辑器的初始空文档可能在它之前就触发了 onChange。
+    */
+    loadedReadyRef.current = chapter.id;
     void loadChapterInto(chapter, content.html ?? "<p></p>", content.text ?? "");
   }, [chapter, content, loadedFor, loadChapterInto]);
 
@@ -246,7 +304,27 @@ export function EditorPage() {
       if (!cid) return;
       // 内容与所属章节对不上（切章空窗期）时，宁可这次不写，也不能写错对象
       if (!ownerId || ownerId !== cid) return;
-      if (!html) return;
+      /*
+        空守卫。
+        `"<p></p>"` 是 truthy，所以单靠 `if (!html)` 拦不住空文档 ——
+        页面刚加载、装载还没完成时 contentRef 本来就是空的，
+        首屏那次保存会把**整章正文清空**（实测：库里变空，而编辑器里还显示着旧内容）。
+        两边都空才跳过：作者在空章节里反复没打字不该产生写入，
+        而"原本有内容、被作者全删了"仍会正常写出去。
+      */
+      /*
+        编辑器里这份内容必须**已经是装载完成的那一份**才允许写。
+        初始空文档（装载完成前）会立刻触发一次 onChange，若放它写进去，
+        整章正文就被清空了 —— 这正是用户报的"内容没了"。
+      */
+      /*
+        只有"已经从库里把这一章读出来"之后才允许写入。
+        loadedReadyRef 在**装载 effect 真正拿到内容之后**才被赋值 ——
+        刷新后 refs 全部重置，编辑器的初始空文档会立刻触发一次 onChange，
+        此时 loadedReadyRef 为空，这一道就把清空挡在了外面
+        （实测：刷新 4 秒后整章被写成空，就是漏了这一道）。
+      */
+      if (loadedReadyRef.current !== cid) return;
       // 内容没变就不写（避免切章时把没动过的正文原样写回一遍，白白产生版本号）
       if (html === lastSavedRef.current.html && cid === lastSavedRef.current.chapterId) return;
       state.setSaving(true);
@@ -271,23 +349,28 @@ export function EditorPage() {
   }, [handle]);
 
   const onEditorChange = useCallback(
-    (html: string, words: number) => {
+    (html: string, words: number, ownerChapterId: string) => {
       setDraftHtml(html);
       setDraftWords(words);
       lastActivity.current = Date.now();
       /*
-        把内容写回 loadedRef：它保存的是"这份内容属于哪一章 + 内容本身"。
-        保存时以它为准，就不会出现"内容属于 A、却写进了 B"。
-        （装载新章时也走 onChange，但那一刻 contentRef 已经是新章的了，所以归属不会串。）
+        归属由**编辑器**在触发回调的同一时刻给出（第三个参数）——
+        内容与归属一起到达，不存在"内容属于 A、章节写着 B"的窗口。
+        这是踩了两次时序坑之后的做法：外部记账在切章时必然有一段错位，
+        而错位窗口里的回调会把新章内容认成旧章的（实测：乙的正文被写进甲）。
       */
       /*
-        只换 html，**归属跟着原来那一份**（归属只在装载时改变）。
-        归属为空说明正处在装载新章的过程中：此刻到达的 onChange
-        是上一章编辑器的残留回调，不能采纳 —— 采纳了就会把它的内容
-        认成新章的（实测：切到乙章后输入，onChange 的 owner 仍是甲章）。
+        装载期间的回调是 setContent 的副作用，不是作者编辑 —— 直接忽略。
+        （setContent 的 emitUpdate:false 拦不住 onUpdate，这一点实测确认过。）
       */
-      if (!contentRef.current.chapterId) return;
-      contentRef.current = { chapterId: contentRef.current.chapterId, html };
+      if (loadingRef.current) return;
+      if (!ownerChapterId) return;
+      contentRef.current = { chapterId: ownerChapterId, html };
+      /*
+        这里**故意不更新 loadedFor.html**：initialHtml 由它派生，
+        若输入也改它，每次敲键都会让"初始内容"变化，等于把编辑器内容反复重置。
+        loadedFor.html 的语义是"装载时塞进编辑器的那一份"，装载后就不该再变。
+      */
       const state = useEditorStore.getState();
       state.setDirty(true);
       state.setWordCount(words);
@@ -373,7 +456,7 @@ export function EditorPage() {
 
   // 处理改写工单：内容加载完成后，在正文里定位证据原文并选中
   useEffect(() => {
-    if (!handle || !workOrder.quote || loadedFor !== routeChapterId) return;
+    if (!handle || !workOrder.quote || loadedFor.id !== routeChapterId) return;
     handle.focus();
     useEditorStore.getState().setSelection(workOrder.quote, { from: 0, to: 0 });
     notify("info", "已定位到问题段落", "点右侧「改写」按建议重写这一段");
@@ -457,7 +540,7 @@ export function EditorPage() {
       const res = await saveChapterContent(chapter!.id, html);
       useEditorStore.getState().markSaved(res.words);
       await markReviewSuggestion(id, "accepted");
-      setLoadedFor("");
+      setLoadedFor({ id: "", html: "" });
       notify("success", s.kind === "delete" ? "已删除该段" : "已应用修订");
     },
     [suggestions, plainText, chapter, notify],
@@ -495,7 +578,7 @@ export function EditorPage() {
     const res = await saveChapterContent(chapter!.id, html);
     useEditorStore.getState().markSaved(res.words);
     for (const { s } of located) await markReviewSuggestion(s.id, "accepted");
-    setLoadedFor("");
+    setLoadedFor({ id: "", html: "" });
     notify("success", "已应用 " + located.length + " 条修订");
   }, [suggestions, plainText, chapter, notify]);
 
@@ -753,10 +836,32 @@ export function EditorPage() {
                 </div>
               </div>
             </div>
+          ) : loadedFor.id !== routeChapterId ? (
+            /*
+              **内容没就位就不挂载编辑器** —— 这是解决"内容变空"的关键一步。
+              编辑器带空文档挂载时会立刻触发一次 onChange，
+              而那一刻它报的内容是 `<p></p>`（stripHtml 后为空），
+              自动保存就把整章写成了空。等装载完成再挂载，它出生的第一份内容就是对的。
+            */
+            <div className="grid h-full place-items-center text-xs opacity-50">正在载入本章…</div>
           ) : (
             <EditorCanvas
-              chapterKey={chapter.id}
-              initialHtml={loadedFor === chapter.id ? draftHtml : content?.html ?? "<p></p>"}
+              /*
+                key 用章节号：**每章让编辑器重新挂载**，而不是事后 setContent 改写。
+                两个原因：
+                 ① 挂载时内容就已经是对的（上面的条件保证了这一点），
+                    编辑器不会先报一次"空内容"；
+                 ② 切章时旧编辑器卸载，其清理逻辑负责把上一章冲刷落库。
+              */
+              chapterKey={routeChapterId}
+              /*
+                内容只在"确实已为该章装载"时给出。
+                原来未装载时回退到 content?.html / draftHtml，
+                而它们在切章瞬间都还是**上一章**的正文 →
+                编辑器一换 key 就把上一章内容灌进新章（症状①）。
+                未装载时给空文档，真正的装载由装载 effect 完成。
+              */
+              ownedHtml={loadedFor.id === routeChapterId ? loadedFor.html : ""}
               reviewMarks={reviewMarks}
               fontSize={settings.editorFontSize}
               maxWidth={flow ? Math.max(settings.editorMaxWidth, 720) : settings.editorMaxWidth}
@@ -808,7 +913,7 @@ export function EditorPage() {
             const fresh = await getChapterContent(chapter.id);
             setDraftHtml(fresh?.html ?? "<p></p>");
             setDraftWords(countWords(fresh?.text ?? ""));
-            setLoadedFor("");
+            setLoadedFor({ id: "", html: "" });
             notify("success", "已恢复到该快照", "原内容已自动备份为「恢复前自动备份」");
           }}
         />

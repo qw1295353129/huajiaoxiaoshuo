@@ -1,0 +1,33 @@
+import { gotoApp, launchIsolated } from "./lib/browser.mjs";
+const context = await launchIsolated(import.meta.url, { viewport: { width: 1512, height: 950 } });
+const page = context.pages()[0] ?? (await context.newPage());
+page.on("console", (m) => { const t = m.text(); if (t.startsWith("[S]")) console.log("  " + t); });
+await gotoApp(page, "http://127.0.0.1:5178/");
+const ids = await page.evaluate(async () => {
+  const p = await import("/src/db/repo/projects.ts");
+  const proj = await p.createProject({ title: "s" });
+  const o = await import("/src/db/repo/outline.ts");
+  const a = await o.createChapter(proj.id, { title: "甲章" });
+  await o.saveChapterContent(a.id, "<p>甲章的原始内容</p>", { touchStatus: false });
+  return { pid: proj.id, a: a.id };
+});
+console.log("甲=" + ids.a.slice(-6));
+await gotoApp(page, "http://127.0.0.1:5178/p/" + ids.pid + "/write/" + ids.a, { settle: 2500 });
+const read = () => page.evaluate(async (aid) => {
+  const o = await import("/src/db/repo/outline.ts");
+  const pm = document.querySelector(".ProseMirror");
+  return { db: (await o.getChapterContent(aid))?.text ?? "", pm: pm ? pm.innerText.slice(0, 24) : null };
+}, ids.a);
+console.log("初始: " + JSON.stringify(await read()));
+await page.evaluate(() => { const pm = document.querySelector(".ProseMirror"); if (pm) pm.focus(); });
+await page.keyboard.press("End");
+await page.keyboard.type("甲乙");
+await page.waitForTimeout(900);
+console.log("打字后: " + JSON.stringify(await read()));
+await page.waitForTimeout(3500);
+console.log("保存后: " + JSON.stringify(await read()));
+console.log("== 刷新 ==");
+await page.reload({ waitUntil: "domcontentloaded" });
+await page.waitForTimeout(4000);
+console.log("刷新后: " + JSON.stringify(await read()));
+await context.close();
