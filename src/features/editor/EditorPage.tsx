@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button, Chip, Tooltip } from "@heroui/react";
 import {
   Clock, Eye, History, Keyboard, Maximize2, Minimize2, PanelLeftClose,
-  PanelLeftOpen, PanelRightClose, PanelRightOpen, Save, ScanEye, Settings2, Type, Zap,
+  PanelLeftOpen, PanelRightClose, PanelRightOpen, Save, ScanEye, Type, Wand2, Zap,
 } from "lucide-react";
 import type { Chapter, ID } from "@/core";
 import { useAppStore } from "@/app/store";
@@ -604,14 +604,20 @@ export function EditorPage() {
             {chapter.status === "drafting" ? "写作中" : chapter.status === "idea" ? "构思" : chapter.status}
           </Chip>
         )}
-        <Tooltip>
-          <Tooltip.Trigger>
-            <Button isIconOnly size="sm" variant="ghost" aria-label="章节属性" onPress={() => chapter && setSettingsFor(chapter)}>
-              <Settings2 className="size-4" />
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>章节属性</Tooltip.Content>
-        </Tooltip>
+        {/*
+          「AI 助手」：显式入口，带文字标签。
+          以前这里是「章节属性」齿轮 —— 而章节属性已经移到左侧章节列表的每一行上
+          （点哪一章改哪一章），工具栏这个是重复入口，去掉后正好把位置让给 AI 助手。
+        */}
+        <Button
+          size="sm"
+          variant={rightPanel === "ai" ? "secondary" : "ghost"}
+          aria-label="AI 助手"
+          onPress={() => editorStore.setRightPanel(rightPanel === "ai" ? "none" : "ai")}
+        >
+          <Wand2 className="size-4" />
+          AI 助手
+        </Button>
         <Tooltip>
           <Tooltip.Trigger>
             <Button

@@ -106,7 +106,7 @@ check(
   JSON.stringify({ shown: dialog.chapterName, current: "第一章" }),
 );
 
-console.log("【关掉之后工具栏入口仍可用】");
+console.log("【工具栏那个重复的齿轮已移除】");
 await page.keyboard.press("Escape");
 await page.evaluate(() => {
   const overlay = document.querySelector(".fixed.inset-0");
@@ -117,24 +117,68 @@ await page.waitForTimeout(600);
 const closed = await page.evaluate(() => !document.querySelector(".fixed.inset-0"));
 check("能关闭弹窗", closed === true);
 
+/*
+  工具栏上的「章节属性」齿轮已移除 —— 它和章节列表里的入口重复。
+  用户要求："写作编辑器上边章节属性多余的了，改成 ai 助手"。
+  那个位置现在放的是「AI 助手」按钮。
+*/
 const toolbar = await page.evaluate(() => {
-  const b = document.querySelector('button[aria-label="章节属性"]');
-  // 工具栏的那个在头部，不在章节列表里
-  const list = [...document.querySelectorAll("div")].find((d) => (d.className || "").toString().includes("w-72") && /border-r/.test((d.className || "").toString()));
-  const inList = list?.contains(b);
-  // 找列表外的那个
-  const all = [...document.querySelectorAll('button[aria-label="章节属性"]')].filter((x) => !list?.contains(x));
-  if (all[0]) { all[0].click(); return { clicked: true, inList: Boolean(inList) }; }
-  return { clicked: false };
+  const list = [...document.querySelectorAll("div")].find(
+    (d) => (d.className || "").toString().includes("w-72") && /border-r/.test((d.className || "").toString()),
+  );
+  const outsideList = [...document.querySelectorAll('button[aria-label="章节属性"]')].filter((x) => !list?.contains(x));
+  const aiBtn = document.querySelector('button[aria-label="AI 助手"]');
+  return {
+    列表外的章节属性按钮数: outsideList.length,
+    ai助手按钮: Boolean(aiBtn),
+    ai助手带文字: aiBtn ? (aiBtn.textContent ?? "").includes("AI 助手") : false,
+  };
 });
-check("工具栏上的齿轮也带无障碍标签", toolbar.clicked === true, JSON.stringify(toolbar));
-await page.waitForTimeout(900);
-const fromToolbar = await page.evaluate(() => {
-  const overlay = document.querySelector(".fixed.inset-0");
-  const input = overlay?.querySelector("input");
-  return { open: Boolean(overlay), chapterName: input ? input.value : null };
+check("工具栏不再有重复的章节属性入口", toolbar.列表外的章节属性按钮数 === 0, JSON.stringify(toolbar));
+check("工具栏有「AI 助手」按钮（带文字标签）", toolbar.ai助手按钮 === true && toolbar.ai助手带文字 === true, JSON.stringify(toolbar));
+
+/*
+  点它切换右侧面板。
+  注意默认 rightPanel 就是 "ai"（面板开着），所以第一次点击是**收起** ——
+  按钮的语义是"显示/隐藏 AI 助手"，不要假设第一次点击一定是打开
+  （我第一版就写反了，断言"点完可见"直接失败）。
+*/
+/*
+  用按钮自身的状态判断，而不是去猜面板里的文字 ——
+  AI 面板有"未配置模型"等空态，文案不固定（我第一版按文案判断，误判成"没切换"）。
+*/
+const panelState = () =>
+  page.evaluate(() => {
+    const b = document.querySelector('button[aria-label="AI 助手"]');
+    return {
+      selected: b?.getAttribute("aria-pressed") === "true" || (b?.className ?? "").includes("button--secondary"),
+      panelWidth: document.querySelector(".w-\\[380px\\]")?.getBoundingClientRect().width ?? 0,
+    };
+  });
+
+const start = await panelState();
+await page.evaluate(() => {
+  document.querySelector('button[aria-label="AI 助手"]')?.click();
 });
-check("工具栏入口打开当前章（第一章）", fromToolbar.open && fromToolbar.chapterName === "第一章", JSON.stringify(fromToolbar));
+await page.waitForTimeout(800);
+const after = await panelState();
+check(
+  "点「AI 助手」能切换右侧面板",
+  start.selected !== after.selected && start.panelWidth !== after.panelWidth,
+  JSON.stringify({ start, after }),
+);
+
+// 再点回来，确认是双向的
+await page.evaluate(() => {
+  document.querySelector('button[aria-label="AI 助手"]')?.click();
+});
+await page.waitForTimeout(800);
+const back = await panelState();
+check(
+  "再点一次恢复原状（双向切换）",
+  back.selected === start.selected && back.panelWidth === start.panelWidth,
+  JSON.stringify({ start, back }),
+);
 
 console.log("");
 console.log("通过 " + pass + " 项，失败 " + fail + " 项");
