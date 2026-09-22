@@ -91,6 +91,43 @@
   --accent-soft-foreground: var(--foreground);
 }
 
+/**
+ * 暖阳主题（可选）。
+ *
+ * 奶油底 + 近黑字 + 琥珀/橙强调。默认主题仍是中性（白/黑/浅灰）——
+ * 这一档只是给喜欢暖色的人一个选择，不改变默认观感。
+ *
+ * ## 为什么覆盖的是 Tailwind 的颜色变量而不是我们的 token
+ *
+ * 全应用有 176 处 `bg-white`（卡片/面板）和一批 `bg-neutral-50/950`（页面底），
+ * 逐个改成语义类既容易漏、又会把 diff 搞得没法看。
+ * 这些工具类在 Tailwind v4 里最终都解析到 `--color-*` 变量，
+ * 所以**在主题作用域里重定义这几个变量**，全应用自动跟随，一处生效。
+ *
+ * 只覆盖真正构成"底色"的那几个：
+ * neutral-50/100/950 是页面与面板底，white 是卡片底。
+ * 其余中性灰（文字、边框、hover）保持不动 —— 暖色主题要的是"暖底黑字"，
+ * 不是把所有灰都染黄（那会糊成一片）。
+ */
+:root[data-theme="warm"] {
+  /* 中性主色改为暖橙：选中态、焦点环、强调块 */
+  --accent: oklch(0.68 0.16 55);
+  --accent-foreground: oklch(0.99 0 0);
+  --accent-soft-foreground: var(--foreground);
+  --focus: oklch(0.68 0.16 55);
+
+  /* 底色与表面：奶油 / 暖白 */
+  --color-neutral-50: oklch(0.978 0.012 85);
+  --color-neutral-100: oklch(0.955 0.018 82);
+  --color-neutral-950: oklch(0.22 0.02 60);
+  --color-white: oklch(0.995 0.006 90);
+
+  /* HeroUI 的表面与"默认"底 */
+  --surface: oklch(0.995 0.006 90);
+  --default: oklch(0.945 0.02 82);
+  --segment: oklch(0.995 0.006 90);
+}
+
 html, body, #root { height: 100%; margin: 0; }
 body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 

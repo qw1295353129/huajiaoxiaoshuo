@@ -144,7 +144,7 @@ export function EditorPreferences() {
         <div className="mt-3">
           <p className="mb-2 text-xs opacity-70">主题</p>
           <div className="flex gap-2">
-            {(["light", "dark", "system"] as const).map((t) => (
+            {(["light", "dark", "warm", "system"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -156,7 +156,7 @@ export function EditorPreferences() {
                     : "border-black/10 hover:border-black/25 dark:border-white/15 dark:hover:border-white/30")
                 }
               >
-                {t === "light" ? "浅色" : t === "dark" ? "深色" : "跟随系统"}
+                {t === "light" ? "浅色" : t === "dark" ? "深色" : t === "warm" ? "暖阳" : "跟随系统"}
               </button>
             ))}
           </div>

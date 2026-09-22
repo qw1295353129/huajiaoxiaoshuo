@@ -116,6 +116,13 @@ export function applyTheme(theme: Theme) {
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
   const dark = theme === "dark" || (theme === "system" && prefersDark);
   root.classList.toggle("dark", dark);
+  /**
+   * 暖阳主题用 data-theme 标记，**与 dark 正交**（它本身是浅色系）。
+   * 用属性而不是再加一个类：类名会和 Tailwind 的 dark 变体混在一起难分辨，
+   * 属性在 CSS 里写成 [data-theme="warm"] 一眼能看出是"主题"而不是"模式"。
+   */
+  if (theme === "warm") root.setAttribute("data-theme", "warm");
+  else root.removeAttribute("data-theme");
   root.style.colorScheme = dark ? "dark" : "light";
 }
 
