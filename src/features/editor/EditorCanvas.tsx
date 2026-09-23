@@ -217,7 +217,9 @@ export function EditorCanvas({
   }, [editor, chapterKey, ownedHtml]);
 
   useEffect(() => {
-    editor?.setEditable(editable);
+    // emitUpdate=false：setEditable 默认会无条件 emit update，
+    // 装载后那次假 onChange 会把 dirty 置真（打开章就显示"未保存"）
+    editor?.setEditable(editable, false);
   }, [editor, editable]);
 
   // 审稿标记：正文内容变化后重新下发，保证偏移映射基于最新文档

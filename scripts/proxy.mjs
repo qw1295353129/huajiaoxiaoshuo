@@ -18,17 +18,63 @@ const MAX_BODY = 32 * 1024 * 1024; // 32MB，够长上下文请求
 
 /** 只允许转发到这些协议与主机，避免被当成通用 SSRF 跳板 */
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
-/** 本地模型的地址也允许（Ollama / LM Studio 有时也需要转发） */
+/** 本地模型的常见端口 + 代理自身端口 */
+const LOCAL_MODEL_PORTS = [11434, 1234, 8000, 8080, 5000, PORT];
+
+/** 私网 / 链路本地 / 云元数据等非公网目标 —— 一律拒绝 */
+function isBlockedNonPublic(host) {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, "");
+  // IPv4
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true; // 含 169.254.169.254
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    if (a >= 224) return true; // 组播 / 保留
+    return false;
+  }
+  // IPv6 唯一本地 / 链路本地
+  if (h.includes(":")) {
+    if (h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80")) return true;
+    return false;
+  }
+  // 内部主机名
+  if (h.endsWith(".local") || h.endsWith(".internal") || h === "metadata.google.internal") return true;
+  return false;
+}
+
 function isAllowedTarget(url) {
   if (!ALLOWED_PROTOCOLS.has(url.protocol)) return false;
-  // 禁止把内网管理端口当跳板；本机模型服务允许
   const host = url.hostname;
-  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
-    const port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+  const port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+  const isLoopback =
+    host === "localhost" || host === "::1" || host === "[::1]" || /^127\./.test(host);
+  if (isLoopback) {
     // 只放行常见的模型服务端口，避免误用到其它本地服务
-    return [11434, 1234, 8000, 8080, 5000, PORT].includes(port);
+    return LOCAL_MODEL_PORTS.includes(port);
   }
-  return true;
+  // 非本机：拒绝私网 / 链路本地 / 元数据，只留公网模型 API
+  return !isBlockedNonPublic(host);
+}
+
+/**
+ * 浏览器跨站请求会带 Origin；本机应用是 127.0.0.1/localhost。
+ * 无 Origin（curl / 服务端）放行；其它 Origin 一律拒绝，
+ * 防止任意网页经本代理读内网。
+ */
+function isAllowedOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    const o = new URL(origin);
+    return o.hostname === "127.0.0.1" || o.hostname === "localhost" || o.hostname === "[::1]";
+  } catch {
+    return false;
+  }
 }
 
 const CORS_HEADERS = {
@@ -80,6 +126,11 @@ const server = createServer(async (req, res) => {
 
   if (reqUrl.pathname !== "/proxy") {
     send(res, 404, JSON.stringify({ error: "只支持 /proxy?url=<encoded> 与 /health" }), { "Content-Type": "application/json" });
+    return;
+  }
+
+  if (!isAllowedOrigin(req)) {
+    send(res, 403, JSON.stringify({ error: "不允许的来源" }), { "Content-Type": "application/json" });
     return;
   }
 

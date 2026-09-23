@@ -120,6 +120,16 @@ const out = await page.evaluate(async () => {
   const afterContent = (await outline.getChapterContent(first.id))?.text ?? "";
   const afterFirst = (await outline.listChapters(proj.id)).find((c) => c.id === first.id);
 
+  /*
+    replaceChapters：先删光再重建。
+    若删除后仍用删除前建的 chapterByTitle 去"更新"，
+    hit 指向已删行、modify 静默 no-op —— 同名章永远不重建（静默丢数据）。
+  */
+  const beforeReplace = (await outline.listChapters(proj.id)).length;
+  const rReplace = await genesis.applyGenesis(proj.id, run, { replaceChapters: true });
+  const afterReplaceChapters = await outline.listChapters(proj.id);
+  const replaceTitles = afterReplaceChapters.map((c) => c.title).sort();
+
   return {
     projectId: proj.id,
     r1: { created: r1.characters, merged: r1.mergedCharacters, arcs: r1.arcs, mergedArcs: r1.mergedArcs, chapters: r1.chapters, mergedChapters: r1.mergedChapters },
@@ -133,6 +143,10 @@ const out = await page.evaluate(async () => {
     afterContent,
     afterFirstStatus: afterFirst?.status,
     afterFirstWords: afterFirst?.wordCount,
+    beforeReplace,
+    rReplace: { created: rReplace.chapters, merged: rReplace.mergedChapters },
+    afterReplaceCount: afterReplaceChapters.length,
+    replaceTitles,
   };
 });
 
@@ -173,6 +187,19 @@ check("再次应用后正文还在", out.afterContent.includes("作者亲手写�
 check("正文没有被覆盖成开篇", out.afterContent === out.beforeWords, "");
 check("已动笔的章节状态没有退回 outlined", out.afterFirstStatus !== "idea", String(out.afterFirstStatus));
 check("字数记录还在", (out.afterFirstWords ?? 0) > 0, String(out.afterFirstWords));
+
+console.log("【replaceChapters：删光后必须重建同名章】");
+console.log("  " + JSON.stringify({ before: out.beforeReplace, r: out.rReplace, after: out.afterReplaceCount, titles: out.replaceTitles }));
+check(
+  "覆盖应用后章节数与 run 一致（同名章真的被重建）",
+  out.afterReplaceCount === 3 && out.rReplace.created === 3 && out.rReplace.merged === 0,
+  JSON.stringify({ before: out.beforeReplace, r: out.rReplace, after: out.afterReplaceCount }),
+);
+check(
+  "同名章节标题齐全",
+  JSON.stringify(out.replaceTitles) === JSON.stringify(["第一章 雨夜", "第二章 海禁", "第三章 永安堂"].sort()),
+  JSON.stringify(out.replaceTitles),
+);
 
 console.log("");
 console.log("通过 " + pass + " 项，失败 " + fail + " 项");

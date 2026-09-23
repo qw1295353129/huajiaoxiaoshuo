@@ -111,6 +111,7 @@ export async function deleteProject(id: ID): Promise<void> {
     'rw',
     [
       db.projects, db.arcs, db.chapters, db.chapterContents, db.outlineNodes, db.snapshots,
+      db.comments, db.reviewSuggestions,
       db.characters, db.relationships, db.characterAppearances, db.worldEntries, db.factions,
       db.entities, db.entityMentions, db.plotThreads, db.timelineEvents, db.glossary, db.rules,
       db.issues, db.metrics, db.styles, db.goals, db.sessions, db.pomodoros, db.aiSessions,
@@ -118,8 +119,14 @@ export async function deleteProject(id: ID): Promise<void> {
       db.memory, db.memoryUsage, db.blueprints,
     ],
     async () => {
+      // appearances 没有 projectId 索引，必须在 characters 还在时先收集主键并删除
+      const characterIds = (await db.characters.where('projectId').equals(id).primaryKeys()) as string[];
+      if (characterIds.length) {
+        await db.characterAppearances.where('characterId').anyOf(characterIds).delete();
+      }
       const byProject = [
-        db.arcs, db.chapters, db.outlineNodes, db.snapshots, db.characters, db.relationships,
+        db.arcs, db.chapters, db.outlineNodes, db.snapshots, db.comments, db.reviewSuggestions,
+        db.characters, db.relationships,
         db.worldEntries, db.factions, db.entities, db.entityMentions, db.plotThreads,
         db.timelineEvents, db.glossary, db.rules, db.issues, db.metrics, db.styles, db.goals,
         db.sessions, db.pomodoros, db.aiSessions, db.generations, db.suggestions, db.embeddings,
@@ -130,9 +137,6 @@ export async function deleteProject(id: ID): Promise<void> {
         await (table as any).where('projectId').equals(id).delete();
       }
       await db.chapterContents.where('projectId').equals(id).delete();
-      await db.characterAppearances.where('characterId').anyOf(
-        (await db.characters.where('projectId').equals(id).primaryKeys()) as string[],
-      ).delete().catch(() => undefined);
       await db.projects.delete(id);
       const st = await db.appState.get('singleton');
       if (st) {

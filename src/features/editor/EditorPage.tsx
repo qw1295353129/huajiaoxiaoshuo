@@ -225,7 +225,12 @@ export function EditorPage() {
       // 从这里开始到装载结束，编辑器产生的 onChange 都是装载副作用
       loadingRef.current = true;
       setDraftHtml(html);
-      // 刚从库里读出来的内容就当作"已保存"，否则切章会把没动过的正文写回一遍
+      /*
+        装载完成即同步 contentRef 与 lastSavedRef。
+        不能等某次 onChange 恰好到达 —— 若 loadingRef 拦住了它，
+        contentRef 会仍指向上一章，随后的自动保存/接受修订都会读到旧文。
+      */
+      contentRef.current = { chapterId: target.id, html };
       lastSavedRef.current = { chapterId: target.id, html };
       setDraftWords(target.wordCount || countWords(text));
       setLoadedFor({ id: target.id, html });
@@ -250,6 +255,12 @@ export function EditorPage() {
 
   useEffect(() => {
     if (!chapter || !content || loadedFor.id === chapter.id) return;
+    /*
+      useLiveQuery 换 chapterId 时会先渲染一帧**上一章**的 content
+      （新订阅尚未 emit）。不校验归属就会把旧章正文装进新章 ——
+      实测切回来显示的是第二章内容。
+    */
+    if (content.chapterId !== chapter.id) return;
     /*
       关键：**先从库里读到了内容**，才允许写入这一章。
       放在 effect 里而不是 loadChapterInto 里 —— 后者由本 effect 调用，
@@ -326,7 +337,11 @@ export function EditorPage() {
       */
       if (loadedReadyRef.current !== cid) return;
       // 内容没变就不写（避免切章时把没动过的正文原样写回一遍，白白产生版本号）
-      if (html === lastSavedRef.current.html && cid === lastSavedRef.current.chapterId) return;
+      if (html === lastSavedRef.current.html && cid === lastSavedRef.current.chapterId) {
+        // 装载副作用触发的保存：内容一致时顺带清 dirty，否则一打开章就永远"未保存"
+        state.setDirty(false);
+        return;
+      }
       state.setSaving(true);
       const res = await saveChapterContent(cid, html);
       lastSavedRef.current = { chapterId: cid, html };
@@ -347,6 +362,27 @@ export function EditorPage() {
   useEffect(() => {
     handleRef.current = handle;
   }, [handle]);
+
+  /**
+   * 绕过编辑器直接写库之后（接受修订、恢复快照），原子地同步保存侧状态。
+   *
+   * 少做任何一步都会被随后的自动保存/切章冲刷用**旧 contentRef** 写回去，
+   * 刚应用的修订会被静默撤销。
+   */
+  const commitExternalContent = useCallback((chapterId: ID, html: string, words: number) => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    contentRef.current = { chapterId, html };
+    lastSavedRef.current = { chapterId, html };
+    loadedReadyRef.current = chapterId;
+    setDraftHtml(html);
+    setDraftWords(words);
+    const state = useEditorStore.getState();
+    state.markSaved(words);
+    state.setDirty(false);
+  }, []);
 
   const onEditorChange = useCallback(
     (html: string, words: number, ownerChapterId: string) => {
@@ -534,16 +570,12 @@ export function EditorPage() {
       // 改动前存一个快照，方便回退
       if (chapter) await createSnapshot(chapter.id, "应用修订建议前", "pre-ai");
       const html = textToDoc(next);
-      setDraftHtml(html);
-      setDraftWords(countWords(next));
-      useEditorStore.getState().setDirty(true);
       const res = await saveChapterContent(chapter!.id, html);
-      useEditorStore.getState().markSaved(res.words);
+      commitExternalContent(chapter!.id, html, res.words);
       await markReviewSuggestion(id, "accepted");
-      setLoadedFor({ id: "", html: "" });
       notify("success", s.kind === "delete" ? "已删除该段" : "已应用修订");
     },
-    [suggestions, plainText, chapter, notify],
+    [suggestions, plainText, chapter, notify, commitExternalContent],
   );
 
   const rejectSuggestion = useCallback(
@@ -573,14 +605,11 @@ export function EditorPage() {
       next = s.kind === "delete" ? next.slice(0, hit.from) + next.slice(hit.to) : next.slice(0, hit.from) + s.proposed + next.slice(hit.to);
     }
     const html = textToDoc(next);
-    setDraftHtml(html);
-    setDraftWords(countWords(next));
     const res = await saveChapterContent(chapter!.id, html);
-    useEditorStore.getState().markSaved(res.words);
+    commitExternalContent(chapter!.id, html, res.words);
     for (const { s } of located) await markReviewSuggestion(s.id, "accepted");
-    setLoadedFor({ id: "", html: "" });
     notify("success", "已应用 " + located.length + " 条修订");
-  }, [suggestions, plainText, chapter, notify]);
+  }, [suggestions, plainText, chapter, notify, commitExternalContent]);
 
   /** 把 AI 生成的一段内容变成"修订建议"而不是直接插入正文 */
   const suggestFromAi = useCallback(
@@ -911,9 +940,9 @@ export function EditorPage() {
           onRestore={async (snapshotId) => {
             await restoreSnapshot(snapshotId);
             const fresh = await getChapterContent(chapter.id);
-            setDraftHtml(fresh?.html ?? "<p></p>");
-            setDraftWords(countWords(fresh?.text ?? ""));
-            setLoadedFor({ id: "", html: "" });
+            const html = fresh?.html ?? "<p></p>";
+            const words = countWords(fresh?.text ?? "");
+            commitExternalContent(chapter.id, html, words);
             notify("success", "已恢复到该快照", "原内容已自动备份为「恢复前自动备份」");
           }}
         />

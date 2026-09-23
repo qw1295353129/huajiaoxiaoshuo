@@ -17,7 +17,12 @@ export async function listMemory(
   const all = await db.memory.toArray();
   return all
     .filter((m) => (opts.scope ? m.scope === opts.scope : true))
-    .filter((m) => (opts.scope === "project" && opts.projectId ? m.projectId === opts.projectId : true))
+    /*
+      传了 projectId 就收口到「全局 + 本项目」——与 memoryForProject 同语义。
+      旧条件要求同时 scope==="project"，调用方（记忆面板、提取去重）只传 projectId，
+      导致跨项目列出/把 B 项目记忆 reinforce 到 A 上。
+    */
+    .filter((m) => (opts.projectId ? m.scope === "global" || m.projectId === opts.projectId : true))
     .filter((m) => (opts.includePaused ? true : !m.paused))
     .sort(
       (a, b) =>

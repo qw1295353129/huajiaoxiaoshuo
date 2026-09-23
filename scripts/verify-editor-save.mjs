@@ -164,7 +164,8 @@ check("切章后内容完整（含刚输入的最后一个字）", s2.saved?.end
 
 console.log("【切回来 / 刷新后都还在】");
 await clickChapterInList("第一章");
-await waitEditorHas("起点");
+// 不能只等 "起点" —— 第二章的「起点二」也含这个子串，会假通过
+await waitEditorHas("戊己");
 await waitSaved();
 const s3 = await snap();
 check("切回来显示正确", s3.shown?.includes("戊己") === true, String(s3.shown));

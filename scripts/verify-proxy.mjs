@@ -1,12 +1,66 @@
-/** 验证本地代理：检测、经代理发起真实请求、错误路径。 */
+/** 验证本地代理：SSRF/Origin 防护、检测、经代理发起真实请求、错误路径。 */
 import { gotoApp, launchIsolated } from "./lib/browser.mjs";
+
+const PROXY = "http://127.0.0.1:8788";
+
+/**
+ * SSRF / Origin 防护：不依赖 DEEPSEEK_KEY，必须先跑。
+ * 代理未启动时明确失败，而不是静默跳过。
+ */
+async function checkProxySecurity() {
+  let sPass = 0, sFail = 0;
+  const check = (n, c, x) => {
+    if (c) { sPass++; console.log("  ✓ " + n); }
+    else { sFail++; console.log("  ✗ " + n + (x ? "  → " + x : "")); }
+  };
+
+  console.log("【代理 SSRF / Origin 防护】");
+  let health;
+  try {
+    const res = await fetch(PROXY + "/health");
+    health = res.ok;
+  } catch {
+    health = false;
+  }
+  check("代理已在 8788 启动（先 npm run proxy）", health === true, "连接失败");
+  if (!health) return false;
+
+  const evil = await fetch(PROXY + "/proxy?url=" + encodeURIComponent("https://api.deepseek.com/v1/models"), {
+    headers: { Origin: "https://evil.example" },
+  });
+  const evilBody = await evil.text().catch(() => "");
+  check("拒绝跨站 Origin", evil.status === 403, "status=" + evil.status + " " + evilBody.slice(0, 80));
+
+  const local = await fetch(PROXY + "/proxy?url=" + encodeURIComponent("https://api.deepseek.com/v1/models"), {
+    headers: { Origin: "http://127.0.0.1:5178" },
+  });
+  check("放行本机应用 Origin（非 403）", local.status !== 403, "status=" + local.status);
+
+  for (const [label, target] of [
+    ["云元数据", "http://169.254.169.254/latest/meta-data/"],
+    ["内网网关", "http://192.168.1.1/"],
+    ["RFC1918 十段", "http://10.0.0.1/"],
+    ["本机非模型端口", "http://127.0.0.1:22/"],
+  ]) {
+    const res = await fetch(PROXY + "/proxy?url=" + encodeURIComponent(target), {
+      headers: { Origin: "http://127.0.0.1:5178" },
+    });
+    const body = await res.text().catch(() => "");
+    check("拒绝 " + label, res.status === 403, "status=" + res.status + " " + body.slice(0, 80));
+  }
+
+  console.log("  安全用例 " + sPass + " 通过 / " + sFail + " 失败");
+  return sFail === 0;
+}
+
+const securityOk = await checkProxySecurity();
 
 // 真实请求那一段需要 Key；没有就明确跳过，而不是把"空回复"当成失败（曾因此误判 2 项）
 const KEY = process.env.DEEPSEEK_KEY;
 if (!KEY) {
   console.log("缺少 DEEPSEEK_KEY 环境变量 —— 跳过需要真实模型的用例。");
   console.log("用法：DEEPSEEK_KEY=sk-xxx node scripts/verify-proxy.mjs");
-  process.exit(0);
+  process.exit(securityOk ? 0 : 1);
 }
 const context = await launchIsolated(import.meta.url);
 const page = context.pages()[0] ?? (await context.newPage());
@@ -14,7 +68,7 @@ const errs = [];
 page.on("pageerror", (e) => errs.push(String(e.message).slice(0, 140)));
 await gotoApp(page, "http://127.0.0.1:5178/");
 let pass = 0, fail = 0;
-const check = (n, c, x) => { if (c) { pass++; console.log("  \u2713 " + n); } else { fail++; console.log("  \u2717 " + n + (x ? "  \u2192 " + x : "")); } };
+const check = (n, c, x) => { if (c) { pass++; console.log("  ✓ " + n); } else { fail++; console.log("  ✗ " + n + (x ? "  → " + x : "")); } };
 
 console.log("【代理探测】");
 const detect = await page.evaluate(async () => {
@@ -93,4 +147,4 @@ console.log("");
 console.log("通过 " + pass + " 项，失败 " + fail + " 项");
 console.log("控制台错误: " + (errs.length ? JSON.stringify(errs.slice(0, 4)) : "NONE"));
 await context.close();
-process.exit(fail === 0 ? 0 : 1);
+process.exit(securityOk && fail === 0 ? 0 : 1);

@@ -570,6 +570,12 @@ export async function applyGenesis(projectId: ID, run: GenesisRun, opts: ApplyGe
         await db.chapters.delete(c.id);
         await db.chapterContents.delete(c.id);
       }
+      /*
+        删除后必须清空删除前建的标题映射。
+        否则 hit 指向已删行，updateChapter 静默 no-op，
+        同名新章永远不会重建（覆盖应用时静默丢数据）。
+      */
+      chapterByTitle.clear();
     }
     /**
      * 章节也要幂等。没有 replaceChapters 时，之前的实现是"再追加一遍"，

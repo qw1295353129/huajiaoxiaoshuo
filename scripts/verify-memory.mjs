@@ -116,6 +116,32 @@ check("偏好随着证据增加提高了可信度", (conf.prefConf ?? 0) > 0.3, 
 check("已被使用的记忆记录了使用次数", (conf.prefUsed ?? 0) > 0, JSON.stringify(conf));
 console.log("  " + JSON.stringify(conf));
 
+console.log("【按项目过滤：不得串到其它项目】");
+const isolation = await page.evaluate(async (pidA) => {
+  const p = await import("/src/db/repo/projects.ts");
+  const ai = await import("/src/db/repo/ai.ts");
+  const mem = await import("/src/db/repo/memory.ts");
+  const ex = await import("/src/ai/memory-extract.ts");
+  const projB = await p.createProject({ title: "隔离项目B" });
+  await ai.logFeedback({
+    projectId: projB.id,
+    taskKind: "continue",
+    rating: -1,
+    note: "B项目专属：不要写实验室场景",
+    createdAt: new Date().toISOString(),
+  });
+  await ex.extractRuleBasedMemory({ projectId: projB.id });
+  const forA = await mem.listMemory({ projectId: pidA, includePaused: true });
+  const forB = await mem.listMemory({ projectId: projB.id, includePaused: true });
+  return {
+    aHasB: forA.some((m) => m.text.includes("B项目专属") || m.projectId === projB.id),
+    bHasB: forB.some((m) => m.text.includes("B项目专属")),
+    aForeign: forA.filter((m) => m.scope === "project" && m.projectId !== pidA).map((m) => m.text),
+  };
+}, seeded.projectId);
+check("项目 A 的列表不含项目 B 的 project 级记忆", isolation.aHasB === false && isolation.aForeign.length === 0, JSON.stringify(isolation));
+check("项目 B 自己能列出自己的记忆", isolation.bHasB === true, JSON.stringify(isolation));
+
 console.log("【暂停与置顶】");
 // 用一个干净的项目单独验证，避免和上面的状态纠缠（第一版就是复用项目导致断言写错）
 // 注意：这个测试会建自己的项目，所以断言必须按项目过滤。
