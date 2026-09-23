@@ -30,7 +30,12 @@ export function CastGenDialog({
 }) {
   const notify = useAppStore((s) => s.notify);
   const [instruction, setInstruction] = useState("");
-  const [count, setCount] = useState(3);
+  /**
+   * 数量用字符串草稿编辑，失焦再钳制。
+   * 直接 Number(value)||3 会在清空时立刻回填成 3，接着输入 1 变成 "31" → min(8,31)=8。
+   */
+  const [countDraft, setCountDraft] = useState("3");
+  const count = Math.max(1, Math.min(8, Number(countDraft) || 3));
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState(false);
   const [rows, setRows] = useState<GeneratedCharacter[]>([]);
@@ -149,8 +154,9 @@ export function CastGenDialog({
                     type="number"
                     min={1}
                     max={8}
-                    value={count}
-                    onChange={(e) => setCount(Math.max(1, Math.min(8, Number(e.target.value) || 3)))}
+                    value={countDraft}
+                    onChange={(e) => setCountDraft(e.target.value)}
+                    onBlur={() => setCountDraft(String(Math.max(1, Math.min(8, Number(countDraft) || 3))))}
                     className="tabular w-14 rounded border border-black/10 bg-transparent px-1.5 py-0.5 text-center dark:border-white/15"
                   />
                   位

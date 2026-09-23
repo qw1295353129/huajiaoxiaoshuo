@@ -180,7 +180,7 @@ export async function generateCharacters(opts: GenerateCharactersOptions): Promi
         sampleLines: asArray<unknown>(voiceRaw.sampleLines).map((x) => asString(x)).filter(Boolean),
       },
     });
-    if (characters.length >= 12) break;
+    if (characters.length >= count) break;
   }
 
   return { ok: true, characters, existingNames: characterNames, model: res.model };
@@ -257,7 +257,7 @@ export interface GenerateWorldResult {
 export async function generateWorldEntries(opts: GenerateWorldOptions): Promise<GenerateWorldResult> {
   const project = await db.projects.get(opts.projectId);
   const { worldTitles } = await existingSnapshot(opts.projectId);
-  const count = Math.max(1, Math.min(12, opts.count ?? 5));
+  const count = Math.max(1, Math.min(12, opts.count ?? 3));
 
   const system = await systemWithProject(
     opts.projectId,
@@ -314,7 +314,7 @@ export async function generateWorldEntries(opts: GenerateWorldOptions): Promise<
       importance: Math.max(1, Math.min(5, Math.round(asNumber(item.importance, 3)))),
       tags: asArray<unknown>(item.tags).map((x) => asString(x)).filter(Boolean),
     });
-    if (entries.length >= 16) break;
+    if (entries.length >= count) break;
   }
 
   return { ok: true, entries, existingTitles: worldTitles, model: res.model };

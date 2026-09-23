@@ -32,7 +32,9 @@ export function WorldGenDialog({
 }) {
   const notify = useAppStore((s) => s.notify);
   const [instruction, setInstruction] = useState("");
-  const [count, setCount] = useState(5);
+  /** 字符串草稿：清空时不会被 || 回填，避免输入 1 变成 12/8 这类钳制错值 */
+  const [countDraft, setCountDraft] = useState("3");
+  const count = Math.max(1, Math.min(12, Number(countDraft) || 3));
   const [category, setCategory] = useState<WorldCategory | "auto">(defaultCategory ?? "auto");
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -151,8 +153,9 @@ export function WorldGenDialog({
                       type="number"
                       min={1}
                       max={12}
-                      value={count}
-                      onChange={(e) => setCount(Math.max(1, Math.min(12, Number(e.target.value) || 5)))}
+                      value={countDraft}
+                      onChange={(e) => setCountDraft(e.target.value)}
+                      onBlur={() => setCountDraft(String(Math.max(1, Math.min(12, Number(countDraft) || 3))))}
                       className="tabular w-14 rounded border border-black/10 bg-transparent px-1.5 py-0.5 text-center dark:border-white/15"
                     />
                     条
