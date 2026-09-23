@@ -12,7 +12,7 @@ const ids = await page.evaluate(async () => {
   await o.saveChapterContent(c.id, "<p>正文。</p>", { touchStatus: false });
   return proj.id;
 });
-for (const theme of ["light", "warm", "soft", "vivid"]) {
+for (const theme of ["light", "warm", "soft"]) {
   await page.evaluate(async (t) => {
     const s = await import("/src/db/repo/settings.ts");
     s.saveSettings(Object.assign({}, s.loadSettings(), { theme: t }));

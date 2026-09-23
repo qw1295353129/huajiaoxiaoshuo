@@ -159,22 +159,12 @@ check("柔彩的卡片底比页面底更亮", soft.cardBg !== soft.pageBg, JSON.
 check("柔彩不是深色模式", soft.isDark === false, String(soft.isDark));
 check("柔彩有氛围渐变层", soft.hasAtmosphere === true, String(soft.hasAtmosphere));
 
-console.log("【仪表盘（vivid）】");
-await useTheme("vivid");
-const vivid = await probe();
-console.log("  " + JSON.stringify(vivid));
-check("仪表盘带 data-theme=vivid", vivid.dataTheme === "vivid", String(vivid.dataTheme));
-check("仪表盘的强调色偏暖（珊瑚橙）", isWarm(vivid.accent), vivid.accent);
-check("仪表盘的卡片底是纯白（让彩色卡片跳出来）", isNeutral(vivid.cardBg), vivid.cardBg);
-check("仪表盘不是深色模式", vivid.isDark === false, String(vivid.isDark));
-check("仪表盘有氛围层", vivid.hasAtmosphere === true, String(vivid.hasAtmosphere));
-
 // 卡片渐变强度与色调必须是"每个主题各自"的
 const tones = await page.evaluate(async () => {
   const s = await import("/src/db/repo/settings.ts");
   const { applyTheme } = await import("/src/app/store.ts");
   const out = {};
-  for (const theme of ["light", "warm", "soft", "vivid"]) {
+  for (const theme of ["light", "warm", "soft"]) {
     s.saveSettings(Object.assign({}, s.loadSettings(), { theme }));
     applyTheme(theme);
     const cs = getComputedStyle(document.documentElement);
@@ -194,7 +184,6 @@ console.log("  " + JSON.stringify(tones));
   中性主题的定位是"只用白/黑/浅灰"，彩色卡片在那套体系里属于装饰性用色，
   所以强度默认 0（完全不着色）；有配色性格的主题各自声明更高的值。
 */
-check("仪表盘的彩色卡片最明显（42%）", tones.vivid.strength === "42%", tones.vivid.strength);
 check("中性浅色完全不给卡片着色（0%）", tones.light.strength === "0%", tones.light.strength);
 check(
   "暖阳 / 柔彩只有轻度着色（>0 且 <30%）",
@@ -206,7 +195,7 @@ check(
 );
 check(
   "每个主题的色调颜色各不相同（各有各的个性）",
-  new Set(Object.values(tones).map((t) => t.info + "|" + t.warning)).size === 4,
+  new Set(Object.values(tones).map((t) => t.info + "|" + t.warning)).size === 3,
   JSON.stringify(tones),
 );
 
@@ -224,10 +213,10 @@ check("深色主题同样不着色（0%）", darkStrength === "0%", darkStrength
   卡片底色的**实际渲染**也要验一遍。
   只看变量不够 —— 变量对了但选择器覆盖错，界面照样是错的
   （踩过：.tone-gradient 上多写了一句 --tone-strength: 0%，
-   把主题的值压掉了，仪表盘的彩色卡片全部变透明）。
+   把主题的值压掉了，彩色主题的卡片全部变透明）。
 */
 console.log("【卡片底色的实际渲染】");
-for (const theme of ["light", "vivid"]) {
+for (const theme of ["light", "warm"]) {
   await useTheme(theme);
   await gotoApp(page, BASE + "/p/" + pid + "/overview", { settle: 2000 });
   const g = await page.evaluate(() => {
@@ -250,8 +239,8 @@ for (const theme of ["light", "vivid"]) {
     */
     check("不存在实心反色卡（两种主题下都不该出现）", g.solidCount === 0, String(g.solidCount));
   } else {
-    check("仪表盘的卡片底确实着上了颜色", transparent === false, g.grad.slice(0, 70));
-    check("仪表盘也不该有实心反色卡", g.solidCount === 0, String(g.solidCount));
+    check("彩色主题（暖阳）的卡片底确实着上了颜色", transparent === false, g.grad.slice(0, 70));
+    check("彩色主题也不该有实心反色卡", g.solidCount === 0, String(g.solidCount));
   }
 }
 

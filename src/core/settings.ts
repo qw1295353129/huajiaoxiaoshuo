@@ -1,20 +1,25 @@
 import type { ID, Timestamped } from './base';
 import type { ModelParams, ProviderConfig, TaskRouting } from './ai';
 
+/**
+ * 界面主题清单（唯一来源）。
+ * - light/dark/system：中性配色（白 / 黑 / 浅灰），默认
+ * - warm：暖阳 —— 奶油底 + 近黑字 + 琥珀/橙强调
+ * - soft：柔彩 —— 淡蓝白底 + 莓粉强调 + 极淡氛围渐变
+ *
+ * 加/删主题只改这里：loadSettings 的回落校验与设置页按钮都从它派生。
+ */
+export const THEMES = ['light', 'dark', 'warm', 'soft', 'system'] as const;
+
+export type Theme = (typeof THEMES)[number];
+
 export interface AppSettings {
   /** 当前激活的供应商 */
   activeProviderId?: ID;
   /** 当前激活模型 */
   activeModel?: string;
   /** UI 主题 */
-  /**
-   * 界面主题。
-   * - light/dark/system：中性配色（白 / 黑 / 浅灰），默认
-   * - warm：暖阳 —— 奶油底 + 近黑字 + 琥珀/橙强调
-   * - soft：柔彩 —— 淡蓝白底 + 莓粉强调 + 极淡氛围渐变
-   * - vivid：仪表盘 —— 干净白底 + 珊瑚橙强调 + 明显的多色卡片渐变
-   */
-  theme: 'light' | 'dark' | 'system' | 'warm' | 'soft' | 'vivid';
+  theme: Theme;
   /** 编辑器字号 */
   editorFontSize: number;
   /** 编辑器宽度 px，0 = 自适应 */

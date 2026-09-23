@@ -1,7 +1,7 @@
 import type { AppSettings, ID, ModelPricing, ProviderConfig, TaskRouting } from '@/core';
 import { db } from '../database';
 import { DEFAULT_PARAMS, PROVIDER_PRESETS, defaultRouting } from '../defaults';
-import { DEFAULT_SEMANTIC_RECALL } from '@/core';
+import { DEFAULT_SEMANTIC_RECALL, THEMES } from '@/core';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   activeProviderId: undefined,
@@ -35,7 +35,12 @@ export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem(LEGACY_SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) };
+    const merged = { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AppSettings>) };
+    // 已下线的主题（如 vivid）仍可能留在老数据里，回落到默认
+    if (!(THEMES as readonly string[]).includes(merged.theme)) {
+      merged.theme = DEFAULT_SETTINGS.theme;
+    }
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

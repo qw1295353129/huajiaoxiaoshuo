@@ -3,6 +3,15 @@ import { Minus, Plus, RotateCcw } from "lucide-react";
 import { useAppStore } from "@/app/store";
 import { DEFAULT_SETTINGS } from "@/db/repo/settings";
 import { CHINESE_FONT_SIZES, EDITOR_FONT_STACK } from "@/app/theme";
+import { THEMES, type Theme } from "@/core";
+
+const THEME_LABEL: Record<Theme, string> = {
+  light: "浅色",
+  dark: "深色",
+  warm: "暖阳",
+  soft: "柔彩",
+  system: "跟随系统",
+};
 
 /** 写作偏好设置：字号、版心宽度、自动保存、快照、心流。 */
 export function EditorPreferences() {
@@ -144,7 +153,7 @@ export function EditorPreferences() {
         <div className="mt-3">
           <p className="mb-2 text-xs opacity-70">主题</p>
           <div className="flex gap-2">
-            {(["light", "dark", "warm", "soft", "vivid", "system"] as const).map((t) => (
+            {THEMES.map((t) => (
               <button
                 key={t}
                 type="button"
@@ -156,17 +165,7 @@ export function EditorPreferences() {
                     : "border-black/10 hover:border-black/25 dark:border-white/15 dark:hover:border-white/30")
                 }
               >
-                {t === "light"
-                  ? "浅色"
-                  : t === "dark"
-                    ? "深色"
-                    : t === "warm"
-                      ? "暖阳"
-                      : t === "soft"
-                        ? "柔彩"
-                        : t === "vivid"
-                          ? "仪表盘"
-                          : "跟随系统"}
+                {THEME_LABEL[t]}
               </button>
             ))}
           </div>

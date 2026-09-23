@@ -1,11 +1,9 @@
 import { create } from "zustand";
-import type { AppSettings, AppState, ID, Project } from "@/core";
+import type { AppSettings, AppState, ID, Project, Theme } from "@/core";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "@/db/repo/settings";
 import { db, ensureAppState } from "@/db/database";
 import { setLastOpened } from "@/db/repo/projects";
 import { setAuthorProfile } from "@/ai/prompts";
-
-type Theme = AppSettings["theme"];
 
 interface AppStore {
   ready: boolean;
@@ -116,7 +114,7 @@ function syncAuthorProfile(settings: AppSettings) {
  * 抽成常量而不是在 applyTheme 里写条件：加主题时只需改这一处，
  * 不会出现"CSS 里加了、applyTheme 里忘了"的静默失效。
  */
-export const COLOR_THEMES: readonly string[] = ["warm", "soft", "vivid"];
+export const COLOR_THEMES: readonly string[] = ["warm", "soft"];
 
 export function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
