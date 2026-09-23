@@ -6,7 +6,7 @@ import { PageScaffold } from "@/components/common/PageScaffold";
 import { EmptyHint, SectionTitle, StatCard } from "@/components/common/ui";
 import { useAppStore } from "@/app/store";
 import { useChapters } from "@/app/hooks";
-import { createChapter, saveChapterContent, updateChapter } from "@/db/repo/outline";
+import { createChapter, deleteChapter, saveChapterContent, updateChapter } from "@/db/repo/outline";
 import { recomputeProjectStats } from "@/db/repo/projects";
 import { db } from "@/db/database";
 import { formatWords } from "@/utils/format";
@@ -216,20 +216,29 @@ function ImportTab({ projectId }: { projectId: string }) {
     if (!preview) return;
     setBusy(true);
     try {
-      if (mode === "replace") {
-        const existing = await db.chapters.where("projectId").equals(projectId).toArray();
-        for (const c of existing) {
-          await db.chapters.delete(c.id);
-          await db.chapterContents.delete(c.id);
-        }
-      }
+      // 删章 + 导入必须同事务：中途失败不能留下「删了一半」的状态。
+      // 表清单须覆盖嵌套的 deleteChapter / createChapter / saveChapterContent 所需的全部表，
+      // 嵌套事务才会并入此外层事务（Dexie 约定：transaction 传表数组）。
       let n = 0;
-      for (const c of preview.chapters) {
-        const chapter = await createChapter(projectId, { title: c.title });
-        await saveChapterContent(chapter.id, textToHtmlLocal(c.content), { touchStatus: false });
-        await updateChapter(chapter.id, { status: "drafted", wordCount: countWords(c.content) });
-        n += 1;
-      }
+      await db.transaction(
+        "rw",
+        [
+          db.chapters, db.chapterContents, db.snapshots, db.metrics, db.characterAppearances,
+          db.comments, db.reviewSuggestions, db.entityMentions,
+        ],
+        async () => {
+          if (mode === "replace") {
+            const existing = await db.chapters.where("projectId").equals(projectId).toArray();
+            for (const c of existing) await deleteChapter(c.id);
+          }
+          for (const c of preview.chapters) {
+            const chapter = await createChapter(projectId, { title: c.title });
+            await saveChapterContent(chapter.id, textToHtmlLocal(c.content), { touchStatus: false });
+            await updateChapter(chapter.id, { status: "drafted", wordCount: countWords(c.content) });
+            n += 1;
+          }
+        },
+      );
       await recomputeProjectStats(projectId);
       notify("success", "已导入 " + n + " 章", formatWords(preview.totalWords));
       setPreview(null);

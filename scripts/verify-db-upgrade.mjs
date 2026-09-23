@@ -4,12 +4,15 @@
  * 这是最危险的一处：升级路径写错不会报错、类型也对、新库测试全过，
  * 但老用户的数据库会丢数据。所以必须造一个**真的老库**来测。
  *
- * 两个曾经踩过的坑（第一版测试因此给出了假结论）：
- *  1. 必须用**原生 IndexedDB** 按历史版本号建库。用 Dexie 的 version(n).stores(...)
- *     声明建出来的库，实际版本是"声明里的最高版本"——我第一版以为建了 v3，其实建的是 v4，
- *     升级路径根本没被执行，测了个寂寞。
- *  2. Dexie 的 db.verno 返回的是**声明版本**，不是底层 IndexedDB 的真实版本。
- *     要用原生读 idb.version 才能确认老库真的是 v3。
+ * 踩过的坑（都曾让这条回归给出假结论）：
+ *  1. 复合索引 spec 如 [projectId+order] 必须用 /^\[(.+)\]$/ 解析；
+ *     写成字符类 [(.+)] 永远匹配不上，createIndex 会收到含 [] 的非法 keyPath。
+ *  2. **Dexie 的原生 IndexedDB 版本 = 声明版本 × 10**（verno 3 → idb.version 30）。
+ *     用 indexedDB.open(name, 3) 建的"v3 老库"在 Dexie 眼里是 verno 0.3，
+ *     升级会从 V1 开始跑 schema diff，把 V2/V3 才有的 comments/memory
+ *     先删后建 —— 表在、数据没了（假升级）。
+ *  3. 版本断言不要写死（曾写死 ===4，加表到 v5 后永远失败）；
+ *     从 schema.DB_VERSION 读当前值，原生版本断言为 DB_VERSION × 10。
  *
  * 表结构从 src/db/v1-stores.ts 的真实历史快照生成，不手抄 —— 手抄会抄错，
  * 而且快照一变就过期。
@@ -25,18 +28,20 @@ page.on("pageerror", (e) => errs.push(String(e.message).slice(0, 200)));
 let pass = 0, fail = 0;
 const check = (n, c, x) => { if (c) { pass++; console.log("  ✓ " + n); } else { fail++; console.log("  ✗ " + n + (x ? "  → " + x : "")); } };
 
+/** Dexie 把声明版本乘 10 存进原生 IndexedDB；老库 v3 的原生版本号是 30 */
+const NATIVE_SCALE = 10;
+
 await gotoApp(page, BASE + "/");
 const meta = await page.evaluate(async () => {
-  const stores = await import("/src/db/v1-stores.ts");
   const schema = await import("/src/db/schema.ts");
   const { db } = await import("/src/db/database.ts");
   return { dbName: db.name, currentVersion: schema.DB_VERSION };
 });
 console.log("库名 " + meta.dbName + "，目标版本 v" + meta.currentVersion);
 
-// 关键：应用以 v4 持有这个库，所以必须
+// 关键：应用以当前版本持有这个库，所以必须
 //   ① 关掉 Dexie 连接  ② 刷新页面让所有残留连接消失  ③ 才能删库并建成 v3。
-// 少了第 ② 步，deleteDatabase 会被阻塞，随后 open(name, 3) 就成了"版本降级"，
+// 少了第 ② 步，deleteDatabase 会被阻塞，随后 open 就成了"版本降级"，
 // IndexedDB 直接中止事务（我在这里卡了两轮）。
 await page.evaluate(async () => {
   const { db } = await import("/src/db/database.ts");
@@ -48,13 +53,13 @@ await page.evaluate(async (dbName) => {
 }, meta.dbName);
 
 /**
- * 生成 v3 老库：原生 IndexedDB，版本号写 3。
+ * 生成 v3 老库：原生 IndexedDB 版本号 = 3 × 10 = 30（Dexie 的原生缩放）。
  *
  * 注意：**不要在 evaluate 的参数里传整个表结构**。37 张表的定义过 Playwright 的
  * 序列化边界会出问题，表现为 onupgradeneeded 里事务被中止（我在这里卡了两轮）。
  * 让浏览器侧自己 import 快照即可。
  */
-const built = await page.evaluate(async (dbName) => {
+const built = await page.evaluate(async ({ dbName, nativeV3 }) => {
   const stores = await import("/src/db/v1-stores.ts");
   const v3stores = stores.V3_STORES;
   const delResult = await new Promise((res) => {
@@ -69,14 +74,15 @@ const built = await page.evaluate(async (dbName) => {
   const parseSpec = (spec) => {
     const parts = spec.split(",").map((s) => s.trim()).filter(Boolean);
     const indexes = parts.slice(1).map((p) => {
-      const m = p.match(/^[(.+)]$/);
+      // 复合索引形如 [projectId+order]；必须转义方括号 —— 写成 [(.+)] 是字符类，永远匹配不上
+      const m = p.match(/^\[(.+)\]$/);
       return m ? { name: p, keyPath: m[1].split("+") } : { name: p, keyPath: p };
     });
     return { keyPath: parts[0], indexes };
   };
 
   const idb = await new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, 3); // ← 真的 v3
+    const req = indexedDB.open(dbName, nativeV3); // ← Dexie v3 的原生版本是 30，不是 3
     let upgradeError = null;
     req.onupgradeneeded = () => {
       try {
@@ -89,20 +95,24 @@ const built = await page.evaluate(async (dbName) => {
         upgradeError = (e && e.name ? e.name + ": " + e.message : String(e)) + " @ " + (e && e.stack ? e.stack.split("\n")[1]?.trim() : "");
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      if (upgradeError) { idbSafeClose(req.result); reject(new Error("建表异常（open 仍成功）: " + upgradeError)); return; }
+      resolve(req.result);
+    };
     req.onerror = () => reject(new Error("open 失败: " + req.error?.name));
     req.onabort = () => reject(new Error("事务中止 — 建表异常: " + (upgradeError ?? "（未捕获到异常，可能是别的原因）")));
   });
+  function idbSafeClose(d) { try { d.close(); } catch { /* ignore */ } }
 
   const now = new Date().toISOString();
   const rows = {
-    projects: [{ id: "p1", title: "老库里的书", status: "drafting", genres: [], targetWords: 100000, createdAt: now, updatedAt: now }],
-    chapters: [{ id: "c1", projectId: "p1", title: "第一章", order: 0, status: "drafted", wordCount: 42, createdAt: now, updatedAt: now }],
+    projects: [{ id: "p1", title: "老库里的书", status: "drafting", genres: [], targetWords: 100000, stats: { words: 0, chapters: 0, scenes: 0, writingDays: 0 }, createdAt: now, updatedAt: now }],
+    chapters: [{ id: "c1", projectId: "p1", title: "第一章", order: 0, status: "drafted", wordCount: 42, goals: [], characterIds: [], locationIds: [], tension: 0, plantsThreadIds: [], paysThreadIds: [], beats: [], tags: [], createdAt: now, updatedAt: now }],
     memory: [
       { id: "m1", scope: "project", projectId: "p1", kind: "preference", text: "老库里的偏好", source: "user", evidence: [], confidence: 1, pinned: true, paused: false, usedCount: 7, dedupeKey: "preference::老库里的偏好", createdAt: now, updatedAt: now },
       { id: "m2", scope: "global", kind: "lesson", text: "老库里的教训", source: "feedback", evidence: [], confidence: 0.45, pinned: false, paused: false, usedCount: 3, dedupeKey: "lesson::老库里的教训", createdAt: now, updatedAt: now },
     ],
-    comments: [{ id: "cm1", projectId: "p1", chapterId: "c1", body: "老批注", author: "我", resolved: false, createdAt: now, updatedAt: now }],
+    comments: [{ id: "cm1", projectId: "p1", chapterId: "c1", body: "老批注", author: "我", resolved: false, replies: [], kind: "note", createdAt: now, updatedAt: now }],
     characters: [{ id: "cr1", projectId: "p1", name: "沈砚", role: "protagonist", aliases: [], traits: [], createdAt: now, updatedAt: now }],
   };
   const written = {};
@@ -118,18 +128,18 @@ const built = await page.evaluate(async (dbName) => {
   const storeNames = [...idb.objectStoreNames];
   idb.close();
   return { written, realVersion, storeCount: storeNames.length, hasUsageBefore: storeNames.includes("memoryUsage") };
-}, meta.dbName);
+}, { dbName: meta.dbName, nativeV3: 3 * NATIVE_SCALE });
 
 console.log("【造真的 v3 老库】");
 console.log("  原生版本号 " + built.realVersion + "，表 " + built.storeCount + " 张，写入 " + JSON.stringify(built.written));
-check("老库确实是 v3（原生版本号）", built.realVersion === 3, String(built.realVersion));
+check("老库确实是 v3（原生版本号 = 3×10 = 30）", built.realVersion === 3 * NATIVE_SCALE, String(built.realVersion));
 check("老库没有 memoryUsage 表", built.hasUsageBefore === false);
 check("老数据写入成功", built.written.memory === 2 && built.written.comments === 1, JSON.stringify(built.written));
 
 console.log("【让应用打开并升级】");
 await gotoApp(page, BASE + "/", { settle: 2500 });
 
-const after = await page.evaluate(async (expect) => {
+const after = await page.evaluate(async (expectDeclared) => {
   const { db } = await import("/src/db/database.ts");
   await db.open();
   const mem = await db.memory.toArray();
@@ -149,7 +159,7 @@ const after = await page.evaluate(async (expect) => {
   return {
     declaredVerno: db.verno,
     rawVersion,
-    expectVersion: expect,
+    expectDeclared,
     hasUsage: db.tables.some((t) => t.name === "memoryUsage"),
     usageWritable,
     memoryCount: mem.length,
@@ -164,7 +174,12 @@ const after = await page.evaluate(async (expect) => {
 
 console.log("  升级后：原生版本 " + after.rawVersion + "，Dexie 声明 " + after.declaredVerno);
 
-check("底层库真的升到了 v4", after.rawVersion === 4, String(after.rawVersion));
+// 不写死版本号：加表后 DB_VERSION 会变，断言"升到了当前版本"
+check(
+  "底层库升到当前声明版本",
+  after.declaredVerno === after.expectDeclared && after.rawVersion === after.expectDeclared * NATIVE_SCALE,
+  "verno=" + after.declaredVerno + " raw=" + after.rawVersion + " 期望 v" + after.expectDeclared + "（原生 " + after.expectDeclared * NATIVE_SCALE + "）",
+);
 check("新增 memoryUsage 表", after.hasUsage === true);
 check("新表可读可写", after.usageWritable === true);
 
@@ -191,7 +206,6 @@ check("统计功能正常", (usable.stats?.total ?? 0) > 0, JSON.stringify(usabl
 
 console.log("");
 console.log("通过 " + pass + " 项，失败 " + fail + " 项");
-console.log("控制台错误: " + (errs.length ? JSON.stringify(errs.slice(0, 4)) : "（有，见下）"));
-if (errs.length) for (const e of errs.slice(0, 3)) console.log("    " + e);
-await context.close();
+console.log("控制台错误: " + (errs.length ? "（有，见下）" : "NONE"));
+if (errs.length) for (const e of errs.slice(0, 3)) console.log("    " + e);await context.close();
 process.exit(fail === 0 ? 0 : 1);

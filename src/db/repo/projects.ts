@@ -1,4 +1,5 @@
 import type { ID, Project, ProjectStats, WritingGoal } from '@/core';
+import { lengthProfile } from '@/core';
 import { db } from '../database';
 import { newId } from '@/utils/id';
 
@@ -36,7 +37,8 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     themes: [],
     pov: input.pov ?? 'third-limited',
     tense: 'past',
-    targetWords: input.targetWords ?? defaultTarget(input.lengthClass ?? 'novel'),
+    // 篇幅目标字数的唯一真相是 core/project.ts 的 LENGTH_PROFILES，这里不再自维护映射
+    targetWords: input.targetWords ?? lengthProfile(input.lengthClass ?? 'novel').targetWords,
     targetChapterWords: 3000,
     lengthClass: input.lengthClass ?? 'novel',
     status: 'planning',
@@ -60,17 +62,6 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     }
   });
   return project;
-}
-
-function defaultTarget(kind: Project['lengthClass']): number {
-  switch (kind) {
-    case 'short': return 10_000;
-    case 'novella': return 60_000;
-    case 'novel': return 250_000;
-    case 'epic': return 800_000;
-    case 'webnovel': return 2_000_000;
-    default: return 250_000;
-  }
 }
 
 export async function updateProject(id: ID, patch: Partial<Project>): Promise<void> {

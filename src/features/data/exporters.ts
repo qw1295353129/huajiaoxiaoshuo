@@ -1,5 +1,6 @@
 import type { Chapter, ID, Project } from "@/core";
 import { db } from "@/db/database";
+import { DB_STORES } from "@/db/schema";
 import { listArcs, listChapters } from "@/db/repo/outline";
 import { stripHtml } from "@/utils/text";
 
@@ -216,18 +217,33 @@ export interface BackupFile {
   data: Record<string, unknown[]>;
 }
 
-/** 全量备份：所有表导出为 JSON，可跨版本恢复 */
+/** 该表的行是否以 projectId 归属作品（全局表 providers/routing/pricing/appState 等没有） */
+function hasProjectScope(tableName: string): boolean {
+  if (tableName === "projects") return true;
+  const spec = (DB_STORES as Record<string, string | undefined>)[tableName];
+  if (!spec) return false;
+  return spec
+    .split(",")
+    .map((s) => s.trim())
+    .some((part) => part === "projectId" || part.startsWith("[projectId"));
+}
+
+/**
+ * 备份。传 projectIds 时为「仅当前作品」作用域：
+ * 只导出带 projectId 的表 + projects 行本身，不打包 providers/routing/pricing/appState 等全局表。
+ */
 export async function buildBackup(projectIds?: ID[]): Promise<BackupFile> {
   const data: Record<string, unknown[]> = {};
   const counts: Record<string, number> = {};
+  const scoped = Boolean(projectIds?.length);
   for (const table of db.tables) {
+    if (scoped && !hasProjectScope(table.name)) continue;
     let rows = (await table.toArray()) as Record<string, unknown>[];
-    if (projectIds?.length) {
-      rows = rows.filter((r) => {
-        if (table.name === "projects") return projectIds.includes(String(r.id));
-        if (!("projectId" in r)) return true;
-        return projectIds.includes(String(r.projectId));
-      });
+    if (scoped) {
+      rows =
+        table.name === "projects"
+          ? rows.filter((r) => projectIds!.includes(String(r.id)))
+          : rows.filter((r) => projectIds!.includes(String(r.projectId)));
     }
     data[table.name] = rows;
     counts[table.name] = rows.length;
@@ -271,17 +287,19 @@ export async function restoreBackup(backup: BackupFile, opts: RestoreOptions): P
   }
   const restored: Record<string, number> = {};
   const skipped: string[] = [];
+  // db.table(未知表名) 会抛 InvalidTable 并中止整个事务——先按当前库真实存在的表过滤
+  const known = new Set(db.tables.map((t) => t.name));
 
   await db.transaction("rw", db.tables, async () => {
     if (opts.mode === "replace") {
       for (const table of db.tables) await table.clear();
     }
     for (const [name, rows] of Object.entries(backup.data)) {
-      const table = db.table(name);
-      if (!table) {
+      if (!known.has(name)) {
         skipped.push(name);
         continue;
       }
+      const table = db.table(name);
       if (!Array.isArray(rows) || rows.length === 0) {
         restored[name] = 0;
         continue;

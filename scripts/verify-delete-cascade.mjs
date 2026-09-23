@@ -1,9 +1,10 @@
 /**
- * 回归：删项目必须清干净级联表。
+ * 回归：删项目 / 删章必须清干净级联表。
  *
- * 两个真实 bug：
+ * 三个真实 bug：
  *  1. appearances 在 characters 之后删 —— 主键列表恒空，出场记录成孤儿；
- *  2. comments / reviewSuggestions 从未进 byProject 清单（v2 加表时漏了）。
+ *  2. comments / reviewSuggestions 从未进 byProject 清单（v2 加表时漏了）；
+ *  3. deleteChapter 没级联 comments / reviewSuggestions / entityMentions（有 chapterId 索引的三表）。
  */
 import { gotoApp, launchIsolated } from "./lib/browser.mjs";
 
@@ -90,6 +91,78 @@ check("批注已清", out.leftoverComments === 0, String(out.leftoverComments));
 check("修订建议已清", out.leftoverSuggestions === 0, String(out.leftoverSuggestions));
 check("章节已清", out.leftoverChapters === 0 && out.leftoverContents === 0, JSON.stringify(out));
 check("人物已清", out.leftoverCharacters === 0, String(out.leftoverCharacters));
+
+// ---------- 删章级联：comments / reviewSuggestions / entityMentions（按 chapterId） ----------
+const chOut = await page.evaluate(async () => {
+  const p = await import("/src/db/repo/projects.ts");
+  const o = await import("/src/db/repo/outline.ts");
+  const r = await import("/src/db/repo/review.ts");
+  const { db } = await import("/src/db/database.ts");
+
+  const proj = await p.createProject({ title: "删章级联验证" });
+  const ch = await o.createChapter(proj.id, { title: "待删章" });
+  await r.addComment({
+    projectId: proj.id,
+    chapterId: ch.id,
+    author: "审稿人",
+    anchor: { from: 0, to: 4, quote: "待删章" },
+    body: "章级批注",
+  });
+  await r.addReviewSuggestion({
+    projectId: proj.id,
+    chapterId: ch.id,
+    kind: "replace",
+    anchor: { from: 0, to: 0, quote: "" },
+    proposed: "替换",
+  });
+  await db.entityMentions.put({
+    id: "em_" + ch.id,
+    projectId: proj.id,
+    entityId: "ent_x",
+    chapterId: ch.id,
+    count: 2,
+    firstOffset: 0,
+    sample: "片段",
+  });
+  await o.saveChapterContent(ch.id, "<p>正文</p>", { touchStatus: false });
+
+  const before = {
+    comments: await db.comments.where("chapterId").equals(ch.id).count(),
+    suggestions: await db.reviewSuggestions.where("chapterId").equals(ch.id).count(),
+    mentions: await db.entityMentions.where("chapterId").equals(ch.id).count(),
+    contents: (await db.chapterContents.get(ch.id)) ? 1 : 0,
+    projectId: (await db.chapterContents.get(ch.id))?.projectId ?? null,
+  };
+
+  await o.deleteChapter(ch.id);
+
+  return {
+    before,
+    after: {
+      comments: await db.comments.where("chapterId").equals(ch.id).count(),
+      suggestions: await db.reviewSuggestions.where("chapterId").equals(ch.id).count(),
+      mentions: await db.entityMentions.where("chapterId").equals(ch.id).count(),
+      chapter: (await db.chapters.get(ch.id)) ? 1 : 0,
+      contents: (await db.chapterContents.get(ch.id)) ? 1 : 0,
+    },
+    projectId: proj.id,
+  };
+});
+
+console.log("【删章级联】");
+check("删前章级批注在", chOut.before.comments === 1, JSON.stringify(chOut.before));
+check("删前章级修订建议在", chOut.before.suggestions === 1, JSON.stringify(chOut.before));
+check("删前章级实体提及在", chOut.before.mentions === 1, JSON.stringify(chOut.before));
+check("正文 projectId 非空（首存回填）", Boolean(chOut.before.projectId), String(chOut.before.projectId));
+check("删章后批注已清", chOut.after.comments === 0, String(chOut.after.comments));
+check("删章后修订建议已清", chOut.after.suggestions === 0, String(chOut.after.suggestions));
+check("删章后实体提及已清", chOut.after.mentions === 0, String(chOut.after.mentions));
+check("删章后章节与正文已清", chOut.after.chapter === 0 && chOut.after.contents === 0, JSON.stringify(chOut.after));
+
+await page.evaluate(async (pid) => {
+  const p = await import("/src/db/repo/projects.ts");
+  await p.deleteProject(pid);
+}, chOut.projectId);
 
 console.log("");
 console.log("通过 " + pass + " 项，失败 " + fail + " 项");

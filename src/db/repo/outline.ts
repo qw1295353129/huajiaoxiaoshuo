@@ -121,13 +121,26 @@ export async function updateChapter(id: ID, patch: Partial<Chapter>): Promise<vo
 }
 
 export async function deleteChapter(id: ID): Promise<void> {
-  await db.transaction('rw', [db.chapters, db.chapterContents, db.snapshots, db.metrics, db.characterAppearances], async () => {
-    await db.chapters.delete(id);
-    await db.chapterContents.delete(id);
-    await db.snapshots.where('chapterId').equals(id).delete();
-    await db.metrics.where('chapterId').equals(id).delete();
-    await db.characterAppearances.where('chapterId').equals(id).delete();
-  });
+  // 同事务内级联清掉所有带 chapterId 索引的附属表。
+  // timelineEvents.chapterIds / plotThreads 的章引用没有单章索引，
+  // 清理需要全表扫改写、改动面大，暂不处理（删章后残留引用由 UI 层容错）。
+  await db.transaction(
+    'rw',
+    [
+      db.chapters, db.chapterContents, db.snapshots, db.metrics, db.characterAppearances,
+      db.comments, db.reviewSuggestions, db.entityMentions,
+    ],
+    async () => {
+      await db.chapters.delete(id);
+      await db.chapterContents.delete(id);
+      await db.snapshots.where('chapterId').equals(id).delete();
+      await db.metrics.where('chapterId').equals(id).delete();
+      await db.characterAppearances.where('chapterId').equals(id).delete();
+      await db.comments.where('chapterId').equals(id).delete();
+      await db.reviewSuggestions.where('chapterId').equals(id).delete();
+      await db.entityMentions.where('chapterId').equals(id).delete();
+    },
+  );
 }
 
 export async function reorderChapters(projectId: ID, orderedIds: ID[]): Promise<void> {
@@ -164,22 +177,19 @@ export async function saveChapterContent(
       return;
     }
     rev = (existing?.rev ?? 0) + 1;
-    await db.chapterContents.put({ chapterId, projectId: existing?.projectId ?? '', html, text, updatedAt: now, rev });
-    // TEMP 探针：写完立刻回读，确认到底写进去了什么
-    const back = await db.chapterContents.get(chapterId);
+    // 无已有行或 projectId 为空时从 chapters 补齐——首存（rev===1）同样要回填，不能写 ''
+    let projectId = existing?.projectId ?? '';
+    if (!projectId) {
+      const chapter = await db.chapters.get(chapterId);
+      projectId = chapter?.projectId ?? '';
+    }
+    await db.chapterContents.put({ chapterId, projectId, html, text, updatedAt: now, rev });
     await db.chapters.where('id').equals(chapterId).modify((c) => {
       c.wordCount = words;
       c.updatedAt = now;
       if (opts.touchStatus !== false && words > 0 && (c.status === 'idea' || c.status === 'outlined')) c.status = 'drafting';
     });
   });
-  if (ok && rev > 1) {
-    const c = await db.chapters.get(chapterId);
-    if (c) {
-      const cc = await db.chapterContents.get(chapterId);
-      if (cc && !cc.projectId) await db.chapterContents.put({ ...cc, projectId: c.projectId });
-    }
-  }
   return { ok, rev, words };
 }
 
