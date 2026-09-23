@@ -435,6 +435,10 @@ function ModelsTab() {
                   onPress={async () => {
                     if (!confirm("删除该供应商配置？")) return;
                     await deleteProvider(p.id);
+                    // 删除的是当前模型就清掉引用，避免留下指向不存在供应商的 activeProviderId
+                    if (settings.activeProviderId === p.id) {
+                      updateSettings({ activeProviderId: undefined, activeModel: undefined });
+                    }
                     reload();
                   }}
                 >
@@ -924,7 +928,15 @@ function DataTab() {
   const notify = useAppStore((s) => s.notify);
   const navigate = useNavigate();
 
-  void isPersisted().then(setPersisted);
+  useEffect(() => {
+    let alive = true;
+    void isPersisted().then((v) => {
+      if (alive) setPersisted(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-5">

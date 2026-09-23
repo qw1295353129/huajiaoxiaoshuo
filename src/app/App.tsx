@@ -62,12 +62,18 @@ function ProjectGuard({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const ready = useAppStore((s) => s.ready);
+  const initError = useAppStore((s) => s.initError);
   const bootstrap = useAppStore((s) => s.bootstrap);
 
   useEffect(() => {
     void (async () => {
-      await seedProviders();
-      await seedRouting();
+      // seed 失败也必须继续 bootstrap，否则永远停在加载页
+      try {
+        await seedProviders();
+        await seedRouting();
+      } catch (e) {
+        console.error("seed failed:", e);
+      }
       await bootstrap();
     })();
     return watchSystemTheme();
@@ -79,6 +85,20 @@ export default function App() {
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
           <p className="text-sm opacity-60">正在打开本地书库…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="grid min-h-dvh place-items-center gap-3 p-6">
+        <div className="w-full max-w-md rounded-xl border border-rose-500/30 bg-rose-500/[0.06] p-5">
+          <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">本地书库打开失败</p>
+          <p className="mt-2 text-xs leading-relaxed opacity-75">{initError}</p>
+          <p className="mt-3 text-[11px] opacity-55">
+            请刷新页面重试；若持续失败，可能是浏览器存储被禁用或数据损坏。
+          </p>
         </div>
       </div>
     );

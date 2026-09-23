@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button, Chip, Input, Label, TextArea, TextField } from "@heroui/react";
 import { Plus, RotateCcw, Sparkles, Trash2, UserRound } from "lucide-react";
 import type { PovStyle } from "@/core";
@@ -31,6 +32,29 @@ export function AuthorProfileSettings() {
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const notify = useAppStore((s) => s.notify);
+
+  /**
+   * 全局禁用表达：编辑期间保留原始字符串。
+   * 之前每键 split+join 会吞掉用户刚敲的分隔符（打「、」立刻被规范化），
+   * 所以输入过程只改本地草稿，失焦时再解析回数组。
+   */
+  const [forbiddenDraft, setForbiddenDraft] = useState(() => settings.globalForbidden.join("、"));
+  useEffect(() => {
+    setForbiddenDraft(settings.globalForbidden.join("、"));
+  }, [settings.globalForbidden]);
+
+  const commitForbidden = () => {
+    const parsed = forbiddenDraft
+      .split(/[、,，\n]/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (parsed.join("、") !== settings.globalForbidden.join("、")) {
+      updateSettings({ globalForbidden: parsed });
+    } else {
+      // 规范化回显（用户输入的空格/逗号统一成顿号）
+      setForbiddenDraft(settings.globalForbidden.join("、"));
+    }
+  };
 
   const addPrinciple = (text: string) => {
     const v = text.trim();
@@ -153,20 +177,13 @@ export function AuthorProfileSettings() {
 
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">
         <SectionTitle hint="AI 生成时一律避开这些词句，优先级高于单本书的设置">全局禁用表达</SectionTitle>
-        <TextField
-          value={settings.globalForbidden.join("、")}
-          onChange={(v) =>
-            updateSettings({
-              globalForbidden: v
-                .split(/[、,，\n]/)
-                .map((x) => x.trim())
-                .filter(Boolean),
-            })
-          }
-        >
-          <Label>用顿号或逗号分隔</Label>
-          <Input placeholder="总而言之、值得注意的是、空气仿佛凝固" />
-        </TextField>
+        {/* onBlur 冒泡自内部 input：失焦时才解析，编辑中不吞分隔符 */}
+        <div onBlur={commitForbidden}>
+          <TextField value={forbiddenDraft} onChange={setForbiddenDraft}>
+            <Label>用顿号或逗号分隔</Label>
+            <Input placeholder="总而言之、值得注意的是、空气仿佛凝固" />
+          </TextField>
+        </div>
       </section>
 
       <section className="rounded-xl border border-black/8 p-4 dark:border-white/10">

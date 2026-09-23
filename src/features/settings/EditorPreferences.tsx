@@ -197,7 +197,15 @@ export function EditorPreferences() {
         <Button
           variant="outline"
           onPress={() => {
-            updateSettings({ ...DEFAULT_SETTINGS, theme: settings.theme });
+            // 只重置本页字段 —— 整包 DEFAULT_SETTINGS 会把模型/隐私/创作者档案一起清掉
+            updateSettings({
+              editorFontSize: DEFAULT_SETTINGS.editorFontSize,
+              editorMaxWidth: DEFAULT_SETTINGS.editorMaxWidth,
+              autosaveMs: DEFAULT_SETTINGS.autosaveMs,
+              snapshotIntervalMin: DEFAULT_SETTINGS.snapshotIntervalMin,
+              typewriterScroll: DEFAULT_SETTINGS.typewriterScroll,
+              flowByDefault: DEFAULT_SETTINGS.flowByDefault,
+            });
             notify("success", "已恢复默认写作偏好");
           }}
         >

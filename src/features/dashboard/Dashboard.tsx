@@ -76,10 +76,19 @@ export function Dashboard() {
             {list.map((p) => (
               <Card
                 key={p.id}
+                role="button"
+                tabIndex={0}
                 className="group cursor-pointer p-5 transition hover:-translate-y-0.5 hover:shadow-md"
                 onClick={() => {
                   void setProject(p);
                   navigate(ROUTES.overview(p.id));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    void setProject(p);
+                    navigate(ROUTES.overview(p.id));
+                  }
                 }}
               >
                 <div className="flex items-start justify-between gap-2">

@@ -46,12 +46,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const settings = loadSettings();
       applyTheme(settings.theme);
       syncAuthorProfile(settings);
-      set({ appState, settings, ready: true });
+      // initError 显式清空：重试 bootstrap 成功后要能离开错误态
+      set({ appState, settings, ready: true, initError: undefined });
       if (appState.lastProjectId) {
         const project = await db.projects.get(appState.lastProjectId);
         if (project) set({ project, chapterId: appState.lastChapterId });
       }
     } catch (e) {
+      // ready 置真让 App 走到 initError 分支渲染错误页，而不是永远转圈
       set({ ready: true, initError: e instanceof Error ? e.message : String(e) });
     }
   },

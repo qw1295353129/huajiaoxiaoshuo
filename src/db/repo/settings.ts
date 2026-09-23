@@ -2,6 +2,7 @@ import type { AppSettings, ID, ModelPricing, ProviderConfig, TaskRouting } from 
 import { db } from '../database';
 import { DEFAULT_PARAMS, PROVIDER_PRESETS, defaultRouting } from '../defaults';
 import { DEFAULT_SEMANTIC_RECALL, THEMES } from '@/core';
+import { isProviderUsable } from '@/ai/providers';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   activeProviderId: undefined,
@@ -149,15 +150,26 @@ export async function updateRouting(kind: TaskRouting['kind'], patch: Partial<Ta
   await db.routing.put({ ...existing, ...patch });
 }
 
-/** 解析某任务应该用什么模型：任务路由 > 全局默认 */
+/** 解析某任务应该用什么模型：任务路由 > 全局默认（都要求供应商 isProviderUsable，否则视为未配置） */
 export async function resolveModel(taskKind: TaskRouting['kind']): Promise<{ providerId?: ID; model?: string; params: typeof DEFAULT_PARAMS }> {
   const [routing, settings] = await Promise.all([db.routing.get(taskKind), Promise.resolve(loadSettings())]);
   const params = { ...DEFAULT_PARAMS, ...(routing?.params ?? {}) };
+
+  const usable = async (providerId?: ID, model?: string): Promise<boolean> => {
+    if (!providerId) return false;
+    const p = await db.providers.get(providerId);
+    return Boolean(p && isProviderUsable(p));
+  };
+
   if (routing?.primary) {
     const [pid, ...rest] = routing.primary.split('::');
-    return { providerId: pid, model: rest.join('::'), params };
+    if (await usable(pid)) return { providerId: pid, model: rest.join('::'), params };
+    // 路由目标已停用/缺 Key：落到全局默认，而不是硬着头皮用它
   }
-  return { providerId: settings.activeProviderId, model: settings.activeModel, params };
+  if (await usable(settings.activeProviderId)) {
+    return { providerId: settings.activeProviderId, model: settings.activeModel, params };
+  }
+  return { providerId: undefined, model: undefined, params };
 }
 
 // ---------------- 计费 ----------------

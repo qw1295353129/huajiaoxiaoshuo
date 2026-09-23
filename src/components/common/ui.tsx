@@ -126,12 +126,26 @@ export function Tag({ children, color = "default" }: { children: ReactNode; colo
   );
 }
 
-/** 进度条（纯 CSS，无依赖） */
-export function Progress({ value, max, tone = "violet" }: { value: number; max: number; tone?: string }) {
+/**
+ * 进度条（纯 CSS，无依赖）。
+ * 颜色用静态映射 —— `bg-${tone}-500` 这类动态类 Tailwind 不会生成，进度条会隐形。
+ * 默认 accent 走 `var(--accent)`，跟随主题（项目已中性化，不要写死 violet）。
+ */
+const PROGRESS_TONE: Record<string, string> = {
+  accent: "var(--accent)",
+  default: "var(--foreground)",
+  success: "var(--color-emerald-500, #10b981)",
+  warning: "var(--color-amber-500, #f59e0b)",
+  danger: "var(--color-rose-500, #f43f5e)",
+  info: "var(--color-sky-500, #0ea5e9)",
+};
+
+export function Progress({ value, max, tone = "accent" }: { value: number; max: number; tone?: string }) {
   const percent = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+  const background = PROGRESS_TONE[tone] ?? PROGRESS_TONE.accent;
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
-      <div className={`h-full rounded-full bg-${tone}-500 transition-all`} style={{ width: `${percent}%` }} />
+      <div className="h-full rounded-full transition-all" style={{ width: `${percent}%`, background }} />
     </div>
   );
 }

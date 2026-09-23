@@ -10,6 +10,7 @@ import { ProviderError, type ChatRequest, type TaskRunOptions, type TaskRunResul
 import { baseSystem, setMemoryBlock } from "./prompts";
 import { markMemoryUsed, memoryForProject, recordMemoryUsage } from "@/db/repo/memory";
 import { recallMemories } from "./recall";
+import { isProviderUsable } from "./providers";
 
 /** 一次 system prompt 里最多注入几条偏好/教训（原来的硬上限，语义召回也不打破它） */
 const MEMORY_INJECT_LIMIT = 12;
@@ -236,13 +237,13 @@ async function pickTarget(
 
   const params: ModelParams = { ...resolved.params, ...(opts.params ?? {}) };
 
-  // 隐私闸门：关闭云端后强制走本地模型
+  // 隐私闸门：关闭云端后强制走本地模型（同样要求 isProviderUsable）
   if (!settings.allowCloud) {
     const current = providerId ? await db.providers.get(providerId) : undefined;
     const currentLocal = current ? isLocal(current) : false;
     if (!currentLocal) {
       const all = await db.providers.toArray();
-      const localProvider = all.find((x) => x.enabled && x.models.length > 0 && isLocal(x));
+      const localProvider = all.find((x) => isProviderUsable(x) && x.models.length > 0 && isLocal(x));
       if (localProvider) {
         providerId = localProvider.id;
         model = localProvider.models[0];
@@ -251,6 +252,10 @@ async function pickTarget(
   }
 
   const provider = providerId ? await db.providers.get(providerId) : undefined;
+  // 供应商被停用或缺 Key 时视为不可用，不发请求（与设置里的启用开关对齐）
+  if (provider && !isProviderUsable(provider)) {
+    return { provider: undefined, model: model ?? "", params };
+  }
   return { provider, model: model ?? "", params };
 }
 

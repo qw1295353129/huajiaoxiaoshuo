@@ -129,7 +129,7 @@ export function EmbeddingModelPicker({
             <p>① 安装 Ollama：<span className="rounded bg-black/[0.06] px-1 font-mono dark:bg-white/10">brew install ollama</span>（macOS）</p>
             <p>② 启动：<span className="rounded bg-black/[0.06] px-1 font-mono dark:bg-white/10">ollama serve</span></p>
             <p>
-              ③ 允许浏览器访问（**必须做，否则会一直静默降级**）：<br />
+              ③ 允许浏览器访问（必须做，否则会一直静默降级）：<br />
               <span className="rounded bg-black/[0.06] px-1 font-mono dark:bg-white/10">
                 OLLAMA_ORIGINS=* ollama serve
               </span>

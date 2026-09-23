@@ -302,7 +302,7 @@ export function AiStudioPage() {
       void handleSend(action.prompt);
       return;
     }
-    setInput(action.needsInput ? action.prompt : action.prompt);
+    setInput(action.prompt);
     inputRef.current?.focus();
   }
 
