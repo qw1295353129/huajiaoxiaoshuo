@@ -63,9 +63,42 @@ const pid = await page.evaluate(async () => {
   return proj.id;
 });
 
+/*
+  getComputedStyle 对 oklch 可能原样返回（浏览器不总把它转成 rgb）。
+  复用 verify-themes.mjs 的 oklch → sRGB 转换；解析失败必须判 fail，
+  不能默认放行（否则中性断言全是假通过）。
+*/
+const oklchToRgb = (color) => {
+  const t = String(color || "").trim();
+  const m = t.match(/oklch\(\s*([\d.]+%?)\s+([\d.]+%?)\s+([\d.]+|none)/);
+  if (!m) return t; // 已是 rgb()/rgba() 或其它形式
+  const num = (s, scale) => (s.endsWith("%") ? (parseFloat(s) / 100) * scale : parseFloat(s));
+  const L = num(m[1], 1);
+  const C = m[2] === "none" ? 0 : num(m[2], 0.4);
+  const H = m[3] === "none" ? 0 : parseFloat(m[3]);
+  const hRad = (H * Math.PI) / 180;
+  const a = C * Math.cos(hRad);
+  const bb = C * Math.sin(hRad);
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * bb;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * bb;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * bb;
+  const l3 = l_ ** 3, m3 = m_ ** 3, s3 = s_ ** 3;
+  const lin = [
+    +4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+    -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+    -0.0041960863 * l3 - 0.7034186147 * m3 + 1.707614701 * s3,
+  ];
+  const enc = (x) => {
+    const c = x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(Math.max(x, 0), 1 / 2.4) - 0.055;
+    return Math.max(0, Math.min(255, Math.round(c * 255)));
+  };
+  const [r, g, b] = lin.map(enc);
+  return "rgb(" + r + ", " + g + ", " + b + ")";
+};
+
 const isNeutral = (color) => {
-  const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (!m) return true; // oklch 形式无法直接解析时按中性算（另有 accent 变量断言兜底）
+  const m = oklchToRgb(color).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return false; // 解析失败判 fail，不默认放行
   const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
   return Math.max(r, g, b) - Math.min(r, g, b) <= 14;
 };

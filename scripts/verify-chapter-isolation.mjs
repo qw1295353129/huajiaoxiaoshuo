@@ -166,5 +166,4 @@ if (fail > 0) {
 }
 console.log("控制台错误: " + (errs.length ? JSON.stringify(errs.slice(0, 3)) : "NONE"));
 await context.close();
-// 诊断脚本：始终返回 0，避免它把整条回归流水线染红（bug 已在此明确记录）
-process.exit(0);
+process.exit(fail === 0 ? 0 : 1);

@@ -170,3 +170,10 @@ log.push('consistency page: ' + consistencyText.slice(0, 200));
 
 await context.close();
 console.log(JSON.stringify({ errors: errors.slice(0, 20), log }, null, 2));
+
+let fail = 0;
+if (!projectId) fail++;
+if (streamed.length === 0) fail++;
+if (!persisted || persisted.textLen === 0) fail++;
+if (errors.length > 0) fail++;
+process.exit(fail === 0 ? 0 : 1);

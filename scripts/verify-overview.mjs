@@ -59,3 +59,4 @@ await context.close();
 console.log('');
 console.log('通过 ' + pass + ' 项，失败 ' + fail + ' 项');
 console.log('控制台错误: ' + (errs.length ? JSON.stringify(errs.slice(0, 5)) : 'NONE'));
+process.exit(fail === 0 ? 0 : 1);
