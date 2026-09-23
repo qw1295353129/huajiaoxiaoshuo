@@ -21,6 +21,7 @@ const check = (name, cond, extra) => {
 
 const scan = await load('src/utils/entity-scan.ts');
 const textUtils = await load('src/utils/text.ts');
+const richText = await load('src/utils/rich-text.ts');
 const diffUtils = await load('src/utils/diff.ts');
 const tokens = await load('src/utils/tokens.ts');
 const json = await load('src/ai/json.ts');
@@ -66,9 +67,82 @@ check('分章：中文第X章', textUtils.splitIntoChapters('第一章 雪夜\n�
 check('分章：无标记时整篇一章', textUtils.splitIntoChapters('就是一段普通的话').length === 1);
 check('stripHtml 去标签', textUtils.stripHtml('<p>雨下了整夜。</p>') === '雨下了整夜。');
 
+console.log('【实体单次解码（不双重解码）】');
+check(
+  'stripHtml: &amp;lt; 只解一层 → &lt;，不是 <',
+  textUtils.stripHtml('&amp;lt;') === '&lt;',
+  JSON.stringify(textUtils.stripHtml('&amp;lt;')),
+);
+check(
+  'stripHtml 往返: escapeHtml("&lt;") 经 stripHtml 仍是 &lt;',
+  textUtils.stripHtml(textUtils.escapeHtml('&lt;')) === '&lt;',
+  JSON.stringify(textUtils.stripHtml(textUtils.escapeHtml('&lt;'))),
+);
+check(
+  'stripHtml: &amp;amp; 只解一层 → &amp;',
+  textUtils.stripHtml('&amp;amp;') === '&amp;',
+  JSON.stringify(textUtils.stripHtml('&amp;amp;')),
+);
+check(
+  'docToText: &amp;lt; 只解一层 → &lt;，不是 <',
+  richText.docToText('&amp;lt;') === '&lt;',
+  JSON.stringify(richText.docToText('&amp;lt;')),
+);
+check(
+  'docToText 往返: textToDoc("&lt;") 经 docToText 仍是 &lt;',
+  richText.docToText(richText.textToDoc('&lt;')) === '&lt;',
+  JSON.stringify(richText.docToText(richText.textToDoc('&lt;'))),
+);
+
+console.log('【textToHtml 转义边界】');
+check(
+  '纯文本转段落并转义',
+  textUtils.textToHtml('雨下了整夜。') === '<p>雨下了整夜。</p>',
+  textUtils.textToHtml('雨下了整夜。'),
+);
+check(
+  '子串中的 <p 不透传（整串形如 HTML 才透传）',
+  textUtils.textToHtml('他写了 <p>标签</p>').includes('&lt;p&gt;'),
+  textUtils.textToHtml('他写了 <p>标签</p>'),
+);
+check(
+  '整串 HTML 文档透传（兼容 importChapters / genesis）',
+  textUtils.textToHtml('<p>a</p><p>b</p>') === '<p>a</p><p>b</p>',
+  textUtils.textToHtml('<p>a</p><p>b</p>'),
+);
+check('markdownToHtml 已删除', textUtils.markdownToHtml === undefined, String(textUtils.markdownToHtml));
+
+console.log('【分章保留序言】');
+const withPre = textUtils.splitIntoChapters('序言：很久很久以前。\n第一章 雪夜\n正文一\n第二章 旧信\n正文二');
+check('首章标记前的序言不再被丢弃', withPre.some((c) => c.content.includes('很久很久以前')), JSON.stringify(withPre));
+check('序言并入第一章（章数仍为 2）', withPre.length === 2 && withPre[0].content.startsWith('序言'), JSON.stringify(withPre));
+check('第一章标题保留', withPre[0].title.includes('第一章'), withPre[0].title);
+check('序言独立成章（无标记章时仍一章）', textUtils.splitIntoChapters('序言文字').length === 1);
+
+console.log('【中文数字】');
+check('cnToNumber 逐位年份 二零二五→2025', textUtils.cnToNumber('二零二五') === 2025, String(textUtils.cnToNumber('二零二五')));
+check('cnToNumber 百位 一百二十→120', textUtils.cnToNumber('一百二十') === 120, String(textUtils.cnToNumber('一百二十')));
+check('cnToNumber 千位 一千零二十四→1024', textUtils.cnToNumber('一千零二十四') === 1024, String(textUtils.cnToNumber('一千零二十四')));
+check('cnToNumber 十位 十三→13', textUtils.cnToNumber('十三') === 13, String(textUtils.cnToNumber('十三')));
+check('cnToNumber 纯数字', textUtils.cnToNumber('42') === 42, String(textUtils.cnToNumber('42')));
+check('cnToNumber 解析失败返回 undefined 而非 0', textUtils.cnToNumber('甲') === undefined, String(textUtils.cnToNumber('甲')));
+
 console.log('【diff 与相似度】');
 const d = diffUtils.diffWords('他走进屋子', '他走进那间屋子');
 check('diff 识别插入', d.some((op) => op.type === 'insert' && op.text.includes('那间')), JSON.stringify(d));
+const en = 'The quick brown fox jumps';
+const sameEn = diffUtils.diffWords(en, en);
+check(
+  'diff 英文含空格往返 ops.join("")===a',
+  sameEn.map((op) => op.text).join('') === en,
+  JSON.stringify(sameEn),
+);
+const enA = 'hello world from novelcraft';
+const enB = 'hello brave world from anywhere';
+const enOps = diffUtils.diffWords(enA, enB);
+const rebuiltA = enOps.filter((op) => op.type !== 'insert').map((op) => op.text).join('');
+const rebuiltB = enOps.filter((op) => op.type !== 'delete').map((op) => op.text).join('');
+check('diff 可无损还原两侧（含空格）', rebuiltA === enA && rebuiltB === enB, JSON.stringify({ rebuiltA, rebuiltB }));
 check('相同文本相似度为 1', diffUtils.similarity('沈砚走进验尸房', '沈砚走进验尸房') === 1);
 check('不同文本相似度低', diffUtils.similarity('沈砚走进验尸房', '林晚站在码头上') < 0.25);
 
@@ -87,7 +161,8 @@ const fence = '\u0060\u0060\u0060json\n{"a":1}\n\u0060\u0060\u0060';
 check('剥离 Markdown 代码块', json.parseJson(fence).ok);
 check('截断 JSON 自动补全', json.parseJson('{"issues":[{"kind":"continuity","title":"x"}').ok);
 check('去尾逗号', json.parseJson('{"a":1,}').ok);
-check('中文引号修复', json.parseJson('{"a": "b"}').ok);
+const cnQuote = json.parseJson('{“a”：“b”}');
+check('中文引号修复', cnQuote.ok && cnQuote.repairs.some((s) => s.includes('标点')), JSON.stringify(cnQuote.repairs));
 check('无效输入返回 ok=false', json.parseJson('这不是 JSON').ok === false);
 check('asArray 兼容对象包裹', json.asArray({ items: [1, 2] }).length === 2);
 

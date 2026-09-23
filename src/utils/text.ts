@@ -52,22 +52,35 @@ export function countChars(input: string): number {
   return stripHtml(input).replace(/\s/g, '').length;
 }
 
+/**
+ * 实体单次扫描解码：`&amp;lt;` → `&lt;`，不会被后续规则二次解码成 `<`。
+ * 逐条 replace 串联（&amp; 先、&lt; 后）会让中间结果再次命中，必须用带分发回调的单次 replace。
+ */
+const ENTITY_DECODE: Record<string, string> = {
+  nbsp: ' ',
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  '#39': "'",
+};
+
+export function decodeEntities(s: string): string {
+  return s.replace(/&(?:amp|lt|gt|quot|nbsp|#39);/g, (m) => ENTITY_DECODE[m.slice(1, -1)] ?? m);
+}
+
 export function stripHtml(html: string): string {
   if (!html) return '';
-  if (!html.includes('<')) return html;
-  return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|h[1-6]|li|blockquote|tr)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  // 没有标签也没有实体时才是纯文本（仅有 &lt; 这类实体、没有 < 的输入必须走解码）
+  if (!html.includes('<') && !html.includes('&')) return html;
+  return decodeEntities(
+    html
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h[1-6]|li|blockquote|tr)>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{3,}/g, '\n\n'),
+  ).trim();
 }
 
 export function escapeHtml(s: string): string {
@@ -79,24 +92,18 @@ export function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** 纯文本段落 → 简单 HTML */
+/** 整串形如 HTML 文档（以 <p>/<div> 开头）才按受信文档透传；子串中的 <p 不算 */
+const HTML_DOC_START = /^\s*<(?:p|div)(?=[\s/>])/i;
+
+/** 纯文本段落 → 简单 HTML（默认一律 escapeHtml；受信 HTML 文档仅整串形如 <p…/<div… 才透传） */
 export function textToHtml(text: string): string {
   if (!text) return '<p></p>';
-  if (text.includes('<p') || text.includes('<div')) return text;
+  if (HTML_DOC_START.test(text)) return text;
   return text
     .split(/\n{2,}/)
     .map((para) => `<p>${escapeHtml(para.replace(/\n/g, ' ')).trim()}</p>`)
     .filter((p) => p !== '<p></p>')
     .join('');
-}
-
-/** Markdown → 段落 HTML（仅支持段落/加粗/斜体，写作场景够用） */
-export function markdownToHtml(md: string): string {
-  const body = md
-    .replace(/^#{1,6}\s+(.*)$/gm, (_m, t) => `\n<h2>${t}</h2>\n`)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(?<!\*)\*(?!\s)(.+?)(?<!\s)\*/g, '<em>$1</em>');
-  return textToHtml(body);
 }
 
 /**
@@ -114,22 +121,36 @@ const CHAPTER_HEAD_RE =
 
 export function splitIntoChapters(raw: string): SplitChapter[] {
   const lines = raw.replace(/\r\n?/g, '\n').split('\n');
-  const chapters: SplitChapter[] = [];
+  const preLines: string[] = [];
+  const chapters: { title: string; lines: string[] }[] = [];
   let current: { title: string; lines: string[] } | null = null;
 
   for (const line of lines) {
     const m = CHAPTER_HEAD_RE.exec(line);
     if (m) {
-      if (current) chapters.push({ title: current.title, content: current.lines.join('\n').trim(), order: chapters.length });
-      const suffix = (m[2] ?? '').trim();
-      current = { title: suffix ? `${line.trim()}` : line.trim(), lines: [] };
+      current = { title: line.trim(), lines: [] };
+      chapters.push(current);
       continue;
     }
     if (current) current.lines.push(line);
+    else preLines.push(line);
   }
-  if (current) chapters.push({ title: current.title, content: current.lines.join('\n').trim(), order: chapters.length });
 
-  const meaningful = chapters.filter((c) => c.content.length > 0 || c.title);
+  const parts: { title: string; content: string }[] = chapters.map((c) => ({
+    title: c.title,
+    content: c.lines.join('\n').trim(),
+  }));
+  const preamble = preLines.join('\n').trim();
+  if (preamble) {
+    if (parts.length > 0) {
+      // 序言并入第一章：既不丢内容，也不让导入凭空多出一章、标题错位
+      parts[0].content = parts[0].content ? preamble + '\n' + parts[0].content : preamble;
+    } else {
+      parts.unshift({ title: '', content: preamble });
+    }
+  }
+
+  const meaningful = parts.filter((c) => c.content.length > 0 || c.title);
   if (meaningful.length === 0) {
     // 没识别到章节标记：整篇作为一章
     const content = raw.trim();
@@ -180,15 +201,30 @@ export function headContext(text: string, maxChars: number): string {
   return text.length <= maxChars ? text : text.slice(0, maxChars);
 }
 
-/** 中文数字 → 阿拉伯数字（用于第X章排序） */
-const CN_NUM: Record<string, number> = { 零: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
-export function cnToNumber(cn: string): number {
+/** 中文数字 → 阿拉伯数字（逐位年份二零二五→2025、十/百/千位权）；解析失败返回 undefined 而非 0 */
+const CN_NUM: Record<string, number> = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+const CN_UNIT: Record<string, number> = { 十: 10, 百: 100, 千: 1000 };
+export function cnToNumber(cn: string): number | undefined {
+  if (!cn) return undefined;
   if (/^\d+$/.test(cn)) return Number(cn);
-  if (/^十/.test(cn)) return 10 + (CN_NUM[cn[1]] ?? 0);
-  if (cn.length === 1) return CN_NUM[cn] ?? 0;
-  if (cn.length === 2 && cn[1] === '十') return (CN_NUM[cn[0]] ?? 0) * 10;
-  if (cn.length === 3 && cn[1] === '十') return (CN_NUM[cn[0]] ?? 0) * 10 + (CN_NUM[cn[2]] ?? 0);
-  return 0;
+  const chars = [...cn];
+  if (chars.every((c) => CN_NUM[c] !== undefined)) {
+    // 逐位读法（年份常见）：二零二五 → 2025
+    return chars.reduce((n, c) => n * 10 + CN_NUM[c], 0);
+  }
+  if (!chars.every((c) => CN_NUM[c] !== undefined || CN_UNIT[c] !== undefined)) return undefined;
+  let total = 0;
+  let current = 0;
+  for (const c of chars) {
+    if (CN_NUM[c] !== undefined) {
+      current = CN_NUM[c];
+    } else {
+      // 十/百/千前面没有数字时按 1（十三、千二）
+      total += (current === 0 ? 1 : current) * CN_UNIT[c];
+      current = 0;
+    }
+  }
+  return total + current;
 }
 
 /** 高亮命中片段（返回 [前, 中, 后]） */

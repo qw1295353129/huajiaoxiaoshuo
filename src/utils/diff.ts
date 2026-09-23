@@ -37,7 +37,8 @@ export function diffWords(a: string, b: string): DiffOp[] {
 }
 
 function tokenize(s: string): string[] {
-  return s.match(/[\u3400-\u9fff]|[A-Za-z0-9']+|[^\s]/g) ?? [];
+  // \s+ 必须作为独立 token：否则英文词间空格被丢掉，ops 拼接无法还原原文
+  return s.match(/[\u3400-\u9fff]|\s+|[A-Za-z0-9']+|[^\s]/g) ?? [];
 }
 
 function coarseDiff(ta: string[], tb: string[]): DiffOp[] {
