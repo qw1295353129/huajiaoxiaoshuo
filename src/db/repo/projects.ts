@@ -14,6 +14,8 @@ export interface CreateProjectInput {
   logline?: string;
   styleGuide?: string;
   author?: string;
+  /** 主题关键词，进一句话成书的 toneKeywords */
+  themes?: string[];
 }
 
 export async function listProjects(): Promise<Project[]> {
@@ -34,7 +36,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     logline: input.logline,
     genres: input.genres ?? [],
     tags: [],
-    themes: [],
+    themes: input.themes ?? [],
     pov: input.pov ?? 'third-limited',
     tense: 'past',
     // 篇幅目标字数的唯一真相是 core/project.ts 的 LENGTH_PROFILES，这里不再自维护映射

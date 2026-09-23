@@ -10,3 +10,4 @@ export * from './memory-conflict';
 export * from './changelog';
 export * from './ai';
 export * from './settings';
+export * from './templates';

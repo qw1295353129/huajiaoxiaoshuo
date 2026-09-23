@@ -6,8 +6,9 @@ import { ROUTES } from "@/app/routes";
 import { GENRES } from "@/db/defaults";
 import { createProject } from "@/db/repo/projects";
 import { useAppStore } from "@/app/store";
-import type { LengthClass, PovStyle } from "@/core";
+import type { LengthClass, NovelTemplate, PovStyle } from "@/core";
 import { lengthProfile } from "@/core";
+import { TemplatePicker } from "./TemplatePicker";
 
 const POV_OPTIONS: { value: PovStyle; label: string; hint: string }[] = [
   { value: "third-limited", label: "第三人称限知", hint: "最常见，读者跟着主角的认知走" },
@@ -38,9 +39,22 @@ export function NewProject() {
   const [lengthClass, setLengthClass] = useState<LengthClass>("novel");
   const [author, setAuthor] = useState("");
   const [busy, setBusy] = useState(false);
+  const [template, setTemplate] = useState<NovelTemplate | null>(null);
 
   const toggleGenre = (g: string) => {
     setGenres((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : prev.length >= 3 ? prev : [...prev, g]));
+  };
+
+  /** 选模板：带出故事种子 / 体裁 / 篇幅 / 视角；书名留空让用户自己起 */
+  const applyTemplate = (t: NovelTemplate | null) => {
+    setTemplate(t);
+    if (!t) return;
+    // genesis 用 project.logline 当种子，优先用更展开的 seed
+    setLogline(t.seed || t.logline);
+    setGenres(t.genres.slice(0, 3));
+    setPov(t.pov);
+    setLengthClass(t.lengthClass);
+    if (!title.trim()) setTitle(t.name.split("·")[0] ?? "");
   };
 
   const submit = async (goGenesis: boolean) => {
@@ -48,7 +62,16 @@ export function NewProject() {
     setBusy(true);
     try {
       const target = lengthProfile(lengthClass).targetWords;
-      const project = await createProject({ title, logline, genres, pov, lengthClass, targetWords: target, author });
+      const project = await createProject({
+        title,
+        logline,
+        genres,
+        pov,
+        lengthClass,
+        targetWords: target,
+        author,
+        themes: template?.toneKeywords ?? [],
+      });
       await setProject(project);
       navigate(goGenesis ? ROUTES.genesis(project.id) : ROUTES.overview(project.id));
     } finally {
@@ -69,9 +92,13 @@ export function NewProject() {
         </button>
 
         <h1 className="text-2xl font-semibold tracking-tight">创建新作品</h1>
-        <p className="mt-2 text-sm opacity-60">只需填最少的信息，剩下的交给「一句话成书」或你自己慢慢搭。</p>
+        <p className="mt-2 text-sm opacity-60">选个模板当起点，或只填最少的信息交给「一句话成书」。</p>
 
         <Card className="mt-6 space-y-5 p-6">
+          <TemplatePicker selectedId={template?.id} onChange={applyTemplate} />
+
+          <div className="h-px bg-black/5 dark:bg-white/10" />
+
           <TextField value={title} onChange={setTitle} isRequired>
             <Label>书名</Label>
             <Input placeholder="例如：长夜将至" />
