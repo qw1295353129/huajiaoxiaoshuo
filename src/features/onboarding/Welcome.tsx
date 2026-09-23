@@ -56,7 +56,7 @@ export function Welcome() {
               fullWidth
               onPress={() => navigate(hasProjects ? ROUTES.home : ROUTES.newProject)}
             >
-              {hasProjects ? "查看我的书库" : "开始创建"}
+              {hasProjects ? "查看我的作品" : "开始创建"}
             </Button>
           </Card>
         </div>

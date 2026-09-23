@@ -18,7 +18,7 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "已归档",
 };
 
-/** 书库首页：项目列表（未进入具体项目时）/ 项目总览（有 projectId 时） */
+/** 我的作品首页：项目列表（未进入具体项目时）/ 项目总览（有 projectId 时） */
 export function Dashboard() {
   const { projectId } = useParams<{ projectId: string }>();
   const projects = useProjects();
@@ -35,7 +35,7 @@ export function Dashboard() {
       <div className="mx-auto max-w-5xl px-6 py-12">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">我的书库</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">我的作品</h1>
             <p className="mt-1 text-sm opacity-60">{list.length} 部作品 · 全部保存在本机</p>
           </div>
           <div className="flex items-center gap-2">
@@ -153,7 +153,7 @@ function ProjectOverviewRoute({ projectId }: { projectId: string }) {
         <div className="text-center">
           <p className="text-sm opacity-60">找不到这本书</p>
           <Button className="mt-3" variant="outline" size="sm" onPress={() => navigate(ROUTES.home)}>
-            回到书库
+            回到我的作品
           </Button>
         </div>
       </div>

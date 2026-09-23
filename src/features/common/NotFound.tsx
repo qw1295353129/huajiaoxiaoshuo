@@ -12,7 +12,7 @@ export function NotFound() {
         <h1 className="text-lg font-semibold">页面不存在</h1>
         <p className="mt-2 text-sm opacity-60">这个地址没有对应的页面，可能链接已经失效。</p>
         <Button className="mt-5" variant="primary" onPress={() => navigate(ROUTES.home)}>
-          回到书库
+          回到我的作品
         </Button>
       </div>
     </div>

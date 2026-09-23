@@ -46,8 +46,17 @@ const readNav = () =>
       width: Math.round(nav.getBoundingClientRect().width),
       links: links.length,
       labels: links.map((a) => (a.textContent ?? "").trim()).slice(0, 30),
-      hasLibraryLink: /书库|导航回归/.test(nav.textContent ?? ""),
+      hasLibraryLink: /我的作品|导航回归/.test(nav.textContent ?? ""),
+      hasNewProject: (nav.textContent ?? "").includes("新建作品"),
       hasSettings: (nav.textContent ?? "").includes("设置"),
+      // 「我的作品 / 新建作品」必须排在「创作」分组之前
+      topOrderOk: (() => {
+        const t = nav.textContent ?? "";
+        const my = t.indexOf("我的作品");
+        const nw = t.indexOf("新建作品");
+        const writing = t.indexOf("创作");
+        return my >= 0 && nw > my && (writing < 0 || writing > nw);
+      })(),
     };
   });
 
@@ -75,7 +84,9 @@ const missing = results.filter((r) => !r.present);
 check("所有项目页都有左侧导航", missing.length === 0, "缺失：" + JSON.stringify(missing.map((m) => m.label)));
 check("总览页有导航（用户报告的问题）", results.find((r) => r.label === "总览")?.present === true, "");
 check("写作页有导航（用户报告的问题）", results.find((r) => r.label === "写作")?.present === true, "");
-check("导航里能回到书库", results.every((r) => r.hasLibraryLink), "");
+check("导航里能回到我的作品", results.every((r) => r.hasLibraryLink), "");
+check("导航里有新建作品入口", results.every((r) => r.hasNewProject), "");
+check("我的作品/新建作品 在创作分组之上", results.every((r) => r.topOrderOk), JSON.stringify(results.filter((r) => !r.topOrderOk).map((r) => r.label)));
 check("导航里有设置入口", results.every((r) => r.hasSettings), "");
 check("各页导航项数量一致（不会某页漏项）", new Set(results.map((r) => r.links)).size === 1, JSON.stringify(results.map((r) => ({ p: r.label, n: r.links }))));
 

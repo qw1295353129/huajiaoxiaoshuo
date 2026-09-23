@@ -84,7 +84,7 @@ export default function App() {
       <div className="grid min-h-dvh place-items-center gap-3">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm opacity-60">正在打开本地书库…</p>
+          <p className="text-sm opacity-60">正在打开我的作品…</p>
         </div>
       </div>
     );
@@ -94,7 +94,7 @@ export default function App() {
     return (
       <div className="grid min-h-dvh place-items-center gap-3 p-6">
         <div className="w-full max-w-md rounded-xl border border-rose-500/30 bg-rose-500/[0.06] p-5">
-          <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">本地书库打开失败</p>
+          <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">我的作品打开失败</p>
           <p className="mt-2 text-xs leading-relaxed opacity-75">{initError}</p>
           <p className="mt-3 text-[11px] opacity-55">
             请刷新页面重试；若持续失败，可能是浏览器存储被禁用或数据损坏。

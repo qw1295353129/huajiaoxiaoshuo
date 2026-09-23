@@ -44,14 +44,19 @@ try {
 check("首页渲染出了内容（不是白屏）", mounted, JSON.stringify({ failures: failures.slice(0, 4) }));
 
 /*
-  首页有异步加载（读 IndexedDB 里的项目列表），会先显示"正在打开本地书库…"。
+  首页有异步加载（读 IndexedDB 里的项目列表），会先显示"正在打开我的作品…"。
   断言要看**加载完成之后**的内容，否则测的是加载态 —— 我第一版就误判成"正文为空"。
+  注意：不能只匹配「我的作品」—— 加载文案也含这四个字，会假通过。
 */
 await page
   .waitForFunction(
     () => {
       const t = document.body.innerText;
-      return t.includes("我的书库") || t.includes("新建作品") || t.includes("还没有作品");
+      return (
+        (t.includes("我的作品") && t.includes("部作品")) ||
+        t.includes("还没有作品") ||
+        t.includes("新建作品")
+      ) && !t.includes("正在打开");
     },
     { timeout: 15000 },
   )
@@ -62,7 +67,7 @@ const state = await page.evaluate(() => ({
   bodyLen: document.body.innerText.length,
   head: document.body.innerText.slice(0, 60).split(String.fromCharCode(10)).join(" | "),
 }));
-check("加载完成后正文确实渲染了书库", state.bodyLen > 20 && !state.head.includes("正在打开"), JSON.stringify(state));
+check("加载完成后正文确实渲染了作品列表", state.bodyLen > 20 && !state.head.includes("正在打开"), JSON.stringify(state));
 check("没有模块编译失败（无 5xx）", failures.length === 0, JSON.stringify(failures.slice(0, 5)));
 check("没有未捕获异常", errs.length === 0, JSON.stringify(errs.slice(0, 3)));
 

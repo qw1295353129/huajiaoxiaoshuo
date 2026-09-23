@@ -108,7 +108,7 @@ export function WorldPage() {
   if (!project) {
     return (
       <PageScaffold title="世界观" withNav>
-        <EmptyHint title="作品不存在或已被删除" description="回到书库重新选择一部作品。" />
+        <EmptyHint title="作品不存在或已被删除" description="回到我的作品重新选择一部作品。" />
       </PageScaffold>
     );
   }
