@@ -305,3 +305,103 @@ export async function probeEmbedding(cfg = embeddingSettings()): Promise<{ ok: b
   resetEmbeddingBreaker();
   return { ok: true, message: '连接正常，向量维度 ' + vec.length, dim: vec.length };
 }
+
+// ================= 通用分片/条目向量（按需惰性建索引） =================
+
+export interface VectorItem {
+  /** 唯一 id（分片用 `章节id:序号`，板块条目用实体 id） */
+  id: string;
+  /** 参与缓存判据的原文 */
+  text: string;
+}
+
+export interface CachedVectorResult {
+  vectors: Map<string, number[]>;
+  cached: number;
+  computed: number;
+}
+
+/**
+ * 按需取向量，缓存在 embeddings 表（kind 由调用方定，如 passage / section）。
+ *
+ * 与 memoryVectors 同模式：
+ * - 缓存判据 = **文本 + 模型**，内容或模型变了自然失效，按 id 覆盖写，旧行不留垃圾；
+ * - 首次最多算 MAX_BATCH 条（调用方把最需要的排前面），其余留给后续调用渐进补齐；
+ * - 失败不抛错：服务不可达时返回空/部分结果（熔断由 embedTexts 负责）。
+ */
+async function cachedVectors(
+  projectId: ID,
+  kind: string,
+  items: VectorItem[],
+  cfg: SemanticRecallSettings,
+): Promise<CachedVectorResult> {
+  const vectors = new Map<string, number[]>();
+  if (!items.length || !cfg.enabled) return { vectors, cached: 0, computed: 0 };
+
+  let rows: Awaited<ReturnType<typeof listEmbeddings>> = [];
+  try {
+    rows = await listEmbeddings(projectId, kind);
+  } catch {
+    rows = [];
+  }
+  const byRef = new Map(rows.map((r) => [r.refId, r]));
+
+  const missing: VectorItem[] = [];
+  let cached = 0;
+  for (const item of items) {
+    const row = byRef.get(item.id);
+    if (row && row.model === cfg.model && row.text === item.text && Array.isArray(row.vector) && row.vector.length) {
+      vectors.set(item.id, row.vector);
+      cached += 1;
+    } else {
+      missing.push(item);
+    }
+  }
+
+  const todo = missing.slice(0, MAX_BATCH);
+  let computed = 0;
+  for (let i = 0; i < todo.length; i += OPENAI_BATCH) {
+    const chunk = todo.slice(i, i + OPENAI_BATCH);
+    const vecs = await embedTexts(chunk.map((c) => c.text), cfg);
+    for (let k = 0; k < chunk.length; k++) {
+      const vec = vecs[k];
+      if (!vec) continue;
+      const item = chunk[k];
+      vectors.set(item.id, vec);
+      computed += 1;
+      try {
+        await putEmbedding({
+          id: `emb_${kind}_${projectId}_${item.id}`,
+          projectId,
+          kind,
+          refId: item.id,
+          model: cfg.model,
+          vector: vec,
+          text: item.text,
+        });
+      } catch {
+        /* 缓存写失败不影响本次召回 */
+      }
+    }
+  }
+
+  return { vectors, cached, computed };
+}
+
+/** 历史段落分片向量（kind=passage；refId=章节id:序号） */
+export async function passageVectors(
+  projectId: ID,
+  chunks: VectorItem[],
+  cfg = embeddingSettings(),
+): Promise<CachedVectorResult> {
+  return cachedVectors(projectId, 'passage', chunks, cfg);
+}
+
+/** 上下文板块条目向量（kind=section；refId=实体 id，如人物/世界条目 id） */
+export async function sectionVectors(
+  projectId: ID,
+  items: VectorItem[],
+  cfg = embeddingSettings(),
+): Promise<CachedVectorResult> {
+  return cachedVectors(projectId, 'section', items, cfg);
+}
