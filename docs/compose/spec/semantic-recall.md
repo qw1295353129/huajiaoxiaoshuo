@@ -1,14 +1,32 @@
 ---
 feature: semantic-recall
-status: in-progress
+status: delivered
 updated: 2026-09-24
 branch: feat/semantic-recall
-commits: 
+commits: 171a75a..d7990ac
 ---
 
 # 全板块语义重排（向量检索）
 
 ## Report
+
+**What was built** — 上下文组装的候选型板块（人物配角、世界 hot/冷索引、伏笔非回收项、时间线非本章事件）现在可以在规则选出的候选内部按向量相似度重排：共用一次 query 向量（`opts.query` 或 `buildRecallQuery`），硬成员（本章出场/地点/计划回收/本章事件）永远置前，非硬成员按余弦稳定排序、相似度 ≤ 0 剔除。历史片段检索（retrieval）升级为段落级向量检索（>20 字分片、600 字句截断，`kind=passage` 惰性缓存），任一环节不满足（暖机期缺向量、无正相似度、端点不通、开关关闭）整体回退原 BM25 路径，输出格式不变。开关复用既有语义召回开关，默认关闭；关闭时零网络请求、与改动前逐字节一致。附带一次会话内修复：每卷章节数上限 80→200、批量生成人物上限 8→16（commit 2903d73）。
+
+**Verification** —
+- `npx tsc -b --force` → PASS（零错误）
+- `npm run build` → PASS（exit 0）
+- `npm run verify:recall` → PASS 62/62（纯函数 22 + T2 惰性缓存浏览器验收 10 + T3 板块重排 17 + T4 双路检索 10 + 防空转 1 + 假服务探针 2）
+- `npm run verify` 49/49、`verify:zip` 10/10、`verify:ebook` 13/13、`verify-gen-count` 6/6 → PASS
+- `node scripts/ai-e2e.mjs`（mock-llm，开关关闭）→ PASS，`errors: []`
+- `npm run lint` → 7 errors 与 main 基线逐字节相同（PRE-EXISTING）
+- 独立评审（171a75a..ceafd41）：PASS WITH MINOR ISSUES，T1–T5 全部 MET、无 critical；3/4/5 号 finding 已在 d7990ac 修复并复验，1 号即本文档，6 号（hardIds 未被生产调用方使用）有单测契约支撑、保留
+
+**Journey log** —
+1. 重排语义改过一版：最初"缺向量的候选被剔除"会在暖机期误删内容，改为**任一非硬候选缺向量 → 整体回退规则序**，与 recallMemories 的降级约定对齐。
+2. 测试里不能用"创建顺序"当规则序：Dexie 表按主键（随机 id）返回，期望序改为**从关态输出取候选、再独立算余弦稳定排序** —— 这也恰好是产品语义本身（规则选候选 + 语义重排）。
+3. mock-ollama 的 bigram 哈希向量会让相似文本**余弦完全并列**；并列时稳定排序=输入序，测试必须与应用用同一候选序，且要用不等长文本避免断言空转。
+4. Vite 默认只绑 `[::1]`，仓库所有 verify 脚本用 `127.0.0.1` —— dev server 要显式 `--host 127.0.0.1`。
+5. ai-e2e 用固定 profile 目录且不自清：残留 modal 会让点击超时，`rm -rf /tmp/nf-ai-profile` 后即过（既有基础设施问题，与本分支无关）。
 
 ## [S1] Problem
 
@@ -44,7 +62,7 @@ commits:
 ### 历史段落检索：段落级向量替换 BM25
 
 - **分片**：章节正文按 `\n+` 切段，保留长度 > 20 字的段；单段超过 600 字时按句截断到 600 字。分片 id = `chapId:序号`，缓存键不依赖序号稳定性而依赖**段落文本本身**。
-- **向量缓存**：沿用 `embeddings` 表，新增 `kind: 'passage'`，`refId` = 分片 id（`章节id:序号`，同一章节多行），`text` = 分片文本，`model` = 所用 embedding 模型。缓存命中判据与 `memoryVectors` 一致：`model` 与 `text` 都相等才算命中；章节正文变化后旧分片自然失效（text 不匹配），惰性重算并按同 id 覆盖写、不留垃圾行。
+- **向量缓存**：沿用 `embeddings` 表，新增 `kind: 'passage'`，`refId` = 分片 id（`章节id:序号`，同一章节多行），`text` = 分片文本，`model` = 所用 embedding 模型。缓存命中判据与 `memoryVectors` 一致：`model` 与 `text` 都相等才算命中；章节正文变化后旧分片自然失效（text 不匹配），惰性重算并按同 id 覆盖写。已知残留：段落**减少**时高位旧分片行不再被任何 id 命中，仅占存储、不参与命中（text 判据保证不会被误用），需要时可 `clearEmbeddings(projectId, 'passage')` 整体重建。
 - **检索**：query 向量与所有候选分片算余弦，取 `score > 0` 的前 k（默认 4，沿用 `opts.recall`），输出格式与现有一致：`- （第N章 章名）片段（截断 220 字）`。只检索 `currentIndex` 之前的章节。
 - **惰性建索引**：首次用到时对缺失分片批量 `embedTexts`（沿用 `MAX_BATCH`/`OPENAI_BATCH` 上限与熔断），逐条写缓存；写失败不影响本次召回。
 - BM25 打分代码保留为降级路径：向量链路任何一步失败时回退到现有 `recallPassages` 关键词实现，保证「开了开关但服务不可用」时行为不劣于现状。
@@ -79,8 +97,8 @@ commits:
 
 ## Tasks
 
-- [ ] T1: 新增 `rerankBySimilarity` 纯函数与段落分片纯函数（切段、截断、分片 id） — acceptance: `npm run verify` 新增脚本能离线断言重排顺序（硬成员置前、score<=0 剔除、limit 裁剪）与分片边界（>20 字、600 字截断）(covers: S2 实现结构/测试边界)
-- [ ] T2: `embedding.ts` 新增 `passageVectors` 惰性缓存函数 — acceptance: 首次调用对缺失分片算向量并写入 `embeddings` 表（kind=passage），二次调用全命中缓存零网络请求；服务不可用时返回空表不抛错 (covers: S2 向量缓存/惰性建索引/错误行为; depends: T1)
-- [ ] T3: 候选型板块接入语义重排（人物/世界/伏笔/时间线/记忆路径确认） — acceptance: 开关开启且向量可用时 supporting/world-hot/threads-others/timeline 按「硬成员置前 + 余弦稳定排序」输出（期望序由测试独立复算）；四板块共发 11 次向量请求、再跑零请求且输出一致；开关关闭时零网络、两次输出逐字节一致、各板块成员齐全 (covers: S2 适用板块/总策略; depends: T1)
-- [ ] T4: retrieval 板块改为向量优先、BM25 兜底 — acceptance: 向量可用时按余弦取前 k 段、输出格式不变；向量任一步失败时回退现有 BM25 结果 (covers: S2 历史段落检索/降级; depends: T1, T2)
-- [ ] T5: 验证脚本 + 类型检查 + 构建 + mock-llm 冒烟 — acceptance: `scripts/verify-recall.mjs` 全部通过；`tsc -b --force` 与 `vite build` 零错误；mock-llm 下关闭开关生成一次无控制台错误 (covers: S2 测试边界; depends: T2, T3, T4)
+- [x] T1: 新增 `rerankBySimilarity` 纯函数与段落分片纯函数（切段、截断、分片 id） — acceptance: `npm run verify:recall` 能离线断言重排顺序（硬成员置前、score<=0 剔除、limit 裁剪）与分片边界（>20 字、600 字截断）(covers: S2 实现结构/测试边界)
+- [x] T2: `embedding.ts` 新增 `passageVectors` 惰性缓存函数 — acceptance: 首次调用对缺失分片算向量并写入 `embeddings` 表（kind=passage），二次调用全命中缓存零网络请求；服务不可用时返回空表不抛错 (covers: S2 向量缓存/惰性建索引/错误行为; depends: T1)
+- [x] T3: 候选型板块接入语义重排（人物/世界/伏笔/时间线/记忆路径确认） — acceptance: 开关开启且向量可用时 supporting/world-hot/threads-others/timeline 按「硬成员置前 + 余弦稳定排序」输出（期望序由测试独立复算）；四板块共发 11 次向量请求、再跑零请求且输出一致；开关关闭时零网络、两次输出逐字节一致、各板块成员齐全 (covers: S2 适用板块/总策略; depends: T1)
+- [x] T4: retrieval 板块改为向量优先、BM25 兜底 — acceptance: 向量可用时按余弦取前 k 段、输出格式不变；向量任一步失败时回退现有 BM25 结果 (covers: S2 历史段落检索/降级; depends: T1, T2)
+- [x] T5: 验证脚本 + 类型检查 + 构建 + mock-llm 冒烟 — acceptance: `scripts/verify-recall.mjs` 全部通过；`tsc -b --force` 与 `vite build` 零错误；mock-llm 下关闭开关生成一次无控制台错误 (covers: S2 测试边界; depends: T2, T3, T4)

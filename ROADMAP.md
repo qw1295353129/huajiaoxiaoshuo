@@ -103,7 +103,7 @@ node scripts/shot.mjs <url> <png>  # 任意页面截图 + 控制台错误收集
 - [ ] 多人实时协作（当前是单人 + 传阅式审稿：批注与建议存在本地，通过备份文件交换）
 - [ ] 自动保存的冲突处理 UI（`saveChapterContent` 已支持 `expectedRev`，但多标签页同时编辑还没接 UI）
 - [ ] 批注导出为审稿报告（当前可在审稿台查看，未导出）
-- [ ] 向量检索（当前为 BM25 风格关键词召回，已够用；量大时接 embedding）
+- [x] 向量检索：上下文候选板块（人物/世界/伏笔/时间线）语义重排 + 历史段落 embedding 召回（默认关闭、按需惰性建索引、失败整体回退规则序/BM25，见 docs/compose/spec/semantic-recall.md）
 - [ ] 单元测试与 e2e 测试固化（JSON 修复、预算裁剪、diff、导出）
 
 ### 桌面端（后期）
