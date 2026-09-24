@@ -3,6 +3,7 @@
  * 用法：node scripts/verify-recall.mjs
  */
 import { createServer } from 'vite';
+import { spawn } from 'node:child_process';
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
 const load = (p) => vite.ssrLoadModule('/' + p);
@@ -118,6 +119,111 @@ console.log('【分片：切段与截断】');
 }
 
 await vite.close();
+
+// ================= T2 验收：passageVectors 惰性缓存 =================
+// 需要 5178 开发服务器（跑本分支代码）；假 Ollama 由本脚本自己拉起（端口 11501，带请求计数）。
+console.log('【passageVectors：惰性缓存（浏览器 + 假 Ollama）】');
+
+const BASE = 'http://127.0.0.1:5178';
+const MOCK = 'http://127.0.0.1:11501';
+const devUp = await fetch(BASE + '/').then((r) => r.ok).catch(() => false);
+if (!devUp) {
+  check('开发服务器在 5178 运行', false, '先 npm run dev（且必须跑本分支代码）');
+} else {
+  const mock = spawn('node', ['scripts/mock-ollama.mjs', '11501'], { stdio: 'ignore' });
+  try {
+    let mockUp = false;
+    for (let i = 0; i < 30 && !mockUp; i++) {
+      mockUp = await fetch(MOCK + '/__stats').then((r) => r.ok).catch(() => false);
+      if (!mockUp) await new Promise((r) => setTimeout(r, 100));
+    }
+    check('假 Ollama 启动（带 /__stats 计数）', mockUp, MOCK);
+
+    if (mockUp) {
+      const { launchIsolated, gotoApp } = await import('./lib/browser.mjs');
+      const context = await launchIsolated(import.meta.url, { viewport: { width: 1280, height: 900 } });
+      try {
+        const page = context.pages()[0] ?? (await context.newPage());
+        const pageErrs = [];
+        page.on('pageerror', (e) => pageErrs.push(String(e.message).slice(0, 160)));
+        await gotoApp(page, BASE + '/');
+
+        const out = await page.evaluate(async (mockEndpoint) => {
+          const p = await import('/src/db/repo/projects.ts');
+          const e = await import('/src/ai/embedding.ts');
+          const ai = await import('/src/db/repo/ai.ts');
+          const stats = async () => (await fetch(mockEndpoint + '/__stats')).json();
+          await fetch(mockEndpoint + '/__reset');
+          e.resetEmbeddingBreaker();
+
+          const proj = await p.createProject({ title: '向量缓存验收' });
+          const cfg = { enabled: true, source: 'ollama', model: 'nomic-embed-text', endpoint: mockEndpoint, topK: 8 };
+          const items = [
+            { id: 'ch1:0', text: '沈砚推开门，看见桌上放着一封没有署名的信。' },
+            { id: 'ch1:1', text: '暴雨在午夜停了，街道的积水映着霓虹倒影。' },
+            { id: 'ch2:0', text: '她把怀表塞进大衣口袋，转身走进夜雾里。' },
+          ];
+
+          const s0 = (await stats()).embedCalls;
+          const first = await e.passageVectors(proj.id, items, cfg);
+          const s1 = (await stats()).embedCalls;
+          const second = await e.passageVectors(proj.id, items, cfg);
+          const s2 = (await stats()).embedCalls;
+          const rows1 = await ai.listEmbeddings(proj.id, 'passage');
+
+          const changed = [items[0], items[1], { id: 'ch2:0', text: '她把怀表塞进大衣口袋，转身走进夜雾里，而怀表仍在走动。' }];
+          const third = await e.passageVectors(proj.id, changed, cfg);
+          const rows3 = await ai.listEmbeddings(proj.id, 'passage');
+
+          const sBeforeOff = (await stats()).embedCalls;
+          const off = await e.passageVectors(proj.id, items, { ...cfg, enabled: false });
+          const s3 = (await stats()).embedCalls;
+
+          e.resetEmbeddingBreaker();
+          let dead;
+          try {
+            const r = await e.passageVectors(
+              proj.id,
+              [{ id: 'x:0', text: '端点不通时应当静默返回空向量表，不许抛错。' }],
+              { ...cfg, endpoint: 'http://127.0.0.1:9/api/embeddings' },
+            );
+            dead = { threw: null, size: r.vectors.size, computed: r.computed };
+          } catch (err) {
+            dead = { threw: String(err), size: -1, computed: -1 };
+          }
+
+          return {
+            first: { size: first.vectors.size, cached: first.cached, computed: first.computed },
+            second: { size: second.vectors.size, cached: second.cached, computed: second.computed },
+            third: { size: third.vectors.size, cached: third.cached, computed: third.computed },
+            off: { size: off.vectors.size, cached: off.cached, computed: off.computed },
+            rows1: rows1.map((r) => ({ refId: r.refId, model: r.model, text: r.text, dim: r.vector.length })),
+            rows3Count: rows3.length,
+            ch2text: (rows3.find((r) => r.refId === 'ch2:0') ?? {}).text ?? '',
+            net: { s0, s1, s2, sBeforeOff, s3 },
+            dead,
+          };
+        }, MOCK);
+
+        check('首次调用全量现算', out.first.computed === 3 && out.first.cached === 0 && out.first.size === 3, JSON.stringify(out.first));
+        check('首次调用走了 3 次网络请求', out.net.s1 - out.net.s0 === 3, `${out.net.s0} → ${out.net.s1}`);
+        check('向量写入 embeddings 表（kind=passage）', out.rows1.length === 3 && out.rows1.every((r) => r.model === 'nomic-embed-text' && r.dim === 768 && r.text.length > 0), JSON.stringify(out.rows1.map((r) => r.refId)));
+        check('二次调用全命中缓存', out.second.cached === 3 && out.second.computed === 0 && out.second.size === 3, JSON.stringify(out.second));
+        check('二次调用零网络请求', out.net.s2 === out.net.s1, `${out.net.s1} → ${out.net.s2}`);
+        check('文本变化只重算那一条', out.third.computed === 1 && out.third.cached === 2, JSON.stringify(out.third));
+        check('旧行按 id 覆盖、不留垃圾', out.rows3Count === 3 && out.ch2text.includes('仍在走动'), `rows=${out.rows3Count}`);
+        check('开关关闭立即返回空、零请求', out.off.size === 0 && out.net.s3 === out.net.sBeforeOff, JSON.stringify(out.off) + ` ${out.net.sBeforeOff} → ${out.net.s3}`);
+        check('端点不通：空结果且不抛错', out.dead.threw === null && out.dead.size === 0 && out.dead.computed === 0, JSON.stringify(out.dead));
+        check('验收过程无页面错误', pageErrs.length === 0, pageErrs.join(' | '));
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    mock.kill();
+  }
+}
+
 console.log('');
 console.log(`结果：${pass} 通过，${fail} 失败`);
 process.exit(fail ? 1 : 0);

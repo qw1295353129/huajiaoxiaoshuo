@@ -44,14 +44,14 @@ commits:
 ### 历史段落检索：段落级向量替换 BM25
 
 - **分片**：章节正文按 `\n+` 切段，保留长度 > 20 字的段；单段超过 600 字时按句截断到 600 字。分片 id = `chapId:序号`，缓存键不依赖序号稳定性而依赖**段落文本本身**。
-- **向量缓存**：沿用 `embeddings` 表，新增 `kind: 'passage'`，`refId` = 章节 id，`text` = 分片文本，`model` = 所用 embedding 模型。缓存命中判据与 `memoryVectors` 一致：`model` 与 `text` 都相等才算命中；章节正文变化后旧分片自然失效（text 不匹配），惰性重算。
+- **向量缓存**：沿用 `embeddings` 表，新增 `kind: 'passage'`，`refId` = 分片 id（`章节id:序号`，同一章节多行），`text` = 分片文本，`model` = 所用 embedding 模型。缓存命中判据与 `memoryVectors` 一致：`model` 与 `text` 都相等才算命中；章节正文变化后旧分片自然失效（text 不匹配），惰性重算并按同 id 覆盖写、不留垃圾行。
 - **检索**：query 向量与所有候选分片算余弦，取 `score > 0` 的前 k（默认 4，沿用 `opts.recall`），输出格式与现有一致：`- （第N章 章名）片段（截断 220 字）`。只检索 `currentIndex` 之前的章节。
 - **惰性建索引**：首次用到时对缺失分片批量 `embedTexts`（沿用 `MAX_BATCH`/`OPENAI_BATCH` 上限与熔断），逐条写缓存；写失败不影响本次召回。
 - BM25 打分代码保留为降级路径：向量链路任何一步失败时回退到现有 `recallPassages` 关键词实现，保证「开了开关但服务不可用」时行为不劣于现状。
 
 ### 实现结构
 
-- `src/ai/embedding.ts`：新增通用分片向量函数（如 `passageVectors(projectId, chapters, cfg)`），与 `memoryVectors` 同模式；不引入记忆语义。
+- `src/ai/embedding.ts`：新增通用惰性缓存函数（内部 `cachedVectors(projectId, kind, items, cfg)`），与 `memoryVectors` 同模式；对外导出 `passageVectors`（kind=passage，历史段落分片）与 `sectionVectors`（kind=section，板块条目，T3 使用）；不引入记忆语义。
 - `src/ai/recall.ts`：新增纯函数 `rerankBySimilarity(candidates, vectors, queryVec, opts)` —— 输入候选 id 列表、向量表、query 向量，返回重排后的 id 顺序；硬成员在调用方拼接时置前。纯函数便于离线测试。
 - `src/ai/context.ts`：各候选型板块接 `rerankBySimilarity`；retrieval 板块改为「向量优先、BM25 兜底」。降级时签名与现输出逐字节一致。
 - `src/db/repo/ai.ts`：`listEmbeddings` 支持按 `kind: 'passage'` 查询（若当前按 kind 过滤已存在则复用）。
@@ -63,8 +63,9 @@ commits:
 
 ### 测试边界
 
-- 纯函数（rerank 合并顺序、分片切分、缓存命中判据、BM25 降级顺序）离线可测。
-- 向量服务交互不进单元测试：用注入的假向量表测重排逻辑。
+- 纯函数（rerank 合并顺序、分片切分、缓存命中判据、BM25 降级顺序）离线可测（`scripts/verify-recall.mjs`，Vite SSR 加载真实源码）。
+- 缓存行为（首算写库、二次零请求、文本失效覆盖、开关关闭零请求、端点不通不抛错）走浏览器验收：Playwright + `mock-ollama`（带 `/__stats` 请求计数，验收脚本自行拉起于 11501）。
+- 向量服务交互的单元测试不注入假向量表测重排逻辑（纯函数已覆盖）。
 - 开关关闭时 `buildContext` 输出与改动前完全一致（回归对照）。
 
 ## [S3] Out of Scope

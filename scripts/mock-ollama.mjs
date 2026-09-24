@@ -15,6 +15,9 @@ const NL = String.fromCharCode(10);
 /** 已"安装"的模型，pull 成功后会加进来 */
 const installed = ["nomic-embed-text:latest"];
 
+/** 向量接口被调了几次：验收"缓存全命中 = 零网络请求"靠它断言 */
+let embedCalls = 0;
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
@@ -56,7 +59,13 @@ createServer(async (req, res) => {
   if (url.pathname === "/__reset") {
     installed.length = 0;
     installed.push("nomic-embed-text:latest");
+    embedCalls = 0;
     json(res, 200, { ok: true, installed: [...installed] });
+    return;
+  }
+
+  if (url.pathname === "/__stats") {
+    json(res, 200, { embedCalls });
     return;
   }
 
@@ -91,6 +100,7 @@ createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/embeddings" || url.pathname === "/api/embed") {
+    embedCalls += 1;
     const chunks = [];
     for await (const c of req) chunks.push(c);
     let body = {};
