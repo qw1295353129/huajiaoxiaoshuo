@@ -404,6 +404,145 @@ if (!devUp) {
   }
 }
 
+// ================= T4 验收：retrieval 向量优先、BM25 兜底 =================
+console.log('【buildContext：retrieval 双路（向量 → BM25 兜底）】');
+if (!devUp) {
+  check('开发服务器在 5178 运行（T4）', false, '先 npm run dev');
+} else {
+  const mock4 = spawn('node', ['scripts/mock-ollama.mjs', '11501'], { stdio: 'ignore' });
+  try {
+    let mock4Up = false;
+    for (let i = 0; i < 30 && !mock4Up; i++) {
+      mock4Up = await fetch(MOCK + '/__stats').then((r) => r.ok).catch(() => false);
+      if (!mock4Up) await new Promise((r) => setTimeout(r, 100));
+    }
+    check('假 Ollama 启动（T4）', mock4Up, MOCK);
+
+    if (mock4Up) {
+      const { launchIsolated, gotoApp } = await import('./lib/browser.mjs');
+      const context4 = await launchIsolated(import.meta.url, { viewport: { width: 1280, height: 900 } });
+      try {
+        const page = context4.pages()[0] ?? (await context4.newPage());
+        const pageErrs4 = [];
+        page.on('pageerror', (e) => pageErrs4.push(String(e.message).slice(0, 160)));
+        await gotoApp(page, BASE + '/');
+
+        const out = await page.evaluate(async (mockEndpoint) => {
+          const p = await import('/src/db/repo/projects.ts');
+          const o = await import('/src/db/repo/outline.ts');
+          const set = await import('/src/db/repo/settings.ts');
+          const ctx = await import('/src/ai/context.ts');
+          const rec = await import('/src/ai/recall.ts');
+          const emb = await import('/src/ai/embedding.ts');
+          const dbm = await import('/src/db/database.ts');
+
+          const stats = async () => (await fetch(mockEndpoint + '/__stats')).json();
+          await fetch(mockEndpoint + '/__reset');
+          emb.resetEmbeddingBreaker();
+
+          const SHARED = '雾港的钟声在午夜回荡';
+          const QUERY = SHARED + '，怀表停在十一点';
+          const proj = await p.createProject({ title: '检索双路验收' });
+          const ch1 = await o.createChapter(proj.id, { title: '第一章 灯塔' });
+          const ch2 = await o.createChapter(proj.id, { title: '第二章 账房' });
+          const ch3 = await o.createChapter(proj.id, { title: '第三章 码头' });
+          const now = new Date().toISOString();
+          const put = (chapterId, text) =>
+            dbm.db.chapterContents.put({ chapterId, projectId: proj.id, html: '<p></p>', text, updatedAt: now, rev: 1 });
+          await put(ch1.id, [
+            SHARED + '，守灯人把怀表放在窗台上，表针迟迟不动。',
+            '这一段只写灯塔的风，与查询词没有直接关系。',
+            SHARED + '的夜里，灯塔的光扫过海面如同刀锋。',
+          ].join('\n'));
+          await put(ch2.id, [
+            SHARED + '，账房先生核对着商会的每一笔暗账。',
+            '账本的霉味混着灯油味，熏得人睁不开眼。',
+            SHARED + '，而那枚怀表正是账房的信物。',
+          ].join('\n'));
+          await put(ch3.id, SHARED + '，主角在码头整理行装，准备连夜离港。');
+
+          await set.saveSettings({ ...set.loadSettings(), semanticRecall: { enabled: true, source: 'ollama', model: 'nomic-embed-text', endpoint: mockEndpoint, topK: 8 } });
+          emb.resetEmbeddingBreaker();
+
+          const build = () => ctx.buildContext({ projectId: proj.id, chapterId: ch3.id, sections: ['retrieval'], query: QUERY, recall: 2 });
+
+          // ---- 向量路径 ----
+          const s0 = (await stats()).embedCalls;
+          const vec1 = await build();
+          const s1 = (await stats()).embedCalls;
+          const vec2 = await build();
+          const s2 = (await stats()).embedCalls;
+
+          // 独立复算：分片 + 假服务向量 + 余弦 top-2
+          const embed = async (text) => {
+            const r = await fetch(mockEndpoint + '/api/embeddings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: 'nomic-embed-text', prompt: text }),
+            });
+            return (await r.json()).embedding;
+          };
+          const cosine = (a, b) => {
+            let d = 0, na = 0, nb = 0;
+            for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+            return d / (Math.sqrt(na) * Math.sqrt(nb));
+          };
+          const qv = await embed(QUERY);
+          const chunks = [];
+          for (const ch of [ch1, ch2]) {
+            const content = await dbm.db.chapterContents.get(ch.id);
+            for (const sp of rec.splitPassages(ch.id, content.text)) chunks.push({ ...sp, chapter: ch });
+          }
+          const scored = [];
+          for (const c of chunks) scored.push({ c, s: cosine(qv, await embed(c.text)) });
+          const expTop = scored.filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 2).map((x) => x.c.chapter.title);
+
+          const vecTitles = [...vec1.text.matchAll(/- （第\d+章 ([^）]+)）/g)].map((m) => m[1]);
+
+          // ---- BM25 兜底：开关关 ----
+          await set.saveSettings({ ...set.loadSettings(), semanticRecall: { enabled: false, source: 'ollama', model: 'nomic-embed-text', endpoint: mockEndpoint, topK: 8 } });
+          const sB0 = (await stats()).embedCalls;
+          const bm25 = await build();
+          const sB = (await stats()).embedCalls;
+
+          // ---- BM25 兜底：开关开但端点不通 ----
+          await set.saveSettings({ ...set.loadSettings(), semanticRecall: { enabled: true, source: 'ollama', model: 'nomic-embed-text', endpoint: 'http://127.0.0.1:9/api/embeddings', topK: 8 } });
+          emb.resetEmbeddingBreaker();
+          const dead = await build();
+
+          return {
+            vec: {
+              lines: vec1.text.split('\n').filter((l) => l.startsWith('- （第')),
+              titles: vecTitles,
+              net1: s1 - s0,
+              net2: s2 - s1,
+              same: vec1.text === vec2.text,
+              chunkCount: chunks.length,
+            },
+            expTop,
+            bm25: { lines: bm25.text.split('\n').filter((l) => l.startsWith('- （第')), net: sB - sB0 },
+            dead: { lines: dead.text.split('\n').filter((l) => l.startsWith('- （第')) },
+          };
+        }, MOCK);
+
+        check('向量路径：首次 = query1 + 分片N 次请求', out.vec.net1 === 1 + out.vec.chunkCount, `net1=${out.vec.net1} chunks=${out.vec.chunkCount}`);
+        check('向量路径：输出格式与 BM25 一致（第N章 章名）', out.vec.lines.length > 0 && out.vec.lines.every((l) => /^- （第\d+章 .+）/.test(l)), out.vec.lines[0] ?? 'EMPTY');
+        check('向量路径：top-k = 独立复算的余弦序', out.vec.titles.join(',') === out.expTop.join(','), `${out.vec.titles.join(',')} vs ${out.expTop.join(',')}`);
+        check('向量路径：二次全缓存零网络', out.vec.net2 === 0, `net2=${out.vec.net2}`);
+        check('向量路径：二次输出一致', out.vec.same);
+        check('BM25 兜底（开关关）：零网络且有结果', out.bm25.net === 0 && out.bm25.lines.length > 0, `net=${out.bm25.net} lines=${out.bm25.lines.length}`);
+        check('BM25 兜底（开关关）：命中含查询词的段落', out.bm25.lines.some((l) => l.includes('怀表')), JSON.stringify(out.bm25.lines));
+        check('BM25 兜底（端点不通）：降级不空、不抛错', out.dead.lines.length > 0, JSON.stringify(out.dead.lines));
+        check('T4 验收无页面错误', pageErrs4.length === 0, pageErrs4.join(' | '));
+      } finally {
+        await context4.close();
+      }
+    }
+  } finally {
+    mock4.kill();
+  }
+}
+
 console.log('');
 console.log(`结果：${pass} 通过，${fail} 失败`);
 process.exit(fail ? 1 : 0);

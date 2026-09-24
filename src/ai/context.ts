@@ -1,11 +1,11 @@
 import type {
-  Chapter, Character, ContextSource, ID, Project, PlotThread, TimelineEvent, WorldEntry,
+  Chapter, Character, ContextSource, ID, Project, PlotThread, SemanticRecallSettings, TimelineEvent, WorldEntry,
 } from '@/core';
 import { db } from '@/db/database';
 import { loadSettings } from '@/db/repo/settings';
 import { buildRecallQuery, memoryForProject } from '@/db/repo/memory';
-import { recallMemories, rerankBySimilarity } from './recall';
-import { embedOne, embeddingSettings, sectionVectors } from './embedding';
+import { recallMemories, rerankBySimilarity, splitPassages } from './recall';
+import { embedOne, embeddingSettings, passageVectors, sectionVectors } from './embedding';
 import { estimateTokens, fillBudget, type BudgetPiece } from '@/utils/tokens';
 import { headContext, tailContext, truncate } from '@/utils/text';
 import { POV_LABEL } from './prompts';
@@ -103,7 +103,9 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
   // 开关关闭 / query 为空 / 向量服务不可用 → queryVec 为 null，下面所有板块
   // 走原规则顺序（与不开语义时逐字节一致），且不发任何网络请求。
   const sem = embeddingSettings();
-  const rerankable = sections.some((s) => s === 'characters' || s === 'world' || s === 'threads' || s === 'timeline');
+  const rerankable =
+    sections.some((s) => s === 'characters' || s === 'world' || s === 'threads' || s === 'timeline') ||
+    (sections.includes('retrieval') && !!opts.query);
   let queryVec: number[] | null = null;
   if (sem.enabled && rerankable) {
     let q = (opts.query ?? '').trim();
@@ -309,8 +311,16 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
   }
 
   // ---------- 10. 检索召回 ----------
+  // 向量优先：分片全部有向量且有正相似度时按余弦取前 k；任一步不满足则回退 BM25，
+  // 保证「开了开关但服务不可用 / 索引还在暖机」时行为不劣于现状。
   if (sections.includes('retrieval') && opts.query) {
-    const recalled = await recallPassages(opts.projectId, opts.query, allChapters, currentIndex, opts.recall ?? 4);
+    let recalled: string | null = null;
+    if (queryVec) {
+      recalled = await recallPassagesByVector(opts.projectId, queryVec, allChapters, currentIndex, opts.recall ?? 4, sem);
+    }
+    if (recalled === null) {
+      recalled = await recallPassages(opts.projectId, opts.query, allChapters, currentIndex, opts.recall ?? 4);
+    }
     if (recalled) push('retrieval', SECTION_LABEL.retrieval, recalled, 10);
   }
 
@@ -558,7 +568,58 @@ async function buildStyleBlock(
   return parts.join('\n\n');
 }
 
-/** 轻量检索：BM25 风格打分，召回与查询最相关的历史段落 */
+/**
+ * 向量检索：段落分片按余弦取前 k。
+ *
+ * 返回 null 表示"向量链路没生效"（分片没齐 / 无正相似度 / 服务不可达），
+ * 调用方收到 null 就回退 BM25 —— 与 rerankBySimilarity 的整体回退约定一致，
+ * 暖机期宁可先用关键词召回，也不把没向量的段落当成"不相关"丢掉。
+ */
+async function recallPassagesByVector(
+  projectId: ID,
+  queryVec: number[],
+  chapters: Chapter[],
+  currentIndex: number,
+  k: number,
+  cfg: SemanticRecallSettings,
+): Promise<string | null> {
+  const past = chapters.slice(0, currentIndex);
+  if (!past.length) return null;
+
+  const chunks: { id: string; text: string; chapter: Chapter }[] = [];
+  for (const c of past) {
+    const content = await db.chapterContents.get(c.id);
+    if (!content?.text) continue;
+    for (const sp of splitPassages(c.id, content.text)) {
+      chunks.push({ id: sp.id, text: sp.text, chapter: c });
+    }
+  }
+  if (!chunks.length) return null;
+
+  const { vectors } = await passageVectors(
+    projectId,
+    chunks.map((x) => ({ id: x.id, text: x.text })),
+    cfg,
+  );
+  const rr = rerankBySimilarity(
+    chunks.map((x) => x.id),
+    vectors,
+    queryVec,
+    { limit: k },
+  );
+  if (!rr.applied) return null;
+
+  const byId = new Map(chunks.map((x) => [x.id, x]));
+  return rr.ids
+    .flatMap((id) => {
+      const hit = byId.get(id);
+      if (!hit) return [];
+      return [`- （第${hit.chapter.order + 1}章 ${hit.chapter.title}）${truncate(hit.text, 220)}`];
+    })
+    .join('\n');
+}
+
+/** 轻量检索：BM25 风格打分，召回与查询最相关的历史段落（向量链路失败时的兜底） */
 async function recallPassages(
   projectId: ID,
   query: string,
