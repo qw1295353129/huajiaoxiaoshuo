@@ -32,7 +32,7 @@ export function CastGenDialog({
   const [instruction, setInstruction] = useState("");
   /**
    * 数量用字符串草稿编辑，失焦再钳制。
-   * 直接 Number(value)||3 会在清空时立刻回填成 3，接着输入 1 变成 "31" → min(8,31)=8。
+   * 直接 Number(value)||3 会在清空时立刻回填成 3，接着输入 1 变成 "31" → 被上限钳成 16。
    */
   const [countDraft, setCountDraft] = useState("3");
   const count = Math.max(1, Math.min(16, Number(countDraft) || 3));

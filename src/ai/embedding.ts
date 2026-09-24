@@ -325,7 +325,8 @@ export interface CachedVectorResult {
  * 按需取向量，缓存在 embeddings 表（kind 由调用方定，如 passage / section）。
  *
  * 与 memoryVectors 同模式：
- * - 缓存判据 = **文本 + 模型**，内容或模型变了自然失效，按 id 覆盖写，旧行不留垃圾；
+ * - 缓存判据 = **文本 + 模型**，内容或模型变了自然失效，按 id 覆盖写；
+ *   分片段落减少时高位旧行不再命中（仅残留存储，不参与命中）；
  * - 首次最多算 MAX_BATCH 条（调用方把最需要的排前面），其余留给后续调用渐进补齐；
  * - 失败不抛错：服务不可达时返回空/部分结果（熔断由 embedTexts 负责）。
  */

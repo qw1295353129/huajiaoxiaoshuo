@@ -387,6 +387,8 @@ if (!devUp) {
         check('关：计划回收伏笔在场', out.off.due === true);
 
         check('开：四板块请求向量（query1+配角2+世界4+伏笔2+事件2=11）', out.on.net1 === 11, `net1=${out.on.net1}`);
+        // 防"两边都为空导致相等"的空转通过：先断言实际与期望都非空
+        check('开：各板块结果与期望均非空', [out.on.support, out.on.hot, out.on.others, out.on.timeline, out.exp.support, out.exp.hot, out.exp.others, out.exp.timeline].every((a) => a.length > 0), JSON.stringify({ on: [out.on.support.length, out.on.hot.length, out.on.others.length, out.on.timeline.length], exp: [out.exp.support.length, out.exp.hot.length, out.exp.others.length, out.exp.timeline.length] }));
         check('开：配角 = 独立复算的余弦序', out.on.support.join(',') === out.exp.support.join(','), `${out.on.support.join(',')} vs ${out.exp.support.join(',')}`);
         check('开：世界 hot = 硬成员 + 余弦序', out.on.hot.join(',') === out.exp.hot.join(','), `${out.on.hot.join(',')} vs ${out.exp.hot.join(',')}`);
         check('开：冷索引含被挤出条目', out.on.cold.includes('陈年传说'), out.on.cold.join(','));
