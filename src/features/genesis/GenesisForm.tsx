@@ -261,9 +261,9 @@ export function GenesisForm({
             value={String(chaptersPerVolume)}
             onChange={(e) => {
               const next = Number(e.target.value.replace(/[^0-9]/g, ""));
-              // 兜底给当前篇幅的建议值，而不是写死 12
+              // 兜底给当前篇幅的建议值，而不是写死 12；上限 200（超长细纲交给截断重试兜底）
               onChaptersPerVolumeChange(
-                Number.isFinite(next) && next > 0 ? Math.min(80, next) : lengthProfile(constraints.lengthClass).chaptersPerVolume,
+                Number.isFinite(next) && next > 0 ? Math.min(200, next) : lengthProfile(constraints.lengthClass).chaptersPerVolume,
               );
             }}
           />

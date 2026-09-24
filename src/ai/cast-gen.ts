@@ -106,7 +106,7 @@ function normalizeRole(v: string): Character["role"] {
 export async function generateCharacters(opts: GenerateCharactersOptions): Promise<GenerateCharactersResult> {
   const project = await db.projects.get(opts.projectId);
   const { characterNames } = await existingSnapshot(opts.projectId);
-  const count = Math.max(1, Math.min(8, opts.count ?? 3));
+  const count = Math.max(1, Math.min(16, opts.count ?? 3));
 
   const system = await systemWithProject(
     opts.projectId,
