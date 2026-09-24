@@ -104,12 +104,23 @@ export async function deleteProvider(id: ID): Promise<void> {
   await db.providers.delete(id);
 }
 
-/** 首次运行：把预置供应商写进去（不覆盖用户已有配置） */
+/**
+ * 预置供应商写入。
+ * - 首次运行（库为空）：写入全部预设；
+ * - 之后：只补**缺失 id** 的新预设，不覆盖用户已改过的配置（与 seedRouting 同策略）。
+ */
 export async function seedProviders(): Promise<void> {
-  const count = await db.providers.count();
-  if (count > 0) return;
   const now = new Date().toISOString();
-  await db.providers.bulkPut(PROVIDER_PRESETS.map((p) => ({ ...p, createdAt: now, updatedAt: now })));
+  const count = await db.providers.count();
+  if (count === 0) {
+    await db.providers.bulkPut(PROVIDER_PRESETS.map((p) => ({ ...p, createdAt: now, updatedAt: now })));
+    return;
+  }
+  const existing = new Set((await db.providers.toArray()).map((p) => p.id));
+  const missing = PROVIDER_PRESETS.filter((p) => !existing.has(p.id));
+  if (missing.length) {
+    await db.providers.bulkPut(missing.map((p) => ({ ...p, createdAt: now, updatedAt: now })));
+  }
 }
 
 export async function setProviderKey(id: ID, apiKey: string): Promise<void> {

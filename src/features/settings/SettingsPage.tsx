@@ -569,6 +569,7 @@ function inferProviderKind(baseUrl: string, fallback: ProviderKind): ProviderKin
   if (/dashscope\.aliyuncs\.com/.test(url)) return "qwen";
   if (/api\.siliconflow\.(cn|com)/.test(url)) return "siliconflow";
   if (/openrouter\.ai/.test(url)) return "openrouter";
+  if (/xiaomimimo\.com/.test(url)) return "xiaomi";
   // 其余一律按 OpenAI 兼容处理 —— 这正是它们实际使用的协议
   return "openai";
 }

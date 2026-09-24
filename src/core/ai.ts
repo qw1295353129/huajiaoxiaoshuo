@@ -2,7 +2,7 @@ import type { ID, ISO, Timestamped } from './base';
 
 export type ProviderKind =
   | 'openai' | 'deepseek' | 'moonshot' | 'zhipu' | 'qwen' | 'siliconflow'
-  | 'openrouter' | 'ollama' | 'lmstudio' | 'custom';
+  | 'openrouter' | 'ollama' | 'lmstudio' | 'xiaomi' | 'custom';
 
 export interface ProviderConfig extends Timestamped {
   id: ID;

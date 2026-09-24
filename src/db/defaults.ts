@@ -141,6 +141,27 @@ export const PROVIDER_PRESETS: Omit<ProviderConfig, 'createdAt' | 'updatedAt'>[]
     corsBlocked: false,
     enabled: false,
   },
+  // 小米 MiMo：OpenAI 兼容。Anthropic 兼容地址（/anthropic）本应用未接，故只预置 /v1。
+  {
+    id: 'preset-xiaomi-paygo',
+    name: '小米 MiMo（按量付费）',
+    kind: 'xiaomi',
+    baseUrl: 'https://api.xiaomimimo.com/v1',
+    // Key 形如 sk-xxxxx；模型列表可「拉取模型列表」自动补全
+    models: [],
+    corsBlocked: true,
+    enabled: false,
+  },
+  {
+    id: 'preset-xiaomi-token-plan',
+    name: '小米 MiMo（Token Plan）',
+    kind: 'xiaomi',
+    baseUrl: 'https://token-plan-cn.xiaomimimo.com/v1',
+    // 个人版 tp-xxxxx / 团队版 tttp-xxxxx
+    models: [],
+    corsBlocked: true,
+    enabled: false,
+  },
 ];
 
 /** 中文网文常见体裁 */
