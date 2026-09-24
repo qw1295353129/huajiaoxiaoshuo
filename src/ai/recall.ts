@@ -64,6 +64,112 @@ export interface RecallOptions {
   topK?: number;
 }
 
+// ================= 全板块语义重排 =================
+//
+// 上下文各板块（人物/世界/伏笔/时间线/历史片段）先由规则选出候选，
+// 再用这里的纯函数在候选内部按向量相似度重排。规则回答不了"这次该带哪些"，
+// 但硬信号（本章出场、计划回收、置顶）必须留在最前 —— 所以重排只管非硬成员。
+
+export interface RerankResult {
+  /** 重排后的顺序；applied=false 时等于原候选顺序 */
+  ids: ID[];
+  /** 语义是否真的生效（false = 调用方直接用规则顺序） */
+  applied: boolean;
+}
+
+export interface RerankOptions {
+  /** 硬成员：保持规则顺序、永远排最前、不受相似度影响 */
+  hardIds?: ID[];
+  /** 非硬成员最多留几个（硬成员不占预算、不被裁掉） */
+  limit?: number;
+}
+
+/**
+ * 纯函数：候选集内部按余弦相似度重排。
+ *
+ * 顺序 = 硬成员（规则序） → 相似度为正的（相似度序，同分保持规则序）。
+ * 四种不生效的情况（返回 applied=false，调用方直接用规则顺序）：
+ * 1. 没有 query 向量；
+ * 2. 没有非硬候选可排；
+ * 3. 任一非硬候选缺向量 —— 惰性建索引还没补齐时**整体回退**，
+ *    而不是把缺向量的候选误当成"不相关"删掉（渐进补齐后下一次生成生效）；
+ * 4. 非硬候选一条相似度都没有 —— 与 recallMemories 的
+ *    "没有相似度为正就退回规则排序"一致，避免语义链路把内容清空。
+ *
+ * 生效时，相似度 <= 0 的非硬候选被剔除（"取舍"就是它们）；limit 只作用于非硬成员。
+ */
+export function rerankBySimilarity(
+  candidates: ID[],
+  vectors: Map<ID, number[]>,
+  queryVec: number[] | null,
+  opts: RerankOptions = {},
+): RerankResult {
+  if (!candidates.length) return { ids: [], applied: false };
+  if (!queryVec || !queryVec.length) return { ids: candidates, applied: false };
+
+  const candSet = new Set(candidates);
+  const hardSet = new Set((opts.hardIds ?? []).filter((id) => candSet.has(id)));
+  const hard = candidates.filter((id) => hardSet.has(id));
+  const rest = candidates.filter((id) => !hardSet.has(id));
+  if (!rest.length) return { ids: candidates, applied: false };
+
+  // 规则 3：向量未齐 → 整体回退
+  if (rest.some((id) => !vectors.has(id))) return { ids: candidates, applied: false };
+
+  const scored: { id: ID; score: number }[] = [];
+  for (const id of rest) {
+    const score = cosine(queryVec, vectors.get(id) as number[]);
+    if (score > 0) scored.push({ id, score });
+  }
+  if (!scored.length) return { ids: candidates, applied: false };
+
+  scored.sort((a, b) => b.score - a.score); // 稳定排序：同分保持规则序
+  const limit = opts.limit && opts.limit > 0 ? opts.limit : scored.length;
+  return { ids: [...hard, ...scored.slice(0, limit).map((s) => s.id)], applied: true };
+}
+
+// ================= 历史段落分片 =================
+
+/** 单段超过这个长度按句截断（缓存与嵌入都按截断后的文本走） */
+export const PASSAGE_MAX_CHARS = 600;
+/** 短于这个长度的段没有检索价值（与原 BM25 取段口径一致） */
+export const PASSAGE_MIN_CHARS = 20;
+
+export interface PassageChunk {
+  /** chapterId:序号；序号在保留段落中连续，正文变化后靠 text 判缓存失效 */
+  id: string;
+  text: string;
+}
+
+/**
+ * 纯函数：章节正文 → 段落级分片。
+ *
+ * 按换行切段、丢掉 <=20 字的短段，超长段按句截到 600 字（一句就超的硬切）。
+ * 粒度与原 BM25 检索一致，召回输出格式（章节 + 片段）不用变。
+ */
+export function splitPassages(chapterId: ID, text: string): PassageChunk[] {
+  const out: PassageChunk[] = [];
+  const paras = (text ?? '').split(/\n+/).map((p) => p.trim()).filter((p) => p.length > PASSAGE_MIN_CHARS);
+  for (const p of paras) {
+    out.push({ id: chapterId + ':' + out.length, text: truncateAtSentence(p, PASSAGE_MAX_CHARS) });
+  }
+  return out;
+}
+
+/** 按句截断到 max 字：优先在句尾收口，第一句就超长时硬切 */
+function truncateAtSentence(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const sentences = s.match(/[^。！？!?；;]+[。！？!?；;]?/g);
+  if (!sentences) return s.slice(0, max);
+  let acc = '';
+  for (const sent of sentences) {
+    if (acc.length && acc.length + sent.length > max) break;
+    acc += sent;
+    if (acc.length >= max) break;
+  }
+  return acc.slice(0, max);
+}
+
 export async function recallMemories(opts: RecallOptions): Promise<RecallOutcome> {
   const { facts } = opts;
   if (!facts.length) return { facts, semantic: false, pickedIds: [] };

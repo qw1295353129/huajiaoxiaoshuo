@@ -16,7 +16,8 @@
     "mock-llm": "node scripts/mock-llm.mjs 8765",
     "e2e:ai": "node scripts/ai-e2e.mjs",
     "shot": "node scripts/shot.mjs",
-    "proxy": "node scripts/proxy.mjs"
+    "proxy": "node scripts/proxy.mjs",
+    "verify:recall": "node scripts/verify-recall.mjs"
   },
   "dependencies": {
     "@heroui/react": "^3.2.6",

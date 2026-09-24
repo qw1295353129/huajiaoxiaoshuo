@@ -1,10 +1,11 @@
 import type {
-  Chapter, Character, ContextSource, ID, Project, PlotThread, WorldEntry,
+  Chapter, Character, ContextSource, ID, Project, PlotThread, SemanticRecallSettings, TimelineEvent, WorldEntry,
 } from '@/core';
 import { db } from '@/db/database';
 import { loadSettings } from '@/db/repo/settings';
-import { memoryForProject } from '@/db/repo/memory';
-import { recallMemories } from './recall';
+import { buildRecallQuery, memoryForProject } from '@/db/repo/memory';
+import { recallMemories, rerankBySimilarity, splitPassages } from './recall';
+import { embedOne, embeddingSettings, passageVectors, sectionVectors } from './embedding';
 import { estimateTokens, fillBudget, type BudgetPiece } from '@/utils/tokens';
 import { headContext, tailContext, truncate } from '@/utils/text';
 import { POV_LABEL } from './prompts';
@@ -56,6 +57,18 @@ const SECTION_LABEL: Record<ContextSection, string> = {
   memory: '写作记忆（长期积累的设定与约定）',
 };
 
+/**
+ * 语义重排用的条目向量文本。与 embedding 缓存判据（文本+模型）绑定：
+ * 改动拼接方式会让对应缓存整体失效并惰性重算（预期行为，无需迁移）。
+ * verify-recall 的浏览器验收也用它独立复算期望顺序，避免两边各写一份拼接逻辑。
+ */
+export const VEC_TEXT = {
+  character: (c: Character) => [c.name, c.tagline, c.personality, c.want, c.background].filter(Boolean).join('｜'),
+  world: (e: WorldEntry) => [e.title, e.aliases.join('、'), e.body].filter(Boolean).join('｜'),
+  thread: (t: PlotThread) => [t.title, t.description].filter(Boolean).join('｜'),
+  event: (e: TimelineEvent) => [e.title, e.description].filter(Boolean).join('｜'),
+};
+
 /** 默认板块：创作类任务要人物和世界观；分析类也要 */
 const DEFAULT_SECTIONS: ContextSection[] = [
   'profile', 'outline', 'characters', 'world', 'threads', 'rules', 'memory', 'history', 'style', 'negative',
@@ -85,6 +98,27 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
   ]);
 
   const pieces: BudgetPiece[] = [];
+
+  // ---------- 语义重排准备 ----------
+  // 开关关闭 / query 为空 / 向量服务不可用 → queryVec 为 null，下面所有板块
+  // 走原规则顺序（与不开语义时逐字节一致），且不发任何网络请求。
+  const sem = embeddingSettings();
+  const rerankable =
+    sections.some((s) => s === 'characters' || s === 'world' || s === 'threads' || s === 'timeline') ||
+    (sections.includes('retrieval') && !!opts.query);
+  let queryVec: number[] | null = null;
+  if (sem.enabled && rerankable) {
+    let q = (opts.query ?? '').trim();
+    if (!q) {
+      try {
+        q = (await buildRecallQuery(opts.projectId, opts.chapterId)).trim();
+      } catch {
+        q = '';
+      }
+    }
+    if (q) queryVec = await embedOne(q, sem);
+  }
+
   const push = (key: string, label: string, text: string, priority: number, required = false) => {
     if (!text.trim()) return;
     pieces.push({ key, label, text: text.trim(), priority, required });
@@ -104,21 +138,66 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
   // ---------- 3. 人物 ----------
   if (sections.includes('characters')) {
     const relevant = pickRelevantCharacters(characters, chapter, currentIndex, allChapters);
+    // 主角团 = 硬成员（本章出场 / POV），不进重排；配角在候选内部按语义重排
+    let supporting = relevant.supporting;
+    if (queryVec && supporting.length) {
+      const { vectors } = await sectionVectors(
+        opts.projectId,
+        supporting.map((c) => ({ id: c.id, text: VEC_TEXT.character(c) })),
+        sem,
+      );
+      const rr = rerankBySimilarity(supporting.map((c) => c.id), vectors, queryVec);
+      if (rr.applied) {
+        const byId = new Map(supporting.map((c) => [c.id, c]));
+        supporting = rr.ids.flatMap((id) => byId.get(id) ?? []);
+      }
+    }
     if (relevant.primary.length) {
       push('characters-main', `${SECTION_LABEL.characters}（核心）`, relevant.primary.map((c) => characterBlock(c, 'full')).join('\n\n'), 2, true);
     }
-    if (relevant.supporting.length) {
-      push('characters-sub', `${SECTION_LABEL.characters}（配角）`, relevant.supporting.map((c) => characterBlock(c, 'brief')).join('\n'), 6);
+    if (supporting.length) {
+      push('characters-sub', `${SECTION_LABEL.characters}（配角）`, supporting.map((c) => characterBlock(c, 'brief')).join('\n'), 6);
     }
   }
 
   // ---------- 4. 世界观 ----------
   if (sections.includes('world') && worldEntries.length) {
     const relevant = pickRelevantWorld(worldEntries, chapter, opts.query);
-    if (relevant.hot.length) {
-      push('world-hot', `${SECTION_LABEL.world}（相关条目）`, relevant.hot.map((e) => worldBlock(e, 'full')).join('\n\n'), 3, true);
+    let hot = relevant.hot;
+    let worldVecs: Map<string, number[]> | null = null;
+    if (queryVec) {
+      worldVecs = (await sectionVectors(
+        opts.projectId,
+        worldEntries.map((e) => ({ id: e.id, text: VEC_TEXT.world(e) })),
+        sem,
+      )).vectors;
+      // 硬成员 = 本章地点 / 章节梗概点名的条目；其余（query 命中、重要度≥4）参与重排
+      const isHard = (e: WorldEntry) =>
+        !!chapter && (chapter.locationIds.includes(e.id) || !!chapter.summary?.includes(e.title));
+      const hard = hot.filter(isHard);
+      const soft = hot.filter((e) => !isHard(e));
+      const rr = rerankBySimilarity(soft.map((e) => e.id), worldVecs, queryVec);
+      if (rr.applied) {
+        const byId = new Map(worldEntries.map((e) => [e.id, e]));
+        hot = [...hard, ...rr.ids.flatMap((id) => byId.get(id) ?? [])].slice(0, 10);
+      }
     }
-    const cold = worldEntries.filter((e) => !relevant.hot.includes(e)).slice(0, 24);
+    if (hot.length) {
+      push('world-hot', `${SECTION_LABEL.world}（相关条目）`, hot.map((e) => worldBlock(e, 'full')).join('\n\n'), 3, true);
+    }
+    // 冷索引池：开着语义时按相似度取前 24（被重排挤出 hot 的条目会落回这里），否则维持原顺序
+    let cold = worldEntries.filter((e) => !hot.includes(e));
+    if (queryVec && worldVecs) {
+      const rr = rerankBySimilarity(cold.map((e) => e.id), worldVecs, queryVec, { limit: 24 });
+      if (rr.applied) {
+        const byId = new Map(worldEntries.map((e) => [e.id, e]));
+        cold = rr.ids.flatMap((id) => byId.get(id) ?? []);
+      } else {
+        cold = cold.slice(0, 24);
+      }
+    } else {
+      cold = cold.slice(0, 24);
+    }
     if (cold.length) {
       push('world-index', `${SECTION_LABEL.world}（其他条目索引）`, cold.map((e) => `- [${e.category}] ${e.title}：${truncate(e.body.replace(/\n/g, ' '), 60)}`).join('\n'), 8);
     }
@@ -128,7 +207,20 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
   if (sections.includes('threads') && threads.length) {
     const active = threads.filter((t) => t.status !== 'resolved' && t.status !== 'abandoned');
     const due = active.filter((t) => t.plannedPayoffChapterId && chapter && t.plannedPayoffChapterId === chapter.id);
-    const others = active.filter((t) => !due.includes(t));
+    let others = active.filter((t) => !due.includes(t));
+    // 计划回收 = 硬成员；其余伏笔在候选内部按语义重排
+    if (queryVec && others.length) {
+      const { vectors } = await sectionVectors(
+        opts.projectId,
+        others.map((t) => ({ id: t.id, text: VEC_TEXT.thread(t) })),
+        sem,
+      );
+      const rr = rerankBySimilarity(others.map((t) => t.id), vectors, queryVec, { limit: 30 });
+      if (rr.applied) {
+        const byId = new Map(others.map((t) => [t.id, t]));
+        others = rr.ids.flatMap((id) => byId.get(id) ?? []);
+      }
+    }
     const lines: string[] = [];
     if (due.length) lines.push('【本章计划回收】\n' + due.map(threadLine).join('\n'));
     if (others.length) lines.push('【进行中伏笔】\n' + others.slice(0, 30).map(threadLine).join('\n'));
@@ -141,7 +233,24 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
     if (events.length) {
       const near = events.filter((e) => chapter && e.chapterIds.includes(chapter.id));
       const recent = events.slice(-18);
-      const merged = Array.from(new Map([...near, ...recent].map((e) => [e.id, e])).values());
+      let merged = Array.from(new Map([...near, ...recent].map((e) => [e.id, e])).values());
+      // 含本章的事件 = 硬成员；其余在合并集内部按语义重排
+      if (queryVec) {
+        const nearIds = new Set(near.map((e) => e.id));
+        const soft = merged.filter((e) => !nearIds.has(e.id));
+        if (soft.length) {
+          const { vectors } = await sectionVectors(
+            opts.projectId,
+            soft.map((e) => ({ id: e.id, text: VEC_TEXT.event(e) })),
+            sem,
+          );
+          const rr = rerankBySimilarity(soft.map((e) => e.id), vectors, queryVec);
+          if (rr.applied) {
+            const byId = new Map(merged.map((e) => [e.id, e]));
+            merged = [...merged.filter((e) => nearIds.has(e.id)), ...rr.ids.flatMap((id) => byId.get(id) ?? [])];
+          }
+        }
+      }
       push('timeline', SECTION_LABEL.timeline, merged.map((e) => `- ${e.inWorldTime ? `[${e.inWorldTime}] ` : ''}${e.title}${e.description ? `：${truncate(e.description, 60)}` : ''}`).join('\n'), 5);
     }
   }
@@ -202,8 +311,16 @@ export async function buildContext(opts: BuildContextOptions): Promise<BuiltCont
   }
 
   // ---------- 10. 检索召回 ----------
+  // 向量优先：分片全部有向量且有正相似度时按余弦取前 k；任一步不满足则回退 BM25，
+  // 保证「开了开关但服务不可用 / 索引还在暖机」时行为不劣于现状。
   if (sections.includes('retrieval') && opts.query) {
-    const recalled = await recallPassages(opts.projectId, opts.query, allChapters, currentIndex, opts.recall ?? 4);
+    let recalled: string | null = null;
+    if (queryVec) {
+      recalled = await recallPassagesByVector(opts.projectId, queryVec, allChapters, currentIndex, opts.recall ?? 4, sem);
+    }
+    if (recalled === null) {
+      recalled = await recallPassages(opts.projectId, opts.query, allChapters, currentIndex, opts.recall ?? 4);
+    }
     if (recalled) push('retrieval', SECTION_LABEL.retrieval, recalled, 10);
   }
 
@@ -451,7 +568,58 @@ async function buildStyleBlock(
   return parts.join('\n\n');
 }
 
-/** 轻量检索：BM25 风格打分，召回与查询最相关的历史段落 */
+/**
+ * 向量检索：段落分片按余弦取前 k。
+ *
+ * 返回 null 表示"向量链路没生效"（分片没齐 / 无正相似度 / 服务不可达），
+ * 调用方收到 null 就回退 BM25 —— 与 rerankBySimilarity 的整体回退约定一致，
+ * 暖机期宁可先用关键词召回，也不把没向量的段落当成"不相关"丢掉。
+ */
+async function recallPassagesByVector(
+  projectId: ID,
+  queryVec: number[],
+  chapters: Chapter[],
+  currentIndex: number,
+  k: number,
+  cfg: SemanticRecallSettings,
+): Promise<string | null> {
+  const past = chapters.slice(0, currentIndex);
+  if (!past.length) return null;
+
+  const chunks: { id: string; text: string; chapter: Chapter }[] = [];
+  for (const c of past) {
+    const content = await db.chapterContents.get(c.id);
+    if (!content?.text) continue;
+    for (const sp of splitPassages(c.id, content.text)) {
+      chunks.push({ id: sp.id, text: sp.text, chapter: c });
+    }
+  }
+  if (!chunks.length) return null;
+
+  const { vectors } = await passageVectors(
+    projectId,
+    chunks.map((x) => ({ id: x.id, text: x.text })),
+    cfg,
+  );
+  const rr = rerankBySimilarity(
+    chunks.map((x) => x.id),
+    vectors,
+    queryVec,
+    { limit: k },
+  );
+  if (!rr.applied) return null;
+
+  const byId = new Map(chunks.map((x) => [x.id, x]));
+  return rr.ids
+    .flatMap((id) => {
+      const hit = byId.get(id);
+      if (!hit) return [];
+      return [`- （第${hit.chapter.order + 1}章 ${hit.chapter.title}）${truncate(hit.text, 220)}`];
+    })
+    .join('\n');
+}
+
+/** 轻量检索：BM25 风格打分，召回与查询最相关的历史段落（向量链路失败时的兜底） */
 async function recallPassages(
   projectId: ID,
   query: string,
