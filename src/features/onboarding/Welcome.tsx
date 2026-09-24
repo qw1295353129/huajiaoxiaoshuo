@@ -3,11 +3,13 @@ import { Button, Card } from "@heroui/react";
 import { BookOpenCheck, HardDrive, Plus, ShieldCheck, Sparkles, Wand2 } from "lucide-react";
 import { ROUTES } from "@/app/routes";
 import { useProjects } from "@/app/hooks";
+import { useAppStore } from "@/app/store";
 
 /** 首次进入的落地页：强调本地私有 + 两个入口 */
 export function Welcome() {
   const navigate = useNavigate();
   const projects = useProjects();
+  const setNewProjectOpen = useAppStore((s) => s.setNewProjectOpen);
   const hasProjects = (projects?.length ?? 0) > 0;
 
   return (
@@ -34,7 +36,7 @@ export function Welcome() {
             <p className="mt-1.5 text-sm leading-relaxed opacity-65">
               给一句灵感，自动产出书名、高概念、人物、世界观、分卷结构与章节大纲，并写成你的项目。
             </p>
-            <Button className="mt-4" variant="primary" fullWidth onPress={() => navigate(ROUTES.newProject)}>
+            <Button className="mt-4" variant="primary" fullWidth onPress={() => setNewProjectOpen(true)}>
               <Plus className="size-4" />
               创建新作品
             </Button>
@@ -54,7 +56,10 @@ export function Welcome() {
               className="mt-4"
               variant="outline"
               fullWidth
-              onPress={() => navigate(hasProjects ? ROUTES.home : ROUTES.newProject)}
+              onPress={() => {
+                if (hasProjects) navigate(ROUTES.home);
+                else setNewProjectOpen(true);
+              }}
             >
               {hasProjects ? "查看我的作品" : "开始创建"}
             </Button>

@@ -24,12 +24,13 @@ export function Dashboard() {
   const projects = useProjects();
   const navigate = useNavigate();
   const setProject = useAppStore((s) => s.setProject);
+  const setNewProjectOpen = useAppStore((s) => s.setNewProjectOpen);
   const openSettings = useOpenSettings();
 
   if (projectId) return <ProjectOverviewRoute projectId={projectId} />;
 
   const list = projects ?? [];
-  // 外层路由是 h-dvh + overflow-hidden，页面必须自己滚动，否则内容被直接裁掉
+  // 外层 LibraryShell 提供侧栏 + overflow-hidden；本层自己滚动
   return (
     <div className="h-full overflow-y-auto overscroll-contain bg-neutral-50 dark:bg-neutral-950">
       <div className="mx-auto max-w-5xl px-6 py-12">
@@ -52,7 +53,7 @@ export function Dashboard() {
               </Tooltip.Trigger>
               <Tooltip.Content>设置（⌘,）</Tooltip.Content>
             </Tooltip>
-            <Button variant="primary" onPress={() => navigate(ROUTES.newProject)}>
+            <Button variant="primary" onPress={() => setNewProjectOpen(true)}>
               <Plus className="size-4" />
               新建作品
             </Button>
@@ -66,7 +67,7 @@ export function Dashboard() {
             <p className="mx-auto mt-2 max-w-sm text-sm opacity-60">
               创建第一部作品，写一句灵感，让 AI 帮你把人物、世界观和分卷结构搭起来。
             </p>
-            <Button className="mx-auto mt-5" variant="primary" onPress={() => navigate(ROUTES.newProject)}>
+            <Button className="mx-auto mt-5" variant="primary" onPress={() => setNewProjectOpen(true)}>
               <Plus className="size-4" />
               创建第一部作品
             </Button>

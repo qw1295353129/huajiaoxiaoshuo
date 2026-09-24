@@ -12,6 +12,8 @@ export interface CreateProjectInput {
   lengthClass?: Project['lengthClass'];
   targetWords?: number;
   logline?: string;
+  /** 故事简介 / 梗概 */
+  synopsis?: string;
   styleGuide?: string;
   author?: string;
   /** 主题关键词，进一句话成书的 toneKeywords */
@@ -34,6 +36,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     title: input.title.trim() || '未命名作品',
     author: input.author,
     logline: input.logline,
+    synopsis: input.synopsis?.trim() || undefined,
     genres: input.genres ?? [],
     tags: [],
     themes: input.themes ?? [],

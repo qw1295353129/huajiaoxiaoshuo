@@ -17,6 +17,8 @@ interface AppStore {
   aiPanelOpen: boolean;
   flowMode: boolean;
   commandOpen: boolean;
+  /** 新建作品弹窗（全局，侧栏/首页/欢迎页共用） */
+  newProjectOpen: boolean;
   /** 全局 toast 通道，供非 React 代码推送消息 */
   notice?: { id: string; kind: "info" | "success" | "warning" | "danger"; text: string; detail?: string };
 
@@ -28,6 +30,7 @@ interface AppStore {
   setAiPanel: (open: boolean) => void;
   setFlow: (on: boolean) => void;
   setCommandOpen: (open: boolean) => void;
+  setNewProjectOpen: (open: boolean) => void;
   notify: (kind: "info" | "success" | "warning" | "danger", text: string, detail?: string) => void;
   clearNotice: () => void;
 }
@@ -39,6 +42,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   aiPanelOpen: false,
   flowMode: false,
   commandOpen: false,
+  newProjectOpen: false,
 
   async bootstrap() {
     try {
@@ -88,6 +92,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   setCommandOpen(open) {
     set({ commandOpen: open });
+  },
+  setNewProjectOpen(open) {
+    set({ newProjectOpen: open });
   },
 
   notify(kind, text, detail) {

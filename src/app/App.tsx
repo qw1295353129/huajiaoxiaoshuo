@@ -9,7 +9,9 @@ import { Notice } from "@/components/common/Notice";
 import { GlobalHotkeys } from "@/components/layout/GlobalHotkeys";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { Welcome } from "@/features/onboarding/Welcome";
-import { NewProject } from "@/features/onboarding/NewProject";
+import { NewProjectDialog } from "@/features/onboarding/NewProjectDialog";
+import { NewProjectRedirect } from "@/features/onboarding/NewProjectRedirect";
+import { LibraryShell } from "@/features/onboarding/LibraryShell";
 import { Dashboard } from "@/features/dashboard/Dashboard";
 import { EditorPage } from "@/features/editor/EditorPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
@@ -108,10 +110,14 @@ export default function App() {
     <>
       <GlobalHotkeys />
       <CommandPalette />
+      {/* 新建作品：全局弹窗，侧栏/首页/欢迎页共用 */}
+      <NewProjectDialog />
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<LibraryShell />}>
+          <Route index element={<Dashboard />} />
+        </Route>
         <Route path="/welcome" element={<Welcome />} />
-        <Route path="/new" element={<NewProject />} />
+        <Route path="/new" element={<NewProjectRedirect />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route
           path="/p/:projectId/*"

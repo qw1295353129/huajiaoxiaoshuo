@@ -1,5 +1,5 @@
 import { NavLink, useParams } from "react-router-dom";
-import { ChevronLeft, Library, Plus, Settings as SettingsIcon } from "lucide-react";
+import { Library, Plus, Settings as SettingsIcon } from "lucide-react";
 import { Button, Tooltip } from "@heroui/react";
 import { useAppStore } from "@/app/store";
 import { NAV_GROUPS, ROUTE_PAGES } from "@/app/nav";
@@ -12,18 +12,18 @@ import { useOpenSettings } from "@/app/useOpenSettings";
  * ## 为什么抽出来
  *
  * 原先它写死在 PageScaffold 里，于是**只有用了脚手架的页面才有导航** ——
- * 总览和写作页没有，进去之后就没法切换到别的页面了，只能靠浏览器的后退。
- *
- * 总览页现在直接用 PageScaffold（它本来就该有统一的标题栏）；
- * 而写作页需要全宽三栏，套不进脚手架，所以单独用这个组件放在三栏的最左边。
+ * 总览和写作页没有，进去之后就没法切到别的页面了，只能靠浏览器后退。
  *
  * 抽出来之后，两处共用同一份导航，不会出现"某个页面漏了某一项"。
+ * 书库页（LibraryShell）也复用它：列表在右侧内容区，侧栏不消失。
  */
 export function ProjectNav({ className }: { className?: string }) {
   const project = useAppStore((s) => s.project);
+  const setNewProjectOpen = useAppStore((s) => s.setNewProjectOpen);
   const { projectId = "" } = useParams<{ projectId: string }>();
   const id = project?.id ?? projectId;
   const openSettings = useOpenSettings();
+  const onLibrary = !projectId;
 
   return (
     <nav
@@ -34,21 +34,23 @@ export function ProjectNav({ className }: { className?: string }) {
     >
       <NavLink
         to={ROUTES.home}
-        className="mb-4 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold transition hover:bg-black/5 dark:hover:bg-white/5"
+        className="mb-4 flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-black/5 dark:hover:bg-white/5"
+        aria-label="花椒写作 · 回到我的作品"
       >
-        <ChevronLeft className="size-4 opacity-60" />
-        <span className="truncate">{project?.title ?? "我的作品"}</span>
+        <img src="/icon.svg" alt="" className="size-6 shrink-0 rounded-md" width={24} height={24} />
+        <span className="truncate text-sm font-semibold tracking-tight">花椒写作</span>
       </NavLink>
 
       <div className="flex-1 space-y-5 overflow-y-auto">
-        {/* 作品级入口：放在「创作」分组之上，随时可回我的作品或开新书 */}
+        {/* 作品级入口：放在「创作」分组之上 */}
         <ul className="space-y-1">
           <li>
             <NavLink
               to={ROUTES.home}
+              end
               className={({ isActive }) =>
                 "group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition " +
-                (isActive
+                (isActive || onLibrary
                   ? "bg-white font-medium shadow-sm ring-1 ring-black/[0.06] dark:bg-white/10 dark:ring-white/10"
                   : "opacity-70 hover:bg-black/[0.04] hover:opacity-100 dark:hover:bg-white/[0.06]")
               }
@@ -60,51 +62,46 @@ export function ProjectNav({ className }: { className?: string }) {
             </NavLink>
           </li>
           <li>
-            <NavLink
-              to={ROUTES.newProject}
-              className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm opacity-70 transition hover:bg-black/[0.04] hover:opacity-100 dark:hover:bg-white/[0.06]"
+            <button
+              type="button"
+              onClick={() => setNewProjectOpen(true)}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm opacity-70 transition hover:bg-black/[0.04] hover:opacity-100 dark:hover:bg-white/[0.06]"
             >
               <span className="flex w-5 shrink-0 justify-center">
                 <Plus className="size-4" />
               </span>
               <span className="truncate">新建作品</span>
-            </NavLink>
+            </button>
           </li>
         </ul>
 
-        {NAV_GROUPS.map((g) => (
-          <div key={g.key}>
-            <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider opacity-40">{g.label}</p>
-            <ul className="space-y-1">
-              {ROUTE_PAGES.filter((p) => p.group === g.key).map((p) => (
-                <li key={p.key}>
-                  {/*
-                    圆角胶囊式导航项（参考图那种观感）：
-                    - 独立的圆角块 + 更大的纵向内边距，项与项之间有呼吸感；
-                    - **图标在左**，固定宽度，所以所有标签左端对齐成一条线；
-                    - 激活态是"浮起的一块"（白底 + 细边 + 阴影），而不是只换个底色 ——
-                      参考图里选中的那一个是明显凸出来的。
-                  */}
-                  <NavLink
-                    to={p.to(id)}
-                    className={({ isActive }) =>
-                      "group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition " +
-                      (isActive
-                        ? "bg-white font-medium shadow-sm ring-1 ring-black/[0.06] dark:bg-white/10 dark:ring-white/10"
-                        : "opacity-70 hover:bg-black/[0.04] hover:opacity-100 dark:hover:bg-white/[0.06]")
-                    }
-                  >
-                    {/* 固定 20px 宽：图标下面的标签才会整齐对齐 */}
-                    <span className="flex w-5 shrink-0 justify-center">
-                      <p.icon className="size-4" />
-                    </span>
-                    <span className="truncate">{p.label}</span>
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {/* 有项目上下文时才渲染项目分组（书库首页若无 id 会链到 /p//…） */}
+        {id &&
+          NAV_GROUPS.map((g) => (
+            <div key={g.key}>
+              <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider opacity-40">{g.label}</p>
+              <ul className="space-y-1">
+                {ROUTE_PAGES.filter((p) => p.group === g.key).map((p) => (
+                  <li key={p.key}>
+                    <NavLink
+                      to={p.to(id)}
+                      className={({ isActive }) =>
+                        "group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition " +
+                        (isActive
+                          ? "bg-white font-medium shadow-sm ring-1 ring-black/[0.06] dark:bg-white/10 dark:ring-white/10"
+                          : "opacity-70 hover:bg-black/[0.04] hover:opacity-100 dark:hover:bg-white/[0.06]")
+                      }
+                    >
+                      <span className="flex w-5 shrink-0 justify-center">
+                        <p.icon className="size-4" />
+                      </span>
+                      <span className="truncate">{p.label}</span>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
       </div>
 
       <Tooltip>
