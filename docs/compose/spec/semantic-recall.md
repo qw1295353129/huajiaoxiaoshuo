@@ -24,7 +24,7 @@ commits:
 - **固定板块不动**：作品档案、本章任务、写作规则、作者负反馈是固定全文注入；前文脉络摘要与文风样本没有候选集，均不重排。
 - 硬信号不被顶掉：必选块（profile、chapter-task）与规则选出的硬成员（本章出场人物、本章地点、计划回收伏笔、置顶记忆）保持原有优先级，语义重排只影响非硬成员的顺序与取舍。
 - **开关**：复用现有 `SemanticRecallSettings.enabled`（与记忆召回同一个开关），不新增设置项。
-- **降级**：开关关闭、query 为空、向量服务不可达、熔断中、相似度全为非正 —— 任何一种情况都按现有规则顺序原样输出，不抛错、不弹窗，与 `recallMemories` 的降级约定一致。
+- **降级**：开关关闭、query 为空、向量服务不可达、熔断中、任一非硬候选缺向量（惰性索引暖机期，**整体回退**而不是把没向量的当"不相关"删掉）、相似度全为非正 —— 任何一种情况都按现有规则顺序原样输出，不抛错、不弹窗，与 `recallMemories` 的降级约定一致。全部候选都有向量且至少一条相似度为正时才生效；生效时相似度 ≤ 0 的非硬候选被剔除，并列分保持规则序（稳定排序）。
 
 ### 适用板块与候选集（规则候选来源即现状）
 
@@ -81,6 +81,6 @@ commits:
 
 - [ ] T1: 新增 `rerankBySimilarity` 纯函数与段落分片纯函数（切段、截断、分片 id） — acceptance: `npm run verify` 新增脚本能离线断言重排顺序（硬成员置前、score<=0 剔除、limit 裁剪）与分片边界（>20 字、600 字截断）(covers: S2 实现结构/测试边界)
 - [ ] T2: `embedding.ts` 新增 `passageVectors` 惰性缓存函数 — acceptance: 首次调用对缺失分片算向量并写入 `embeddings` 表（kind=passage），二次调用全命中缓存零网络请求；服务不可用时返回空表不抛错 (covers: S2 向量缓存/惰性建索引/错误行为; depends: T1)
-- [ ] T3: 候选型板块接入语义重排（人物/世界/伏笔/时间线/记忆路径确认） — acceptance: 开关开启且向量可用时 supporting/world-hot/threads-others/timeline 内部按相似度排序；开关关闭时 `buildContext` 输出与改动前逐字节一致 (covers: S2 适用板块/总策略; depends: T1)
+- [ ] T3: 候选型板块接入语义重排（人物/世界/伏笔/时间线/记忆路径确认） — acceptance: 开关开启且向量可用时 supporting/world-hot/threads-others/timeline 按「硬成员置前 + 余弦稳定排序」输出（期望序由测试独立复算）；四板块共发 11 次向量请求、再跑零请求且输出一致；开关关闭时零网络、两次输出逐字节一致、各板块成员齐全 (covers: S2 适用板块/总策略; depends: T1)
 - [ ] T4: retrieval 板块改为向量优先、BM25 兜底 — acceptance: 向量可用时按余弦取前 k 段、输出格式不变；向量任一步失败时回退现有 BM25 结果 (covers: S2 历史段落检索/降级; depends: T1, T2)
 - [ ] T5: 验证脚本 + 类型检查 + 构建 + mock-llm 冒烟 — acceptance: `scripts/verify-recall.mjs` 全部通过；`tsc -b --force` 与 `vite build` 零错误；mock-llm 下关闭开关生成一次无控制台错误 (covers: S2 测试边界; depends: T2, T3, T4)

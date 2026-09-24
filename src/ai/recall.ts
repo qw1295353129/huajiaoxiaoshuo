@@ -88,14 +88,15 @@ export interface RerankOptions {
  * 纯函数：候选集内部按余弦相似度重排。
  *
  * 顺序 = 硬成员（规则序） → 相似度为正的（相似度序，同分保持规则序）。
- * 三种不生效的情况（返回 applied=false，调用方退回规则顺序）：
+ * 四种不生效的情况（返回 applied=false，调用方直接用规则顺序）：
  * 1. 没有 query 向量；
  * 2. 没有非硬候选可排；
- * 3. 非硬候选里一条相似度都没有 —— 与 recallMemories 的
- *    "没有相似度为正就退回规则排序"保持一致，避免语义链路把内容清空。
+ * 3. 任一非硬候选缺向量 —— 惰性建索引还没补齐时**整体回退**，
+ *    而不是把缺向量的候选误当成"不相关"删掉（渐进补齐后下一次生成生效）；
+ * 4. 非硬候选一条相似度都没有 —— 与 recallMemories 的
+ *    "没有相似度为正就退回规则排序"一致，避免语义链路把内容清空。
  *
- * 相似度 <= 0 或缺向量的非硬候选在生效时被剔除（"取舍"就是它们）；
- * limit 只作用于非硬成员。
+ * 生效时，相似度 <= 0 的非硬候选被剔除（"取舍"就是它们）；limit 只作用于非硬成员。
  */
 export function rerankBySimilarity(
   candidates: ID[],
@@ -112,11 +113,12 @@ export function rerankBySimilarity(
   const rest = candidates.filter((id) => !hardSet.has(id));
   if (!rest.length) return { ids: candidates, applied: false };
 
+  // 规则 3：向量未齐 → 整体回退
+  if (rest.some((id) => !vectors.has(id))) return { ids: candidates, applied: false };
+
   const scored: { id: ID; score: number }[] = [];
   for (const id of rest) {
-    const vec = vectors.get(id);
-    if (!vec) continue;
-    const score = cosine(queryVec, vec);
+    const score = cosine(queryVec, vectors.get(id) as number[]);
     if (score > 0) scored.push({ id, score });
   }
   if (!scored.length) return { ids: candidates, applied: false };
